@@ -14,3 +14,10 @@ safe_store
 ascii_colors>=0.1.3
 
 autopep8
+
+fastapi
+uvicorn
+python-multipart
+python-socketio
+python-socketio[client]
+python-socketio[asyncio_client]
