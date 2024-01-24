@@ -36,11 +36,12 @@ class NotificationDisplayType(Enum):
 
 
 class LoLLMsCom:
-    def __init__(self, sio:socketio.AsyncServer=None) -> None:
+    def __init__(self, sio:socketio.AsyncServer=None, verbose:bool=False) -> None:
         self.sio= sio
+        self.verbose = verbose
 
         
-    def InfoMessage(self, content, client_id=None, verbose:bool=True):
+    def InfoMessage(self, content, client_id=None, verbose:bool=None):
         self.notify(
                 content, 
                 notification_type=NotificationType.NOTIF_SUCCESS, 
@@ -49,7 +50,7 @@ class LoLLMsCom:
                 display_type=NotificationDisplayType.MESSAGE_BOX,
                 verbose=verbose
             )
-    def ShowBlockingMessage(self, content, client_id=None, verbose:bool=True):
+    def ShowBlockingMessage(self, content, client_id=None, verbose:bool=None):
         self.notify(
                 content, 
                 notification_type=NotificationType.NOTIF_SUCCESS, 
@@ -59,7 +60,7 @@ class LoLLMsCom:
                 verbose=verbose
             )        
         
-    def HideBlockingMessage(self, client_id=None, verbose:bool=True):
+    def HideBlockingMessage(self, client_id=None, verbose:bool=None):
         self.notify(
                 "", 
                 notification_type=NotificationType.NOTIF_SUCCESS, 
@@ -71,7 +72,7 @@ class LoLLMsCom:
 
 
 
-    def YesNoMessage(self, content, duration:int=4, client_id=None, verbose:bool=True):
+    def YesNoMessage(self, content, duration:int=4, client_id=None, verbose:bool=None):
         infos={
             "wait":True,
             "result":False
@@ -95,7 +96,7 @@ class LoLLMsCom:
             self.sio.sleep(1)
         return infos["result"]
 
-    def info(self, content, duration:int=4, client_id=None, verbose:bool=True):
+    def info(self, content, duration:int=4, client_id=None, verbose:bool=None):
         self.notify(
                 content, 
                 notification_type=NotificationType.NOTIF_SUCCESS, 
@@ -105,7 +106,7 @@ class LoLLMsCom:
                 verbose=verbose
             )
 
-    def warning(self, content, duration:int=4, client_id=None, verbose:bool=True):
+    def warning(self, content, duration:int=4, client_id=None, verbose:bool=None):
         self.notify(
                 content, 
                 notification_type=NotificationType.NOTIF_WARNING, 
@@ -115,7 +116,7 @@ class LoLLMsCom:
                 verbose=verbose
             )
 
-    def success(self, content, duration:int=4, client_id=None, verbose:bool=True):
+    def success(self, content, duration:int=4, client_id=None, verbose:bool=None):
         self.notify(
                 content, 
                 notification_type=NotificationType.NOTIF_SUCCESS, 
@@ -125,7 +126,7 @@ class LoLLMsCom:
                 verbose=verbose
             )
         
-    def error(self, content, duration:int=4, client_id=None, verbose:bool=True):
+    def error(self, content, duration:int=4, client_id=None, verbose:bool=None):
         self.notify(
                 content, 
                 notification_type=NotificationType.NOTIF_ERROR, 
@@ -143,8 +144,11 @@ class LoLLMsCom:
                 duration:int=4, 
                 client_id=None, 
                 display_type:NotificationDisplayType=NotificationDisplayType.TOAST,
-                verbose=True
+                verbose:bool|None=None
             ):
+        if verbose is None:
+            verbose = self.verbose
+
         if verbose:
             if notification_type==NotificationType.NOTIF_SUCCESS:
                 ASCIIColors.success(content)

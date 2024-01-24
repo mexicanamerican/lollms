@@ -37,6 +37,26 @@ from lollms.com import LoLLMsCom
 from lollms.helpers import trace_exception
 from lollms.utilities import PackageManager
 
+
+import requests
+from bs4 import BeautifulSoup
+
+def get_element_id(url, text):
+    response = requests.get(url)
+    soup = BeautifulSoup(response.content, 'html.parser')
+    element = soup.find('span', text=text)
+    if element:
+        return element['id']
+    else:
+        return None
+
+def craft_a_tag_to_specific_text(url, text):
+    element_id = get_element_id(url, text)
+    if element_id:
+        return f'<a href="{url}#{element_id}">Click me to go to {text}</a>'
+    else:
+        return None
+
 def is_package_installed(package_name):
     try:
         dist = pkg_resources.get_distribution(package_name)
@@ -1916,7 +1936,20 @@ class APScript(StateMachine):
                         print(f"Error retrieving webpage content for {result['href']}: {str(e)}")
         
             return answer_list    
-        
+    def translate(self, text_chunk, output_language="french", max_generation_size=3000):
+        translated = self.remove_backticks(
+                            f"```markdown\n"+ self.fast_gen(
+                                "\n".join([
+                                    f"!@>system:",
+                                    f"Translate the following text to {output_language}.",
+                                    "Be faithful to the original text and do not add or remove any information.",
+                                    f"!@>text to translate:",
+                                    f"{text_chunk}",
+                                    f"!@>Translation:",
+                                    f"```markdown\n"
+                                    ]),
+                                    max_generation_size=max_generation_size))
+        return translated
     def summerize(self, chunks, summary_instruction="summerize", chunk_name="chunk", answer_start="", max_generation_size=3000):
         summeries = []
         for i, chunk in enumerate(chunks):
