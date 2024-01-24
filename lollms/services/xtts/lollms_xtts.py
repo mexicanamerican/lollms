@@ -40,12 +40,16 @@ def verify_xtts(lollms_paths:LollmsPaths):
     xtts_folder = shared_folder / "xtts"
     return xtts_folder.exists()
     
-def install_xtts(lollms_paths:LollmsPaths):
-    root_dir = lollms_paths.personal_path
+def install_xtts(lollms_app:LollmsApplication):
+    root_dir = lollms_app.lollms_paths.personal_path
     shared_folder = root_dir/"shared"
     xtts_folder = shared_folder / "xtts"
-    if not PackageManager.check_package_installed("xtts-api-server"):
-        PackageManager.install_package("xtts-api-server")
+    if xtts_folder.exists() and PackageManager.check_package_installed("xtts-api-server"):
+        if not lollms_app.YesNoMessage("It looks like xtts is already installed on your system.\nDo you want to reinstall it?"):
+            lollms_app.error("Service installation canceled")
+            return
+        
+    PackageManager.install_package("xtts-api-server")
 
     xtts_folder.mkdir(exist_ok=True,parents=True)
     ASCIIColors.green("XTTS server installed successfully")

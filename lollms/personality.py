@@ -2381,21 +2381,71 @@ The AI should respond in this format using data from actions_list:
         gen = fix_json(gen)
         return generate_actions(actions_list, gen)
 
+    def extract_code_blocks(self, text: str) -> List[dict]:
+        remaining = text
+        first_index=0
+        indices = []
+        while len(remaining)>0:
+            try:
+                index = remaining.index("```")
+                indices.append(index+first_index)
+                remaining = remaining.index("```")[index+3:]
+                first_index += index+3
+            except:
+                index=len(remaining)
+                indices.append(index)
+                remaining = ""
+                
+        code_blocks = []
+        is_start = True
+        for index, code_delimiter_position in enumerate(indices):
+            block_infos = {
+                'index':index,
+                'content': "",
+                'type':""
+            }
+            if is_start:
+                sub_text = text[code_delimiter_position+3:]
+                try:
+                    find_space = sub_text.index(" ")
+                except:
+                    find_space = 1e10
+                try:
+                    find_return = sub_text.index("\n")
+                except:
+                    find_return = 1e10
+                next_index = min(find_return, find_space)
+                start_pos = next_index
+                if text[code_delimiter_position+3] in ["\n"," ","\t"]:
+                    # No
+                    block_infos["type"]='language-specific'
+                else:
+                    block_infos["type"]=sub_text[:next_index]
+                    
+                next_pos = indices[index+1]-code_delimiter_position+3                
+                block_infos["content"]=sub_text[start_pos:next_pos].strip()
+                code_blocks.append(block_infos)
+                is_start = False
+            else:
+                is_start = True
+                continue
 
-    def yes_no(self, question: str, context:str="", max_answer_length: int = 50) -> bool:
+        return code_blocks
+
+    def yes_no(self, question: str, context:str="", max_answer_length: int = 50, conditionning="") -> bool:
         """
         Analyzes the user prompt and answers whether it is asking to generate an image.
 
         Args:
             question (str): The user's message.
             max_answer_length (int, optional): The maximum length of the generated answer. Defaults to 50.
-
+            conditionning: An optional system message to put at the beginning of the prompt
         Returns:
             bool: True if the user prompt is asking to generate an image, False otherwise.
         """
-        return self.multichoice_question(question, ["no","yes"], context, max_answer_length)>0
+        return self.multichoice_question(question, ["no","yes"], context, max_answer_length, conditionning=conditionning)>0
 
-    def multichoice_question(self, question: str, possible_answers:list, context:str = "", max_answer_length: int = 50) -> int:
+    def multichoice_question(self, question: str, possible_answers:list, context:str = "", max_answer_length: int = 50, conditionning="") -> int:
         """
         Interprets a multi-choice question from a users response. This function expects only one choice as true. All other choices are considered false. If none are correct, returns -1.
         
@@ -2403,35 +2453,31 @@ The AI should respond in this format using data from actions_list:
             question (str): The multi-choice question posed by the user.
             possible_ansers (List[Any]): A list containing all valid options for the chosen value. For each item in the list, either 'True', 'False', None or another callable should be passed which will serve as the truth test function when checking against the actual user input.
             max_answer_length (int, optional): Maximum string length allowed while interpreting the users' responses. Defaults to 50.
+            conditionning: An optional system message to put at the beginning of the prompt
             
         Returns:
             int: Index of the selected option within the possible_ansers list. Or -1 if there was not match found among any of them.
         """
         choices = "\n".join([f"{i}. {possible_answer}" for i, possible_answer in enumerate(possible_answers)])
+        elements = [conditionning] if conditionning!="" else []
+        elements += [
+                "!@>instructions:",
+                "Answer this multi choices question.",
+                "Answer with an id from the possible answers.",
+                "Do not answer with an id outside this possible answers.",
+                f"!@>question: {question}",
+                "!@>possible answers:",
+                f"{choices}",
+        ]
         if context!="":
-            prompt = self.build_prompt([
-                "!@>instructions:",
-                "Answer this multi choices question.",
-                "Answer with an id from the possible answers.",
-                "Do not answer with an id outside this possible answers.",
-                f"!@>question: {question}",
-                "!@>possible answers:",
-                f"{choices}",
-                "!@>Context:",
-                f"{context}",
-                "!@>answer:"
-            ])
-        else:
-            prompt = self.build_prompt([
-                "!@>instructions:",
-                "Answer this multi choices question.",
-                "Answer with an id from the possible answers.",
-                "Do not answer with an id outside this possible answers.",
-                f"!@>question: {question}",
-                "!@>possible answers:",
-                f"{choices}",
-                "!@>answer:"
-            ])
+            elements+=[
+                       "!@>Context:",
+                        f"{context}",
+                    ]
+
+        elements += ["!@>answer:"]
+        prompt = self.build_prompt(elements)
+            
         gen = self.generate(prompt, max_answer_length, temperature=0.1, top_k=50, top_p=0.9, repeat_penalty=1.0, repeat_last_n=50).strip().replace("</s>","").replace("<s>","")
         selection = gen.strip().split()[0].replace(",","").replace(".","")
         self.print_prompt("Multi choice selection",prompt+gen)
@@ -2441,7 +2487,7 @@ The AI should respond in this format using data from actions_list:
             ASCIIColors.cyan("Model failed to answer the question")
             return -1
 
-    def multichoice_ranking(self, question: str, possible_answers:list, context:str = "", max_answer_length: int = 50) -> int:
+    def multichoice_ranking(self, question: str, possible_answers:list, context:str = "", max_answer_length: int = 50, conditionning="") -> int:
         """
         Ranks answers for a question from best to worst. returns a list of integers
         
@@ -2449,33 +2495,33 @@ The AI should respond in this format using data from actions_list:
             question (str): The multi-choice question posed by the user.
             possible_ansers (List[Any]): A list containing all valid options for the chosen value. For each item in the list, either 'True', 'False', None or another callable should be passed which will serve as the truth test function when checking against the actual user input.
             max_answer_length (int, optional): Maximum string length allowed while interpreting the users' responses. Defaults to 50.
+            conditionning: An optional system message to put at the beginning of the prompt
             
         Returns:
             int: Index of the selected option within the possible_ansers list. Or -1 if there was not match found among any of them.
         """
+        choices = "\n".join([f"{i}. {possible_answer}" for i, possible_answer in enumerate(possible_answers)])
+        elements = [conditionning] if conditionning!="" else []
+        elements += [
+                "!@>instructions:",
+                "Answer this multi choices question.",
+                "Answer with an id from the possible answers.",
+                "Do not answer with an id outside this possible answers.",
+                f"!@>question: {question}",
+                "!@>possible answers:",
+                f"{choices}",
+        ]
         if context!="":
-            prompt = self.build_prompt([
-                "!@>instruction:",
-                "Act as prompt ranker, a tool capable of ranking the user prompt. The ranks are returned as a python list. Do not add comments.",
-                "!@>Context:",
-                f"{context}",
-                "!@>question: {{question}}",
-                "!@>choices:",
-                "{{choices}}",
-                "!@>prompt analyzer: After analyzing the user prompt, here is my ranking of the choices from best to worst : ranks=["
-            ])
-        else:
-            prompt = self.build_prompt([
-                "!@>instruction:",
-                "Act as prompt ranker, a tool capable of ranking the user prompt. The ranks are returned as a python list. Do not add comments.",
-                "!@>question: {{question}}",
-                "!@>choices:",
-                "{{choices}}",
-                "!@>prompt analyzer: After analyzing the user prompt, here is my ranking of the choices from best to worst : ranks=["
-            ])
+            elements+=[
+                       "!@>Context:",
+                        f"{context}",
+                    ]
 
-        gen = "["+self.generate(prompt, max_answer_length).strip().replace("</s>","").replace("<s>","")
-        self.print_prompt("Multi choice selection",prompt+gen)
+        elements += ["!@>answer:"]
+        prompt = self.build_prompt(elements)
+            
+        gen = self.generate(prompt, max_answer_length, temperature=0.1, top_k=50, top_p=0.9, repeat_penalty=1.0, repeat_last_n=50).strip().replace("</s>","").replace("<s>","")
+        self.print_prompt("Multi choice ranking",prompt+gen)
         if gen.index("]")>=0:
             try:
                 ranks = eval(gen.split("]")[0]+"]")
@@ -2486,6 +2532,7 @@ The AI should respond in this format using data from actions_list:
         else:
             ASCIIColors.red("Model failed to rank inputs")
             return None
+
 
 
     def info(self, info_text:str, callback: Callable[[str, MSG_TYPE, dict, list], bool]=None):

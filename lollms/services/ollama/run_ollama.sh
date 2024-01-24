@@ -6,7 +6,7 @@ cd ~/ollama
 OLLAMA_HOST="0.0.0.0:11434"
 
 # Start the OLLAMA server
-OLLAMA_MODELS=~/ollama/models ~/ollama/ollama serve &
+OLLAMA_MODELS=./models ./ollama serve &
 
 # Wait for all background processes to finish
 wait

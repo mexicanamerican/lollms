@@ -62,8 +62,10 @@ curl --fail --show-error --location --progress-bar -o $OLLAMA_DIR/ollama "https:
 
 status "Installing ollama to OLLAMA_DIR..."
 
+
 install_success() { 
     status 'The Ollama API is now available at 0.0.0.0:11434.'
     status 'Install complete. Run "ollama" from the command line.'
 }
+chmod +x $OLLAMA_DIR/ollama
 trap install_success EXIT
