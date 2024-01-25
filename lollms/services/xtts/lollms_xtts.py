@@ -31,7 +31,7 @@ from ascii_colors import ASCIIColors, trace_exception
 from lollms.paths import LollmsPaths
 from lollms.utilities import git_pull
 import subprocess
-
+import platform
 
 def verify_xtts(lollms_paths:LollmsPaths):
     # Clone repository
@@ -48,8 +48,14 @@ def install_xtts(lollms_app:LollmsApplication):
         if not lollms_app.YesNoMessage("It looks like xtts is already installed on your system.\nDo you want to reinstall it?"):
             lollms_app.error("Service installation canceled")
             return
-        
-    PackageManager.install_package("xtts-api-server")
+    
+
+    if platform.system() == 'Windows':
+        os.system(f'{Path(__file__).parent}/xtts_installer.bat')
+    elif platform.system() == 'Linux' or platform.system() == 'Darwin':
+        os.system(f'{Path(__file__).parent}/xtts_installer.sh')
+    else:
+        print("Unsupported operating system.")
 
     xtts_folder.mkdir(exist_ok=True,parents=True)
     ASCIIColors.green("XTTS server installed successfully")
@@ -107,16 +113,26 @@ class LollmsXTTS:
         ASCIIColors.red("\____/\___/\____/\____/\/    \/\__/    /_/\_\\__|\__|___/ ")
                                                          
         ASCIIColors.red(" Forked from daswer123's XTTS server")
-        ASCIIColors.red(" Integration in lollms by ParisNeo using daswer123's webapi ")
+        ASCIIColors.red(" Integration in lollms by ParisNeo using daswer123's webapi")
+        self.output_folder = app.lollms_paths.personal_outputs_path/"audio_out"
+        self.output_folder.mkdir(parents=True, exist_ok=True)
 
         if not self.wait_for_service(1,False) and xtts_base_url is None:
             ASCIIColors.info("Loading lollms_xtts")
             os.environ['xtts_WEBUI_RESTARTING'] = '1' # To forbid sd webui from showing on the browser automatically
             # Launch the Flask service using the appropriate script for the platform
-            ASCIIColors.info("Running on windows")
-            self.output_folder = app.lollms_paths.personal_outputs_path/"audio_out"
-            self.output_folder.mkdir(parents=True, exist_ok=True)
-            subprocess.Popen(["python", "-m", "xtts_api_server", "-o", f"{self.output_folder}", "-sf", f"{self.voice_samples_path}"])
+            
+            if platform.system() == 'Windows':
+                ASCIIColors.info("Running on windows")
+                subprocess.Popen(f'{Path(__file__).parent}/xtts_run.bat {self.output_folder} {self.voice_samples_path}', cwd=Path(__file__).parent)
+                os.system()
+            elif platform.system() == 'Linux' or platform.system() == 'Darwin':
+                ASCIIColors.info("Running on Linux/macos")
+                subprocess.Popen(f'{Path(__file__).parent}/xtts_run.sh {self.output_folder} {self.voice_samples_path}', cwd=Path(__file__).parent)
+            else:
+                print("Unsupported operating system.")
+
+            # subprocess.Popen(["python", "-m", "xtts_api_server", "-o", f"{self.output_folder}", "-sf", f"{self.voice_samples_path}"])
 
         # Wait until the service is available at http://127.0.0.1:7860/
         self.wait_for_service(max_retries=max_retries)

@@ -50,12 +50,15 @@ def get_element_id(url, text):
     else:
         return None
 
-def craft_a_tag_to_specific_text(url, text):
-    element_id = get_element_id(url, text)
-    if element_id:
-        return f'<a href="{url}#{element_id}">Click me to go to {text}</a>'
-    else:
-        return None
+def craft_a_tag_to_specific_text(url, text, caption):
+    # Encode the text to be used in the URL
+    encoded_text = text.replace(' ', '%20')
+
+    # Construct the URL with the anchor tag
+    anchor_url = f"{url}#{encoded_text}"
+
+    # Return the anchor tag
+    return f'<a href="{anchor_url}" target="blanc">{caption}</a>'
 
 def is_package_installed(package_name):
     try:

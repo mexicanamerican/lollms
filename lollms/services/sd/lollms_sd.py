@@ -39,10 +39,15 @@ def verify_sd(lollms_paths:LollmsPaths):
     sd_folder = shared_folder / "auto_sd"
     return sd_folder.exists()
     
-def install_sd(lollms_paths:LollmsPaths):
-    root_dir = lollms_paths.personal_path
+def install_sd(lollms_app:LollmsApplication):
+    root_dir = lollms_app.lollms_paths.personal_path
     shared_folder = root_dir/"shared"
     sd_folder = shared_folder / "auto_sd"
+    if sd_folder.exists():
+        if not lollms_app.YesNoMessage("I have detected that there is a previous installation of stable diffusion.\nShould I remove it and continue installing?"):
+            return
+        else:
+            sd_folder.unlink(True)
     subprocess.run(["git", "clone", "https://github.com/ParisNeo/stable-diffusion-webui.git", str(sd_folder)])
     subprocess.run(["git", "clone", "https://github.com/ParisNeo/SD-CN-Animation.git", str(sd_folder/"extensions/SD-CN-Animation")])
     
