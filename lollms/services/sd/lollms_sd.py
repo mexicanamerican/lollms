@@ -204,7 +204,8 @@ class LollmsSD:
                     username=None,
                     password=None,
                     auto_sd_base_url=None,
-                    share=False
+                    share=False,
+                    wait_for_service=True
                     ):
         if auto_sd_base_url=="" or auto_sd_base_url=="http://127.0.0.1:7860":
             auto_sd_base_url = None
@@ -264,7 +265,10 @@ class LollmsSD:
                 ASCIIColors.success("Launching Auto1111's SD succeeded")
 
         # Wait until the service is available at http://127.0.0.1:7860/
-        self.wait_for_service(max_retries=max_retries)
+        if wait_for_service:
+            self.wait_for_service(max_retries=max_retries)
+        else:
+            ASCIIColors.warning("We are not waiting for the SD service to be up.\nThis means that you may need to wait a bit before you can use it.")
 
         self.default_sampler = sampler
         self.default_steps = steps

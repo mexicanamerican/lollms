@@ -64,7 +64,8 @@ class Service:
                     self, 
                     app:LollmsApplication,
                     base_url="http://127.0.0.1:11434",
-                    wait_max_retries = 5
+                    wait_max_retries = 5,
+                    wait_for_service=True
                 ):
         self.base_url = base_url
         # Get the current directory
@@ -91,7 +92,10 @@ class Service:
             subprocess.Popen(['bash', f'{Path.home()}/run_ollama.sh'])
 
         # Wait until the service is available at http://127.0.0.1:7860/
-        self.wait_for_service(max_retries=wait_max_retries)
+        if wait_for_service:
+            self.wait_for_service(max_retries=wait_max_retries)
+        else:
+            ASCIIColors.warning("We are not waiting for the OLLAMA service to be up.\nThis means that you may need to wait a bit before you can use it.")
 
     def wait_for_service(self, max_retries = 150, show_warning=True):
         url = f"{self.base_url}"

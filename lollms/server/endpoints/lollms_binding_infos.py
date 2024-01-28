@@ -88,8 +88,8 @@ async def reload_binding(request: Request):
 
     try:
         data = (await request.json())
-        print(f"Roloading binding selected : {data['binding_name']}")
-        lollmsElfServer.config["binding_name"]=data['binding_name']
+        print(f"Roloading binding selected : {data['name']}")
+        lollmsElfServer.config["binding_name"]=data['name']
         if lollmsElfServer.binding:
             lollmsElfServer.binding.destroy_model()
         lollmsElfServer.binding = None
@@ -102,6 +102,7 @@ async def reload_binding(request: Request):
         lollmsElfServer.model = None
         lollmsElfServer.config.save_config()
         ASCIIColors.green("Binding loaded successfully")
+        return {"status":True}
     except Exception as ex:
         ASCIIColors.error(f"Couldn't build binding: [{ex}]")
         trace_exception(ex)

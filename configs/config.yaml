@@ -1,5 +1,5 @@
-# =================== Lord Of Large Language Models Configuration file =========================== 
-version: 46
+# =================== Lord Of Large Language Multimodal Systems Configuration file =========================== 
+version: 50
 binding_name: null
 model_name: null
 
@@ -41,6 +41,7 @@ db_path: database.db
 
 # Automatic updates
 debug: False
+debug_log_file_path: ""
 auto_update: true
 auto_sync_personalities: true
 auto_sync_extensions: true
@@ -79,6 +80,16 @@ petals_base_url: http://0.0.0.0:8010
 enable_lollms_service: false
 lollms_base_url: http://0.0.0.0:1234
 
+# elastic search service
+elastic_search_service: false
+elastic_search_url: http://0.0.0.0:9606
+
+# vll service
+vllm_service: false
+vllm_url: http://0.0.0.0:8000
+vllm_model_path: mistralai/Mistral-7B-v0.1
+
+
 # Audio
 media_on: false
 audio_in_language: 'en-US'
@@ -114,3 +125,8 @@ positive_boost: null
 negative_boost: null
 force_output_language_to_be: null
 fun_mode: False
+
+
+# webui configurations
+show_code_of_conduct: true
+activate_audio_infos: true

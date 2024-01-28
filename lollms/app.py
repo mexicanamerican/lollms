@@ -62,7 +62,7 @@ class LollmsApplication(LoLLMsCom):
             if self.config.enable_ollama_service:
                 try:
                     from lollms.services.ollama.lollms_ollama import Service
-                    self.tts = Service(self, base_url=self.config.ollama_base_url)
+                    self.ollama = Service(self, base_url=self.config.ollama_base_url)
                 except Exception as ex:
                     trace_exception(ex)
                     self.warning(f"Couldn't load Ollama")
@@ -78,7 +78,7 @@ class LollmsApplication(LoLLMsCom):
             if self.config.enable_sd_service and load_sd_service:
                 try:
                     from lollms.services.sd.lollms_sd import LollmsSD
-                    self.tts = LollmsSD(self, auto_sd_base_url=self.config.sd_base_url)
+                    self.sd = LollmsSD(self, auto_sd_base_url=self.config.sd_base_url)
                 except:
                     self.warning(f"Couldn't load SD")
 
