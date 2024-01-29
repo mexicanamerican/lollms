@@ -233,3 +233,4 @@ async def serve_uploads(path: str):
         raise HTTPException(status_code=404, detail="File not found")
 
     return FileResponse(str(file_path))
+

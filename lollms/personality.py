@@ -6,6 +6,7 @@
 # Description   : 
 # This is an interface class for lollms personalities.
 ######
+from fastapi import Request
 from datetime import datetime
 from pathlib import Path
 from lollms.config import InstallOption, TypedConfig, BaseConfig
@@ -1687,9 +1688,13 @@ class APScript(StateMachine):
             parameters: A list of the command parameters
 
         """
-        self.process_state(command, "", self.callback)
+        try:
+            self.process_state(command, "", self.callback)
+        except Exception as ex:
+            trace_exception(ex)
+            self.warning(f"Couldn't execute command {command}")
 
-    def handle_request(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    async def handle_request(self, request: Request) -> Dict[str, Any]:
         """
         Handle client requests.
 
@@ -1705,7 +1710,7 @@ class APScript(StateMachine):
         ```
         handler = YourHandlerClass()
         request_data = {"command": "some_command", "parameters": {...}}
-        response = handler.handle_request(request_data)
+        response = await handler.handle_request(request_data)
         ```
         """        
         return {"status":True}

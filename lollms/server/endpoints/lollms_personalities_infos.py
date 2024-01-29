@@ -504,9 +504,8 @@ async def post_to_personality(request: Request):
     """Post data to a personality"""
 
     try:
-        config_data = (await request.json())
         if hasattr(lollmsElfServer.personality.processor,'handle_request'):
-            return lollmsElfServer.personality.processor.handle_request(config_data)
+            return await lollmsElfServer.personality.processor.handle_request(request)
         else:
             return {}
     except Exception as ex:

@@ -6,6 +6,7 @@
 # Description   : 
 # This is an interface class for lollms bindings.
 ######
+from fastapi import Request
 from typing import Dict, Any
 from pathlib import Path
 from typing import Callable
@@ -388,7 +389,7 @@ class LLMBinding:
         """
         pass
 
-    def handle_request(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    async def handle_request(self, request: Request) -> Dict[str, Any]:
         """
         Handle client requests.
 
