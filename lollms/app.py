@@ -71,7 +71,7 @@ class LollmsApplication(LoLLMsCom):
             if self.config.enable_voice_service and load_voice_service:
                 try:
                     from lollms.services.xtts.lollms_xtts import LollmsXTTS
-                    self.tts = LollmsXTTS(self, voice_samples_path=lollms_paths.custom_voices_path, xtts_base_url=self.config.xtts_base_url)
+                    self.tts = LollmsXTTS(self, voice_samples_path=lollms_paths.custom_voices_path, xtts_base_url=self.config.xtts_base_url, wait_for_service=False)
                 except:
                     self.warning(f"Couldn't load XTTS")
 

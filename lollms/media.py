@@ -90,7 +90,6 @@ class AudioRecorder:
         self.is_recording = False
         self.start_time = time.time()
         self.last_time = time.time()
-        self.whisper_model = None
 
     def audio_callback(self, indata, frames, time_, status):
         volume_norm = np.linalg.norm(indata)*10
@@ -105,9 +104,6 @@ class AudioRecorder:
                 self.update_spectrogram()
 
     def start_recording(self):
-        if self.whisper_model is None:
-            self.lollmsCom.info("Loading whisper model")
-            self.whisper_model=whisper.load_model("base.en")
         try:
             self.is_recording = True
             self.buffer = np.array([], dtype=np.float32)
@@ -116,6 +112,7 @@ class AudioRecorder:
         except Exception as ex:
             self.lollmsCom.InfoMessage("Couldn't start recording.\nMake sure your input device is connected and operational")
             trace_exception(ex)
+            
     def stop_recording(self):
         self.is_recording = False
         self.audio_stream.stop()
@@ -123,10 +120,6 @@ class AudioRecorder:
         write(self.filename, self.sample_rate, self.buffer)
         self.lollmsCom.info(f"Saved to {self.filename}")
         self.lollmsCom.info(f"Transcribing ... ")
-        result = self.whisper_model.transcribe(str(self.filename))
-        with open(self.filename.replace("wav","txt"), "w") as f:
-            f.write(result["text"])
-        self.lollmsCom.info(f"Saved to {self.filename}")
 
     def update_spectrogram(self):
         f, t, Sxx = spectrogram(self.buffer[-30*self.sample_rate:], self.sample_rate)

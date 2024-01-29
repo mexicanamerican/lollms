@@ -51,9 +51,13 @@ def install_xtts(lollms_app:LollmsApplication):
     
 
     if platform.system() == 'Windows':
-        os.system(f'{Path(__file__).parent}/xtts_installer.bat')
+        xtts_installer = f'{Path(__file__).parent}/xtts_installer.bat'
+        cwd = Path(os.path.realpath(sys.argv[0])).parent.parent
+        subprocess.Popen(xtts_installer, cwd=cwd, shell=True)
     elif platform.system() == 'Linux' or platform.system() == 'Darwin':
-        os.system(f'{Path(__file__).parent}/xtts_installer.sh')
+        xtts_installer = f'{Path(__file__).parent}/xtts_installer.sh'
+        cwd = Path(os.path.realpath(sys.argv[0])).parent.parent
+        subprocess.Popen(xtts_installer, cwd=cwd, shell=True)
     else:
         print("Unsupported operating system.")
 
@@ -84,7 +88,8 @@ class LollmsXTTS:
                     xtts_base_url=None,
                     share=False,
                     max_retries=10,
-                    voice_samples_path=""
+                    voice_samples_path="",
+                    wait_for_service=True
                     ):
         if xtts_base_url=="" or xtts_base_url=="http://127.0.0.1:8020":
             xtts_base_url = None
@@ -123,9 +128,11 @@ class LollmsXTTS:
             # Launch the Flask service using the appropriate script for the platform
             
             if platform.system() == 'Windows':
+                xtts_runner = f'{Path(__file__).parent}/xtts_run.bat {self.output_folder} {self.voice_samples_path}'
+                cwd = Path(os.path.realpath(sys.argv[0])).parent.parent
                 ASCIIColors.info("Running on windows")
-                subprocess.Popen(f'{Path(__file__).parent}/xtts_run.bat {self.output_folder} {self.voice_samples_path}', cwd=Path(__file__).parent)
-                os.system()
+                ASCIIColors.info(f"Starting : {xtts_runner} from {cwd}")
+                subprocess.Popen(xtts_runner, cwd=cwd, shell=True)
             elif platform.system() == 'Linux' or platform.system() == 'Darwin':
                 ASCIIColors.info("Running on Linux/macos")
                 subprocess.Popen(f'{Path(__file__).parent}/xtts_run.sh {self.output_folder} {self.voice_samples_path}', cwd=Path(__file__).parent)
@@ -135,7 +142,8 @@ class LollmsXTTS:
             # subprocess.Popen(["python", "-m", "xtts_api_server", "-o", f"{self.output_folder}", "-sf", f"{self.voice_samples_path}"])
 
         # Wait until the service is available at http://127.0.0.1:7860/
-        self.wait_for_service(max_retries=max_retries)
+        if wait_for_service:
+            self.wait_for_service(max_retries=max_retries)
 
 
     def wait_for_service(self, max_retries = 150, show_warning=True):
