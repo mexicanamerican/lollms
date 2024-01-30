@@ -38,8 +38,9 @@ def verify_vllm(lollms_paths:LollmsPaths):
 
     root_dir = lollms_paths.personal_path
     shared_folder = root_dir/"shared"
-    sd_folder = shared_folder / "auto_sd"
-    return sd_folder.exists()
+    vllm_folder = shared_folder / "vllm"
+
+    return vllm_folder.exists()
     
 
 def install_vllm(lollms_app:LollmsApplication):
@@ -58,7 +59,23 @@ def install_vllm(lollms_app:LollmsApplication):
         subprocess.run(['cp {} {}'.format( root_path + '/install_vllm.sh', home)])
         subprocess.run(['cp {} {}'.format( root_path + '/run_vllm.sh', home)])
         subprocess.run(['bash', f'{home}/install_vllm.sh'])
+    root_dir = lollms_app.lollms_paths.personal_path
+    shared_folder = root_dir/"shared"
+    vllm_folder = shared_folder / "vllm"
+    vllm_folder.mkdir(exist_ok=True, parents=True)
     return True
+
+
+def get_vllm(lollms_app:LollmsApplication):
+    if verify_vllm(lollms_app.lollms_paths):
+        ASCIIColors.success("lollms_vllm found.")
+        ASCIIColors.success("Loading source file...",end="")
+        # use importlib to load the module from the file path
+        ASCIIColors.success("ok")
+        return Service
+    else:
+        return None
+
 class Service:
     def __init__(
                     self, 

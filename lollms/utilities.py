@@ -31,6 +31,41 @@ import asyncio
 import ctypes
 import io
 import urllib
+import os
+import sys
+
+def is_linux():
+    return sys.platform.startswith("linux")
+
+
+def is_windows():
+    return sys.platform.startswith("win")
+
+
+def is_macos():
+    return sys.platform.startswith("darwin")
+
+def run_cmd(cmd, assert_success=False, environment=False, capture_output=False, env=None):
+    script_dir = os.getcwd()
+    conda_env_path = os.path.join(script_dir, "installer_files", "env")
+    # Use the conda environment
+    if environment:
+        if is_windows():
+            conda_bat_path = os.path.join(script_dir, "installer_files", "conda", "condabin", "conda.bat")
+            cmd = "\"" + conda_bat_path + "\" activate \"" + conda_env_path + "\" >nul && " + cmd
+        else:
+            conda_sh_path = os.path.join(script_dir, "installer_files", "conda", "etc", "profile.d", "conda.sh")
+            cmd = ". \"" + conda_sh_path + "\" && conda activate \"" + conda_env_path + "\" && " + cmd
+
+    # Run shell commands
+    result = subprocess.run(cmd, shell=True, capture_output=capture_output, env=env)
+
+    # Assert the command ran successfully
+    if assert_success and result.returncode != 0:
+        print("Command '" + cmd + "' failed with exit status code '" + str(result.returncode) + "'.\n\nExiting now.\nTry running the start/update script again.")
+        sys.exit(1)
+
+    return result
 
 def file_path_to_url(file_path):
     """

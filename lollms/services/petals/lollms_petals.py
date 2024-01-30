@@ -60,6 +60,18 @@ def install_petals(lollms_app:LollmsApplication):
         subprocess.run(['cp {} {}'.format( root_path + '/run_petals.sh', home)])
         subprocess.run(['bash', f'{home}/install_petals.sh'])
     return True
+
+
+def get_petals(lollms_app:LollmsApplication):
+    if verify_petals(lollms_app.lollms_paths):
+        ASCIIColors.success("lollms_vllm found.")
+        ASCIIColors.success("Loading source file...",end="")
+        # use importlib to load the module from the file path
+        ASCIIColors.success("ok")
+        return Service
+    else:
+        return None
+    
 class Service:
     def __init__(
                     self, 
