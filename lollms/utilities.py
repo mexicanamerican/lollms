@@ -597,7 +597,7 @@ class File64BitsManager:
             import io
             import base64
         except:
-            PackageManager.install_package("pillow")
+            PackageManager.install_package("Pillow")
             from PIL import Image
             import io
             import base64
@@ -628,7 +628,7 @@ class File64BitsManager:
             import io
             import base64
         except:
-            PackageManager.install_package("pillow")
+            PackageManager.install_package("Pillow")
             from PIL import Image
             import io
             import base64        

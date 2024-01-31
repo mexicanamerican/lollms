@@ -62,12 +62,13 @@ def add_events(sio:socketio):
                 file.write(chunk)
 
         if is_last_chunk:
-            print('File received and saved successfully')
+            ASCIIColors.success('File received and saved successfully')
             if lollmsElfServer.personality.processor:
                 result = lollmsElfServer.personality.processor.add_file(file_path, partial(lollmsElfServer.process_chunk, client_id=client_id))
             else:
                 result = lollmsElfServer.personality.add_file(file_path, partial(lollmsElfServer.process_chunk, client_id=client_id))
 
+            ASCIIColors.success('File processed successfully')
             run_async(partial(sio.emit,'file_received', {'status': True, 'filename': filename}))
         else:
             # Request the next chunk from the client

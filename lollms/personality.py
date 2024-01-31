@@ -229,12 +229,12 @@ Date: {{date}}
         ASCIIColors.white(content)
 
     def ShowBlockingMessage(self, content, client_id=None, verbose:bool=True):
-        if self.lollmsCom:
+        if self.app:
             return self.app.ShowBlockingMessage(content=content, client_id=client_id, verbose=verbose)
         ASCIIColors.white(content)
         
     def HideBlockingMessage(self, client_id=None, verbose:bool=True):
-        if self.lollmsCom:
+        if self.app:
             return self.app.HideBlockingMessage(client_id=client_id, verbose=verbose)
 
 
@@ -774,7 +774,7 @@ Date: {{date}}
                         self.full(output)
 
                     if self.model.binding_type not in [BindingType.TEXT_IMAGE, BindingType.TEXT_IMAGE_VIDEO]:
-                        self.step_start("Understanding image (please wait)")
+                        self.ShowBlockingMessage("Understanding image (please wait)")
                         from PIL import Image
                         img = Image.open(str(path))
                         # Convert the image to RGB mode
@@ -782,41 +782,44 @@ Date: {{date}}
                         output += "## image description :\n"+ self.model.interrogate_blip([img])[0]
                         # output += "## image description :\n"+ self.model.qna_blip([img],"Describe this photo with details.\n")[0]
                         self.full(output)
-                        self.step_end("Understanding image (please wait)")
+                        self.HideBlockingMessage("Understanding image (please wait)")
                         if self.config.debug:
                             ASCIIColors.yellow(output)
                     else:
-                        self.step_start("Importing image (please wait)")
-                        self.step_end("Importing image (please wait)")
+                        self.ShowBlockingMessage("Importing image (please wait)")
+                        self.HideBlockingMessage("Importing image (please wait)")
 
                 except Exception as ex:
                     trace_exception(ex)
-                    self.step_end("Understanding image (please wait)", False)
+                    self.HideBlockingMessage("Understanding image (please wait)", False)
                     ASCIIColors.error("Couldn't create new message")
             self.image_files.append(path)
             ASCIIColors.info("Received image file")
             if callback is not None:
                 callback("Image file added successfully", MSG_TYPE.MSG_TYPE_INFO)
         else:
-            self.text_files.append(path)
-            ASCIIColors.info("Received text compatible file")
-            if self.vectorizer is None:
-                self.vectorizer = TextVectorizer(
-                            self.config.data_vectorization_method, # supported "model_embedding" or "tfidf_vectorizer"
-                            model=self.model, #needed in case of using model_embedding
-                            database_path=db_path,
-                            save_db=self.config.data_vectorization_save_db,
-                            data_visualization_method=VisualizationMethod.PCA,
-                            database_dict=None)
             try:
-                data = GenericDataLoader.read_file(path)
-                self.vectorizer.add_document(path, data, self.config.data_vectorization_chunk_size, self.config.data_vectorization_overlap_size)
-                self.vectorizer.index()
-                if callback is not None:
-                    callback("File added successfully",MSG_TYPE.MSG_TYPE_INFO)
-                return True
-            except ValueError as ve:
-                ASCIIColors.error(f"Unsupported file format or empty file.\nSupported formats are {GenericDataLoader.get_supported_file_types()}")
+                # self.ShowBlockingMessage("Adding file to vector store.\nPlease stand by")
+                self.text_files.append(path)
+                ASCIIColors.info("Received text compatible file")
+                if self.vectorizer is None:
+                    self.vectorizer = TextVectorizer(
+                                self.config.data_vectorization_method, # supported "model_embedding" or "tfidf_vectorizer"
+                                model=self.model, #needed in case of using model_embedding
+                                database_path=db_path,
+                                save_db=self.config.data_vectorization_save_db,
+                                data_visualization_method=VisualizationMethod.PCA,
+                                database_dict=None)
+                    data = GenericDataLoader.read_file(path)
+                    self.vectorizer.add_document(path, data, self.config.data_vectorization_chunk_size, self.config.data_vectorization_overlap_size)
+                    self.vectorizer.index()
+                    if callback is not None:
+                        callback("File added successfully",MSG_TYPE.MSG_TYPE_INFO)
+                    self.HideBlockingMessage("Adding file to vector store.\nPlease stand by")
+                    return True
+            except Exception as e:
+                self.HideBlockingMessage("Adding file to vector store.\nPlease stand by")
+                self.InfoMessage(f"Unsupported file format or empty file.\nSupported formats are {GenericDataLoader.get_supported_file_types()}")
                 return False
     def save_personality(self, package_path=None):
         """
