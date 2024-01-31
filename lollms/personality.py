@@ -774,7 +774,7 @@ Date: {{date}}
                         self.full(output)
 
                     if self.model.binding_type not in [BindingType.TEXT_IMAGE, BindingType.TEXT_IMAGE_VIDEO]:
-                        self.ShowBlockingMessage("Understanding image (please wait)")
+                        # self.ShowBlockingMessage("Understanding image (please wait)")
                         from PIL import Image
                         img = Image.open(str(path))
                         # Convert the image to RGB mode
@@ -786,7 +786,7 @@ Date: {{date}}
                         if self.config.debug:
                             ASCIIColors.yellow(output)
                     else:
-                        self.ShowBlockingMessage("Importing image (please wait)")
+                        # self.ShowBlockingMessage("Importing image (please wait)")
                         self.HideBlockingMessage("Importing image (please wait)")
 
                 except Exception as ex:
