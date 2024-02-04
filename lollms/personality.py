@@ -131,6 +131,9 @@ class AIPersonality:
 
         self.installation_option = installation_option
 
+        # Whisper to transcribe audio
+        self.whisper = None
+
         # First setup a default personality
         # Version
         self._version = pkg_resources.get_distribution('lollms').version
@@ -762,7 +765,31 @@ Date: {{date}}
         db_path = self.lollms_paths.personal_databases_path / "personalities" / self.name / "db.json"
         db_path.parent.mkdir(parents=True, exist_ok=True)
         path = Path(path)
-        if path.suffix in [".png",".jpg",".gif",".bmp",".webp"]:
+        if path.suffix in [".wav",".mp3"]:
+            self.new_message("")
+            self.info(f"Transcribing ... ")
+            self.step_start("Transcribing ... ")
+            if self.whisper is None:
+                if not PackageManager.check_package_installed("whisper"):
+                    PackageManager.install_package("openai-whisper")
+                    try:
+                        import conda.cli
+                        conda.cli.main("install", "conda-forge::ffmpeg", "-y")
+                    except:
+                        ASCIIColors.bright_red("Couldn't install ffmpeg. whisper won't work. Please install it manually")
+
+                import whisper
+                self.whisper = whisper.load_model("base")
+
+
+            result = self.whisper.transcribe(str(path))
+            transcription_fn = str(path)+".txt"
+            with open(transcription_fn, "w", encoding="utf-8") as f:
+                f.write(result["text"])
+            self.info(f"File saved to {transcription_fn}")
+            self.full(result["text"])
+            self.step_end("Transcribing ... ")
+        elif path.suffix in [".png",".jpg",".gif",".bmp",".webp"]:
             if self.callback:
                 try:
                     pth = str(path).replace("\\","/").split('/')
@@ -1664,7 +1691,8 @@ class APScript(StateMachine):
             self.personality_config.config.save_config()
         else:
             self.load_personality_config()
-
+    def sink(self, s,i,d):
+        pass
     def settings_updated(self):
         """
         To be implemented by the processor when the settings have changed
