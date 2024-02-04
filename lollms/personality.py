@@ -1691,7 +1691,7 @@ class APScript(StateMachine):
             self.personality_config.config.save_config()
         else:
             self.load_personality_config()
-    def sink(self, s,i,d):
+    def sink(self, s=None,i=None,d=None):
         pass
     def settings_updated(self):
         """

@@ -93,7 +93,7 @@ class LollmsApplication(LoLLMsCom):
                         subprocess.run(["git", "-C", self.lollms_paths.safe_store_path, "pull"])            
                     # Pull the repository if it already exists
                     
-                    ASCIIColors.info("Bindings zoo found in your personal space.\nPulling last personalities zoo")
+                    ASCIIColors.info("Bindings zoo found in your personal space.\nPulling last bindings zoo")
                     subprocess.run(["git", "-C", self.lollms_paths.bindings_zoo_path, "pull"])            
                     # Pull the repository if it already exists
                     ASCIIColors.info("Personalities zoo found in your personal space.\nPulling last personalities zoo")

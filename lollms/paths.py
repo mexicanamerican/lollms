@@ -50,7 +50,7 @@ class LollmsPaths:
         else:
             lollms_path             = Path(lollms_path)
         if personal_path is None:
-            personal_path           = Path.home() / "Documents/lollms"
+            personal_path           = Path("../personal_data")
         else:
             personal_path           = Path(personal_path)
         
@@ -219,12 +219,12 @@ class LollmsPaths:
             print(f"Please provide a folder to store your configurations files, your models and your personal data (database, custom personalities etc).")
             cfg = BaseConfig(config={
                 "lollms_path":str(Path(__file__).parent),
-                "lollms_personal_path":str(Path.home()/"Documents/lollms")
+                "lollms_personal_path":str(Path("../personal_data"))
             })
 
             cfg.lollms_personal_path = input(f"Folder path: ({cfg.lollms_personal_path}):")
             if cfg.lollms_personal_path=="":
-                cfg.lollms_personal_path = str(Path.home()/"Documents/lollms")
+                cfg.lollms_personal_path = str(Path("../personal_data"))
 
             print(f"Selected: {cfg.lollms_personal_path}")
             pp= Path(cfg.lollms_personal_path)
@@ -271,7 +271,7 @@ class LollmsPaths:
                 trace_exception(ex)
                 print("Couldn't find your personal data path!")
                 cfg.lollms_path = lollms_path
-                cfg["lollms_personal_path"] = str(Path.home()/"Documents/lollms")
+                cfg["lollms_personal_path"] = str(Path("../personal_data"))
                 print("Please specify the folder where your configuration files, your models and your custom personalities need to be stored:")
                 lollms_personal_path = input(f"Folder path: ({cfg.lollms_personal_path}):")
                 if lollms_personal_path!="":
@@ -329,11 +329,11 @@ class LollmsPaths:
                         print(f"Please provide a folder to store your configurations files, your models and your personal data (database, custom personalities etc).")
                         cfg = BaseConfig(config={
                             "lollms_path":str(Path(__file__).parent),
-                            "lollms_personal_path":str(Path.home()/"Documents/lollms")
+                            "lollms_personal_path":str(Path("../personal_data"))
                         })
                         cfg.lollms_personal_path = input(f"Folder path: ({cfg.lollms_personal_path}):")
                         if cfg.lollms_personal_path=="":
-                            cfg.lollms_personal_path = str(Path.home()/"Documents/lollms")
+                            cfg.lollms_personal_path = str(Path("../personal_data"))
 
                         print(f"Selected: {cfg.lollms_personal_path}")
                         pp= Path(cfg.lollms_personal_path)

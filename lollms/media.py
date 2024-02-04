@@ -81,7 +81,7 @@ import numpy as np
 from scipy.signal import spectrogram
 
 class AudioRecorder:
-    def __init__(self, sio:socketio.Client, filename, channels=1, sample_rate=16000, chunk_size=24678, silence_threshold=150.0, silence_duration=2, callback=None, lollmsCom:LoLLMsCom=None):
+    def __init__(self, sio:socketio.Client, filename, channels=1, sample_rate=16000, chunk_size=24678, silence_threshold=150.0, silence_duration=2, callback=None, lollmsCom:LoLLMsCom=None, build_spectrogram=False, model = "base", transcribe=False):
         self.sio = sio
         self.sio = sio
         self.filename = filename
@@ -96,7 +96,11 @@ class AudioRecorder:
         self.is_recording = False
         self.start_time = time.time()
         self.last_time = time.time()
-        self.whisper = whisper.load_model("base")
+        self.build_spectrogram = build_spectrogram
+        self.transcribe = transcribe
+        if transcribe:
+            self.whisper = whisper.load_model(model)
+
 
     def audio_callback(self, indata, frames, time_, status):
         volume_norm = np.linalg.norm(indata)*10
@@ -107,8 +111,9 @@ class AudioRecorder:
         #         self.start_time = time.time()
         if self.is_recording:
             self.buffer = np.append(self.buffer, indata.copy())
-            if (time.time() - self.last_time) > self.silence_duration:
-                self.update_spectrogram()
+            if self.build_spectrogram:
+                if (time.time() - self.last_time) > self.silence_duration:
+                    self.update_spectrogram()
 
     def start_recording(self):
         try:
@@ -126,14 +131,19 @@ class AudioRecorder:
         self.audio_stream.close()
         write(self.filename, self.sample_rate, self.buffer)
         self.lollmsCom.info(f"Saved to {self.filename}")
-        self.lollmsCom.info(f"Transcribing ... ")
-        result = self.whisper.transcribe(str(self.filename))
-        transcription_fn = str(self.filename)+".txt"
-        with open(transcription_fn, "w", encoding="utf-8") as f:
-            f.write(result["text"])
-        self.lollmsCom.info(f"File saved to {transcription_fn}")
-        run_async(partial(self.sio.emit,'transcript', result["text"]))
-        return result["text"]
+
+        if self.transcribe:
+            self.lollmsCom.info(f"Transcribing ... ")
+            result = self.whisper.transcribe(str(self.filename))
+            transcription_fn = str(self.filename)+".txt"
+            with open(transcription_fn, "w", encoding="utf-8") as f:
+                f.write(result["text"])
+            self.lollmsCom.info(f"File saved to {transcription_fn}")
+            run_async(partial(self.sio.emit,'transcript', result["text"]))
+            return {"text":result["text"], "audio":transcription_fn}
+        else:
+            return {"text":"", "audio":transcription_fn}
+
 
     def update_spectrogram(self):
         f, t, Sxx = spectrogram(self.buffer[-30*self.sample_rate:], self.sample_rate)
