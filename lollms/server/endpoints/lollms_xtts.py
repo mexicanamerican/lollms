@@ -55,8 +55,14 @@ async def set_voice(request: Request):
         lollmsElfServer.error(ex)
         return {"status":False,"error":str(ex)}
 
+
+class LollmsText2AudioRequest(BaseModel):
+    text: str
+    voice: str = None
+    fn:str = None
+
 @router.post("/text2Audio")
-async def text2Audio(request: Request):
+async def text2Audio(request: LollmsText2AudioRequest):
     """
     Executes Python code and returns the output.
 
@@ -65,18 +71,21 @@ async def text2Audio(request: Request):
     """
 
     try:
-        data = (await request.json())
         # Get the JSON data from the POST request.
         try:
             from lollms.services.xtts.lollms_xtts import LollmsXTTS
             if lollmsElfServer.tts is None:
-                lollmsElfServer.tts = LollmsXTTS(lollmsElfServer, voice_samples_path=Path(__file__).parent/"voices", xtts_base_url= lollmsElfServer.config.xtts_base_url)
+                lollmsElfServer.tts = LollmsXTTS(
+                    lollmsElfServer, 
+                    voice_samples_path=Path(__file__).parent/"voices", 
+                    xtts_base_url= lollmsElfServer.config.xtts_base_url
+                )
         except:
             return {"url": None}
             
-        voice=data.get("voice",lollmsElfServer.config.current_voice)
+        voice=lollmsElfServer.config.current_voice if request.voice is None else request.voice
         index = find_first_available_file_index(lollmsElfServer.tts.output_folder, "voice_sample_",".wav")
-        output_fn=data.get("fn",f"voice_sample_{index}.wav")
+        output_fn=f"voice_sample_{index}.wav" if request.fn is None else request.fn
         if voice is None:
             voice = "main_voice"
         lollmsElfServer.info("Starting to build voice")
@@ -91,7 +100,7 @@ async def text2Audio(request: Request):
                 voices_folder = Path(__file__).parent.parent/"voices"
             lollmsElfServer.tts.set_speaker_folder(voices_folder)
             url = f"audio/{output_fn}"
-            preprocessed_text= add_period(data['text'])
+            preprocessed_text= add_period(request.text)
 
             lollmsElfServer.tts.tts_to_file(preprocessed_text, f"{voice}.wav", f"{output_fn}", language=language)
             lollmsElfServer.info("Voice file ready")

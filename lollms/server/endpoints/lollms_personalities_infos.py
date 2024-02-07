@@ -232,6 +232,56 @@ def clear_personality_files_list():
 
 
 # ------------------------------------------- Mounting/Unmounting/Remounting ------------------------------------------------
+class PersonalityDataRequest(BaseModel):
+    category:str
+    name:str
+
+
+@router.post("/get_personality_config")
+def get_personality_config(data:PersonalityDataRequest):
+    print("- Recovering personality config")
+    category = data.category
+    name = data.name
+
+    package_path = f"{category}/{name}"
+    if category=="custom_personalities":
+        package_full_path = lollmsElfServer.lollms_paths.custom_personalities_path/f"{name}"
+    else:            
+        package_full_path = lollmsElfServer.lollms_paths.personalities_zoo_path/package_path
+    
+    config_file = package_full_path / "config.yaml"
+    if config_file.exists():
+        with open(config_file,"r") as f:
+            config = yaml.safe_load(f)
+        return {"status":True, "config":config}
+    else:
+        return {"status":False, "error":"Not found"}
+    
+class PersonalityDataRequest(BaseModel):
+    category:str
+    name:str
+    config:dict
+    
+@router.post("/set_personality_config")
+def set_personality_config(data:PersonalityDataRequest):
+    print("- Recovering personality config")
+    category = data.category
+    name = data.name
+    config = data.config
+
+    package_path = f"{category}/{name}"
+    if category=="custom_personalities":
+        package_full_path = lollmsElfServer.lollms_paths.custom_personalities_path/f"{name}"
+    else:            
+        package_full_path = lollmsElfServer.lollms_paths.personalities_zoo_path/package_path
+    
+    config_file = package_full_path / "config.yaml"
+    if config_file.exists():
+        with open(config_file,"w") as f:
+            yaml.safe_dump(config, f)
+        return {"status":True}
+    else:
+        return {"status":False, "error":"Not found"}
 
 class PersonalityMountingInfos(BaseModel):
     category:str

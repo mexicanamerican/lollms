@@ -2550,7 +2550,7 @@ The AI should respond in this format using data from actions_list:
         elements += ["!@>answer:"]
         prompt = self.build_prompt(elements)
             
-        gen = self.generate(prompt, max_answer_length, temperature=0.1, top_k=50, top_p=0.9, repeat_penalty=1.0, repeat_last_n=50).strip().replace("</s>","").replace("<s>","")
+        gen = self.generate(prompt, max_answer_length, temperature=0.1, top_k=50, top_p=0.9, repeat_penalty=1.0, repeat_last_n=50, callback=self.sink).strip().replace("</s>","").replace("<s>","")
         selection = gen.strip().split()[0].replace(",","").replace(".","")
         self.print_prompt("Multi choice selection",prompt+gen)
         try:
@@ -2604,6 +2604,25 @@ The AI should respond in this format using data from actions_list:
         else:
             ASCIIColors.red("Model failed to rank inputs")
             return None
+
+    def build_html5_integration(self, html, ifram_name="unnamed"):
+        """
+        This function creates an HTML5 iframe with the given HTML content and iframe name.
+
+        Args:
+        html (str): The HTML content to be displayed in the iframe.
+        ifram_name (str, optional): The name of the iframe. Defaults to "unnamed".
+
+        Returns:
+        str: The HTML string for the iframe.
+        """
+        return "\n".join(
+            '<div style="width: 80%; margin: 0 auto;">',
+            f'<iframe id="{ifram_name}" srcdoc="',
+            html,
+            '" style="width: 100%; height: 600px; border: none;"></iframe>',
+            '</div>'
+        )
 
 
 

@@ -142,7 +142,7 @@ class AudioRecorder:
             run_async(partial(self.sio.emit,'transcript', result["text"]))
             return {"text":result["text"], "audio":transcription_fn}
         else:
-            return {"text":"", "audio":transcription_fn}
+            return {"text":""}
 
 
     def update_spectrogram(self):
