@@ -59,7 +59,7 @@ def craft_a_tag_to_specific_text(url, text, caption):
     anchor_url = f"{url}#{encoded_text}"
 
     # Return the anchor tag
-    return f'<a href="{anchor_url}" target="blanc">{caption}</a>'
+    return anchor_url
 
 def is_package_installed(package_name):
     try:
@@ -327,6 +327,22 @@ Date: {{date}}
 
         if callback:
             callback(full_text, MSG_TYPE.MSG_TYPE_FULL_INVISIBLE_TO_USER)
+    def add_collapsible_entry(self, title, content):
+        return "\n".join(
+        [
+        f'<details class="flex w-fit rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900 mb-3.5 max-w-full svelte-1escu1z" open="">',
+        f'    <summary class="grid min-w-72 select-none grid-cols-[40px,1fr] items-center gap-2.5 p-2 svelte-1escu1z">',
+        f'        <dl class="leading-4">',
+        f'        <dd class="text-sm">{title}</dd>',
+        f'        <dt class="flex items-center gap-1 truncate whitespace-nowrap text-[.82rem] text-gray-400">.Completed</dt>',
+        f'        </dl>',
+        f'    </summary>',
+        f' <div class="content px-5 pb-5 pt-4">',
+        content,
+        f' </div>',
+        f' </details>\n'
+        ])
+
     def step_start(self, step_text, callback: Callable[[str, MSG_TYPE, dict, list], bool]=None):
         """This triggers a step start
 
@@ -513,7 +529,7 @@ Date: {{date}}
             self.bot_says = bot_says
             return True
 
-    def generate_with_images(self, prompt, images, max_size, temperature = None, top_k = None, top_p=None, repeat_penalty=None, callback=None, debug=False, show_progress=False ):
+    def generate_with_images(self, prompt, images, max_size, temperature = None, top_k = None, top_p=None, repeat_penalty=None, repeat_last_n=None, callback=None, debug=False, show_progress=False ):
         ASCIIColors.info("Text generation started: Warming up")
         self.nb_received_tokens = 0
         self.bot_says = ""
@@ -529,6 +545,7 @@ Date: {{date}}
                                 top_k=self.model_top_k if top_k is None else top_k,
                                 top_p=self.model_top_p if top_p is None else top_p,
                                 repeat_penalty=self.model_repeat_penalty if repeat_penalty is None else repeat_penalty,
+                                repeat_last_n = self.model_repeat_last_n if repeat_last_n is None else repeat_last_n
                                 ).strip()    
         return self.bot_says
 
@@ -2045,7 +2062,28 @@ class APScript(StateMachine):
             prompt_parts[sacrifice_id] = sacrifice_text
             return "\n".join([s for s in prompt_parts if s!=""])
     # ================================================= Sending commands to ui ===========================================
-
+    def add_collapsible_entry(self, title, content, subtitle=""):
+        return "\n".join(
+        [
+        f'<details class="flex w-full rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900 mb-3.5 max-w-full svelte-1escu1z" open="">',
+        f'    <summary class="grid w-full select-none grid-cols-[40px,1fr] items-center gap-2.5 p-2 svelte-1escu1z">',
+        f'        <dl class="leading-4">',
+        f'          <dd class="text-sm"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-arrow-right">',
+        f'          <line x1="5" y1="12" x2="19" y2="12"></line>',
+        f'          <polyline points="12 5 19 12 12 19"></polyline>',
+        f'          </svg>',
+        f'          </dd>',
+        f'        </dl>',
+        f'        <dl class="leading-4">',
+        f'        <dd class="text-sm"><h3>{title}</h3></dd>',
+        f'        <dt class="flex items-center gap-1 truncate whitespace-nowrap text-[.82rem] text-gray-400">{subtitle}</dt>',
+        f'        </dl>',
+        f'    </summary>',
+        f' <div class="content px-5 pb-5 pt-4">',
+        content,
+        f' </div>',
+        f' </details>\n'
+        ])
     def step_start(self, step_text, callback: Callable[[str, MSG_TYPE, dict, list], bool]=None):
         """This triggers a step start
 

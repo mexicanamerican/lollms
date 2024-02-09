@@ -84,7 +84,7 @@ def get_all_personalities():
                     try:
                         scripts_path = personality_folder / 'scripts'
                         personality_info['has_scripts'] = scripts_path.exists()
-                        with open(config_path) as config_file:
+                        with open(config_path, "r", encoding="utf8") as config_file:
                             config_data = yaml.load(config_file, Loader=yaml.FullLoader)
                             personality_info['name'] = config_data.get('name',"No Name")
                             personality_info['description'] = config_data.get('personality_description',"")
@@ -95,7 +95,6 @@ def get_all_personalities():
                             personality_info['installed'] = (lollmsElfServer.lollms_paths.personal_configuration_path/f"personality_{personality_folder.stem}.yaml").exists() or personality_info['has_scripts']
                             personality_info['help'] = config_data.get('help', '')
                             personality_info['commands'] = config_data.get('commands', '')
-
                         languages_path = personality_folder/ 'languages'
 
                         real_assets_path = personality_folder/ 'assets'
@@ -433,7 +432,7 @@ def unmount_personality(data:PersonalityMountingInfos):
         else:
             ASCIIColors.error(f"nok : Personality not found @ {category}/{name}")
             
-        ASCIIColors.yellow(f"Available personalities: {[p.name for p in lollmsElfServer.mounted_personalities]}")
+        ASCIIColors.yellow(f"Available personalities: {[p.name for p in lollmsElfServer.mounted_personalities if p is not None]}")
         return {"status": False, "error":"Couldn't unmount personality"}
     
 

@@ -33,7 +33,7 @@ lollmsElfServer = LOLLMSElfServer.get_instance()
 def add_events(sio:socketio):
     @sio.on('upgrade_vectorization')
     def upgrade_vectorization():
-        if lollmsElfServer.config.data_vectorization_activate and lollmsElfServer.config.use_discussions_history:
+        if lollmsElfServer.config.data_vectorization_activate and lollmsElfServer.config.activate_ltm:
             try:
                 run_async(partial(sio.emit,'show_progress'))
                 lollmsElfServer.sio.sleep(0)
