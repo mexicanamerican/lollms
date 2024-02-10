@@ -342,6 +342,14 @@ Date: {{date}}
         f' </div>',
         f' </details>\n'
         ])
+    
+    def internet_search(self, query ):
+        """
+        Do internet search and return the result
+        """
+        from lollms.internet import internet_search
+        return internet_search(query, "", self.config, self.model)
+
 
     def step_start(self, step_text, callback: Callable[[str, MSG_TYPE, dict, list], bool]=None):
         """This triggers a step start
@@ -2084,6 +2092,13 @@ class APScript(StateMachine):
         f' </div>',
         f' </details>\n'
         ])
+    
+    def internet_search(self, query ):
+        """
+        Do internet search and return the result
+        """
+        return self.personality.internet_search(query)
+    
     def step_start(self, step_text, callback: Callable[[str, MSG_TYPE, dict, list], bool]=None):
         """This triggers a step start
 

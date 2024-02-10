@@ -235,7 +235,6 @@ class PersonalityDataRequest(BaseModel):
     category:str
     name:str
 
-
 @router.post("/get_personality_config")
 def get_personality_config(data:PersonalityDataRequest):
     print("- Recovering personality config")
@@ -256,13 +255,13 @@ def get_personality_config(data:PersonalityDataRequest):
     else:
         return {"status":False, "error":"Not found"}
     
-class PersonalityDataRequest(BaseModel):
+class PersonalityConfig(BaseModel):
     category:str
     name:str
     config:dict
     
 @router.post("/set_personality_config")
-def set_personality_config(data:PersonalityDataRequest):
+def set_personality_config(data:PersonalityConfig):
     print("- Recovering personality config")
     category = data.category
     name = data.name
