@@ -15,6 +15,7 @@ from socketio import AsyncServer
 from functools import partial
 from lollms.utilities import trace_exception, run_async
 
+from datetime import datetime
 class LOLLMSElfServer(LollmsApplication):
     __instance = None
 
@@ -88,6 +89,14 @@ class LOLLMSElfServer(LollmsApplication):
                 return full_path
         return None
 
+    def prepare_reception(self, client_id):
+        if not self.connections[client_id]["continuing"]:
+            self.connections[client_id]["generated_text"] = ""
+            
+        self.connections[client_id]["first_chunk"]=True
+            
+        self.nb_received_tokens = 0
+        self.start_time = datetime.now()
 
     def notify_model_install(self, 
                             installation_path,
