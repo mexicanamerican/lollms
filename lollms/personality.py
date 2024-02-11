@@ -327,6 +327,45 @@ Date: {{date}}
 
         if callback:
             callback(full_text, MSG_TYPE.MSG_TYPE_FULL_INVISIBLE_TO_USER)
+
+
+    def build_prompt(self, prompt_parts:List[str], sacrifice_id:int=-1, context_size:int=None, minimum_spare_context_size:int=None):
+        """
+        Builds the prompt for code generation.
+
+        Args:
+            prompt_parts (List[str]): A list of strings representing the parts of the prompt.
+            sacrifice_id (int, optional): The ID of the part to sacrifice.
+            context_size (int, optional): The size of the context.
+            minimum_spare_context_size (int, optional): The minimum spare context size.
+
+        Returns:
+            str: The built prompt.
+        """        
+        if context_size is None:
+            context_size = self.config.ctx_size
+        if minimum_spare_context_size is None:
+            minimum_spare_context_size = self.config.min_n_predict
+
+        if sacrifice_id == -1 or len(prompt_parts[sacrifice_id])<50:
+            return "\n".join([s for s in prompt_parts if s!=""])
+        else:
+            part_tokens=[]
+            nb_tokens=0
+            for i,part in enumerate(prompt_parts):
+                tk = self.model.tokenize(part)
+                part_tokens.append(tk)
+                if i != sacrifice_id:
+                    nb_tokens += len(tk)
+            if len(part_tokens[sacrifice_id])>0:
+                sacrifice_tk = part_tokens[sacrifice_id]
+                sacrifice_tk= sacrifice_tk[-(context_size-nb_tokens-minimum_spare_context_size):]
+                sacrifice_text = self.model.detokenize(sacrifice_tk)
+            else:
+                sacrifice_text = ""
+            prompt_parts[sacrifice_id] = sacrifice_text
+            return "\n".join([s for s in prompt_parts if s!=""])
+
     def add_collapsible_entry(self, title, content):
         return "\n".join(
         [
@@ -343,13 +382,117 @@ Date: {{date}}
         f' </details>\n'
         ])
     
-    def internet_search(self, query ):
+    def internet_search(self, query, quick_search:bool=False):
         """
         Do internet search and return the result
         """
         from lollms.internet import internet_search
-        return internet_search(query, "", self.config, self.model)
+        return internet_search(query, "", self.config, self.model, quick_search=quick_search)
 
+    def sink(self, s=None,i=None,d=None):
+        pass
+
+    def yes_no(self, question: str, context:str="", max_answer_length: int = 50, conditionning="") -> bool:
+        """
+        Analyzes the user prompt and answers whether it is asking to generate an image.
+
+        Args:
+            question (str): The user's message.
+            max_answer_length (int, optional): The maximum length of the generated answer. Defaults to 50.
+            conditionning: An optional system message to put at the beginning of the prompt
+        Returns:
+            bool: True if the user prompt is asking to generate an image, False otherwise.
+        """
+        return self.multichoice_question(question, ["no","yes"], context, max_answer_length, conditionning=conditionning)>0
+
+    def multichoice_question(self, question: str, possible_answers:list, context:str = "", max_answer_length: int = 50, conditionning="") -> int:
+        """
+        Interprets a multi-choice question from a users response. This function expects only one choice as true. All other choices are considered false. If none are correct, returns -1.
+        
+        Args:
+            question (str): The multi-choice question posed by the user.
+            possible_ansers (List[Any]): A list containing all valid options for the chosen value. For each item in the list, either 'True', 'False', None or another callable should be passed which will serve as the truth test function when checking against the actual user input.
+            max_answer_length (int, optional): Maximum string length allowed while interpreting the users' responses. Defaults to 50.
+            conditionning: An optional system message to put at the beginning of the prompt
+            
+        Returns:
+            int: Index of the selected option within the possible_ansers list. Or -1 if there was not match found among any of them.
+        """
+        choices = "\n".join([f"{i}. {possible_answer}" for i, possible_answer in enumerate(possible_answers)])
+        elements = [conditionning] if conditionning!="" else []
+        elements += [
+                "!@>instructions:",
+                "Answer this multi choices question.",
+                "Answer with an id from the possible answers.",
+                "Do not answer with an id outside this possible answers.",
+        ]
+        if context!="":
+            elements+=[
+                       "!@>Context:",
+                        f"{context}",
+                    ]
+        elements += [
+                f"!@>question: {question}",
+                "!@>possible answers:",
+                f"{choices}",            
+        ]
+        elements += ["!@>answer:"]
+        prompt = self.build_prompt(elements)
+            
+        gen = self.generate(prompt, max_answer_length, temperature=0.1, top_k=50, top_p=0.9, repeat_penalty=1.0, repeat_last_n=50, callback=self.sink).strip().replace("</s>","").replace("<s>","")
+        selection = gen.strip().split()[0].replace(",","").replace(".","")
+        self.print_prompt("Multi choice selection",prompt+gen)
+        try:
+            return int(selection)
+        except:
+            ASCIIColors.cyan("Model failed to answer the question")
+            return -1
+
+    def multichoice_ranking(self, question: str, possible_answers:list, context:str = "", max_answer_length: int = 50, conditionning="") -> int:
+        """
+        Ranks answers for a question from best to worst. returns a list of integers
+        
+        Args:
+            question (str): The multi-choice question posed by the user.
+            possible_ansers (List[Any]): A list containing all valid options for the chosen value. For each item in the list, either 'True', 'False', None or another callable should be passed which will serve as the truth test function when checking against the actual user input.
+            max_answer_length (int, optional): Maximum string length allowed while interpreting the users' responses. Defaults to 50.
+            conditionning: An optional system message to put at the beginning of the prompt
+            
+        Returns:
+            int: Index of the selected option within the possible_ansers list. Or -1 if there was not match found among any of them.
+        """
+        choices = "\n".join([f"{i}. {possible_answer}" for i, possible_answer in enumerate(possible_answers)])
+        elements = [conditionning] if conditionning!="" else []
+        elements += [
+                "!@>instructions:",
+                "Answer this multi choices question.",
+                "Answer with an id from the possible answers.",
+                "Do not answer with an id outside this possible answers.",
+                f"!@>question: {question}",
+                "!@>possible answers:",
+                f"{choices}",
+        ]
+        if context!="":
+            elements+=[
+                       "!@>Context:",
+                        f"{context}",
+                    ]
+
+        elements += ["!@>answer:"]
+        prompt = self.build_prompt(elements)
+            
+        gen = self.generate(prompt, max_answer_length, temperature=0.1, top_k=50, top_p=0.9, repeat_penalty=1.0, repeat_last_n=50).strip().replace("</s>","").replace("<s>","")
+        self.print_prompt("Multi choice ranking",prompt+gen)
+        if gen.index("]")>=0:
+            try:
+                ranks = eval(gen.split("]")[0]+"]")
+                return ranks
+            except:
+                ASCIIColors.red("Model failed to rank inputs")
+                return None
+        else:
+            ASCIIColors.red("Model failed to rank inputs")
+            return None
 
     def step_start(self, step_text, callback: Callable[[str, MSG_TYPE, dict, list], bool]=None):
         """This triggers a step start
@@ -2093,12 +2236,13 @@ class APScript(StateMachine):
         f' </details>\n'
         ])
     
-    def internet_search(self, query ):
+    def internet_search(self, query, quick_search:bool=False ):
         """
         Do internet search and return the result
         """
-        return self.personality.internet_search(query)
-    
+        return self.personality.internet_search(query, quick_search=quick_search)
+
+
     def step_start(self, step_text, callback: Callable[[str, MSG_TYPE, dict, list], bool]=None):
         """This triggers a step start
 
@@ -2508,17 +2652,20 @@ The AI should respond in this format using data from actions_list:
 
     def extract_code_blocks(self, text: str) -> List[dict]:
         remaining = text
+        bloc_index = 0
         first_index=0
         indices = []
         while len(remaining)>0:
             try:
                 index = remaining.index("```")
                 indices.append(index+first_index)
-                remaining = remaining.index("```")[index+3:]
+                remaining = remaining[index+3:]
                 first_index += index+3
-            except:
-                index=len(remaining)
-                indices.append(index)
+                bloc_index +=1
+            except Exception as ex:
+                if bloc_index%2==1:
+                    index=len(remaining)
+                    indices.append(index)
                 remaining = ""
                 
         code_blocks = []
@@ -2547,8 +2694,8 @@ The AI should respond in this format using data from actions_list:
                 else:
                     block_infos["type"]=sub_text[:next_index]
                     
-                next_pos = indices[index+1]-code_delimiter_position+3                
-                block_infos["content"]=sub_text[start_pos:next_pos].strip()
+                next_pos = indices[index+1]-code_delimiter_position           
+                block_infos["content"]=sub_text[start_pos:next_pos-3].strip()
                 code_blocks.append(block_infos)
                 is_start = False
             else:
@@ -2556,6 +2703,22 @@ The AI should respond in this format using data from actions_list:
                 continue
 
         return code_blocks
+
+
+    def build_and_execute_python_code(self,context, instructions, execution_function_signature, inputs):
+        code = "```python\n"+self.fast_gen("!@>context!:\n"+context+f"\n!@>instructions: {instructions}.\nHere is the signature of the function:\n{execution_function_signature}\n!@>Code: Here is the query function that you are asking for:\n```python\n", callback=self.sink)
+        code=self.extract_code_blocks(code)
+
+        if len(code)>0:
+            # Perform the search query
+            code = code[0]["content"]
+            ASCIIColors.magenta(code)
+            module_name = 'custom_module'
+            spec = importlib.util.spec_from_loader(module_name, loader=None)
+            module = importlib.util.module_from_spec(spec)
+            exec(code, module.__dict__)
+            return module.query(*inputs)
+
 
     def yes_no(self, question: str, context:str="", max_answer_length: int = 50, conditionning="") -> bool:
         """
