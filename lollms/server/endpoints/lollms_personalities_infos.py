@@ -489,8 +489,8 @@ def get_personality_settings(data:PersonalityMountingInfos):
     category = data.category
     name = data.folder
 
-    if category.startswith("personal"):
-        personality_folder = lollmsElfServer.lollms_paths.personal_personalities_path/f"{category}"/f"{name}"
+    if category == "custom_personalities":
+        personality_folder = lollmsElfServer.lollms_paths.personal_personalities_path/f"{name}"
     else:
         personality_folder = lollmsElfServer.lollms_paths.personalities_zoo_path/f"{category}"/f"{name}"
 
@@ -554,6 +554,30 @@ async def set_active_personality_settings(request: Request):
         lollmsElfServer.error(ex)
         return {"status":False,"error":str(ex)}
 
+
+class PersonalityInfos(BaseModel):
+    category:str
+    name:str
+    language:Optional[str] = None
+
+@router.post("/copy_to_custom_personas")
+async def copy_to_custom_personas(data: PersonalityInfos):
+    """
+    Copies the personality to custom personas so that you can modify it.
+
+    """
+    import shutil
+    category = data.category
+    name = data.name
+
+    if category=="custom_personalities":
+        lollmsElfServer.InfoMessage("This persona is already in custom personalities folder")
+        return {"status":False}
+    else:
+        personality_folder = lollmsElfServer.lollms_paths.personalities_zoo_path/f"{category}"/f"{name}"
+        destination_folder = lollmsElfServer.lollms_paths.personal_personalities_path
+        shutil.copy(personality_folder, destination_folder)
+        return {"status":True}
 
 # ------------------------------------------- Interaction with personas ------------------------------------------------
 @router.post("/post_to_personality")

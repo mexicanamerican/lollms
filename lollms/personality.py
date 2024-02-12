@@ -2158,18 +2158,21 @@ class APScript(StateMachine):
         summeries = []
         for i, chunk in enumerate(chunks):
             self.step_start(f"Processing chunk : {i+1}/{len(chunks)}")
-            summary = self.remove_backticks(
-                                f"```markdown\n{answer_start}"+ self.fast_gen(
-                                    "\n".join([
-                                        f"!@>Document_chunk: {chunk_name}:",
-                                        f"{chunk}",
-                                        f"!@>instruction: {summary_instruction}",
-                                        f"!@>summary:",
-                                        f"```markdown\n{answer_start}"
-                                        ]),
-                                        max_generation_size=max_generation_size))
-            summeries.append(summary)
-            self.step_end(f"Processing chunk : {i+1}/{len(chunks)}")
+            summary = f"```markdown\n{answer_start}"+ self.fast_gen(
+                        "\n".join([
+                            f"!@>Document_chunk: {chunk_name}:",
+                            f"{chunk}",
+                            f"!@>instruction: {summary_instruction}",
+                            f"!@>summary:",
+                            f"```markdown\n{answer_start}"
+                            ]),
+                            max_generation_size=max_generation_size).replace("```markdown\n```markdown","```markdown")
+            summary = self.extract_code_blocks(summary)
+            if len(summary)>0:
+                summeries.append(summary[0]["content"])
+                self.step_end(f"Processing chunk : {i+1}/{len(chunks)}")
+            else:
+                raise Exception("The model returned an empty or corrupted text")
         return "\n".join(summeries)
 
 
@@ -2675,28 +2678,29 @@ The AI should respond in this format using data from actions_list:
             }
             if is_start:
                 sub_text = text[code_delimiter_position+3:]
-                try:
-                    find_space = sub_text.index(" ")
-                except:
-                    find_space = 1e10
-                try:
-                    find_return = sub_text.index("\n")
-                except:
-                    find_return = 1e10
-                next_index = min(find_return, find_space)
-                start_pos = next_index
-                if text[code_delimiter_position+3] in ["\n"," ","\t"]:
-                    # No
-                    block_infos["type"]='language-specific'
-                else:
-                    block_infos["type"]=sub_text[:next_index]
-                    
-                next_pos = indices[index+1]-code_delimiter_position
-                if sub_text[next_pos-3]=="`":
-                    block_infos["content"]=sub_text[start_pos:next_pos-3].strip()
-                else:
-                    block_infos["content"]=sub_text[start_pos:next_pos].strip()
-                code_blocks.append(block_infos)
+                if len(sub_text)>0:
+                    try:
+                        find_space = sub_text.index(" ")
+                    except:
+                        find_space = int(1e10)
+                    try:
+                        find_return = sub_text.index("\n")
+                    except:
+                        find_return = int(1e10)
+                    next_index = min(find_return, find_space)
+                    start_pos = next_index
+                    if code_delimiter_position+3<len(text) and text[code_delimiter_position+3] in ["\n"," ","\t"] :
+                        # No
+                        block_infos["type"]='language-specific'
+                    else:
+                        block_infos["type"]=sub_text[:next_index]
+                        
+                    next_pos = indices[index+1]-code_delimiter_position
+                    if sub_text[next_pos-3]=="`":
+                        block_infos["content"]=sub_text[start_pos:next_pos-3].strip()
+                    else:
+                        block_infos["content"]=sub_text[start_pos:next_pos].strip()
+                    code_blocks.append(block_infos)
                 is_start = False
             else:
                 is_start = True
