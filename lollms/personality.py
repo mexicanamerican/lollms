@@ -2710,20 +2710,19 @@ The AI should respond in this format using data from actions_list:
 
 
 
-    def build_and_execute_python_code(self,context, instructions, execution_function_signature):
+    def build_and_execute_python_code(self,context, instructions, execution_function_signature, extra_imports=""):
         code = "```python\n"+self.fast_gen(
             self.build_prompt([
             "!@>context!:",
             context,
-            f"!@>instructions:"
+            f"!@>system:",
             f"{instructions}",
             f"Here is the signature of the function:\n{execution_function_signature}",
             "Don't call the function, just write it",
             "Do not provide usage example.",
-            "Do not ask the user to update the code. This code should be self sufficient.",
-            "You don't have the right to ask the user to fill in any thing",
-            "write a completely working function",
-            f"!@>coder: Here is the function code that performs exactly what you have asked me to do without extra comments:",
+            "The code must me without comments",
+            f"!@>coder: Sure, in the following code, I import the necessary libraries, then define the function as you asked.",
+            "The function is ready to be used in your code and performs the task as you asked:",
             "```python\n"
             ],2), callback=self.sink)
         code = code.replace("```python\n```python\n", "```python\n").replace("```\n```","```")
@@ -2732,6 +2731,10 @@ The AI should respond in this format using data from actions_list:
         if len(code)>0:
             # Perform the search query
             code = code[0]["content"]
+            code = "\n".join([
+                        extra_imports,
+                        code
+                    ])            
             ASCIIColors.magenta(code)
             module_name = 'custom_module'
             spec = importlib.util.spec_from_loader(module_name, loader=None)
