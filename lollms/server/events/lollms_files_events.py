@@ -37,7 +37,9 @@ lollmsElfServer = LOLLMSWebUI.get_instance()
 def add_events(sio:socketio):
     @sio.on('upload_file')
     def upload_file(sid, data):
-        ASCIIColors.yellow("Uploading file")
+        pass
+        """
+       ASCIIColors.yellow("Uploading file")
         file = data['file']
         filename = file.filename
         save_path = lollmsElfServer.lollms_paths.personal_uploads_path/filename  # Specify the desired folder path
@@ -57,4 +59,6 @@ def add_events(sio:socketio):
         except Exception as e:
             # Error occurred while saving the file
             run_async(partial(sio.emit,'progress', {'status':False, 'error': str(e)}))
-            
+                    
+        """
+ 

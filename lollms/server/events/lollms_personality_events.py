@@ -42,25 +42,47 @@ def add_events(sio:socketio):
         except Exception as ex:
             trace_exception(ex)        
 
+    import os
+    import imghdr
+    import mimetypes
+
+    ALLOWED_EXTENSIONS = {
+        'txt', 'py', 'html', 'js', 'jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff', 'ico', 'svg', 'mp4', 'mp3', 'avi', 'mov',
+        'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'pdf'
+    }
+
+    def allowed_file(filename):
+        return '.' in filename and \
+            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
     @sio.on('send_file_chunk')
     def send_file_chunk(sid, data):
         client_id = sid
-        filename = data['filename']
+        filename = os.path.basename(data['filename'])  # sanitize filename
+        filename = filename.lower()
         chunk = data['chunk']
         offset = data['offset']
         is_last_chunk = data['isLastChunk']
         chunk_index = data['chunkIndex']
+
+        if not allowed_file(filename):
+            print(f"Invalid file type: {filename}")
+            return
+
         path:Path = lollmsElfServer.lollms_paths.personal_uploads_path / lollmsElfServer.personality.personality_folder_name
         path.mkdir(parents=True, exist_ok=True)
-        file_path = path / data["filename"]
-        # Save the chunk to the server or process it as needed
-        # For example:
-        if chunk_index==0:
-            with open(file_path, 'wb') as file:
-                file.write(chunk)
-        else:
-            with open(file_path, 'ab') as file:
-                file.write(chunk)
+        file_path = path / filename
+
+        try:
+            if chunk_index==0:
+                with open(file_path, 'wb') as file:
+                    file.write(chunk)
+            else:
+                with open(file_path, 'ab') as file:
+                    file.write(chunk)
+        except Exception as e:
+            print(f"Error writing to file: {e}")
+            return
 
         if is_last_chunk:
             ASCIIColors.success('File received and saved successfully')
@@ -72,8 +94,8 @@ def add_events(sio:socketio):
             ASCIIColors.success('File processed successfully')
             run_async(partial(sio.emit,'file_received', {'status': True, 'filename': filename}))
         else:
-            # Request the next chunk from the client
             run_async(partial(sio.emit,'request_next_chunk', {'offset': offset + len(chunk)}))
+
 
     @sio.on('execute_command')
     def execute_command(sid, data):

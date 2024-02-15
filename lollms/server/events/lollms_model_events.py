@@ -38,7 +38,7 @@ def add_events(sio:socketio):
 
     @sio.on('uninstall_model')
     def uninstall_model(sid, data):
-        model_path = data['path']
+        model_path = os.path.realpath(data['path'])
         model_type:str=data.get("type","ggml")
         installation_dir = lollmsElfServer.binding.searchModelParentFolder(model_path)
         
