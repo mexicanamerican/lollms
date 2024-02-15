@@ -7,7 +7,7 @@ description:
     application. These routes allow users to manipulate user information.
 
 """
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from lollms_webui import LOLLMSWebUI
 from pydantic import BaseModel
 from starlette.responses import StreamingResponse
@@ -21,6 +21,10 @@ from safe_store.text_vectorizer import TextVectorizer, VectorizationMethod, Visu
 import tqdm
 from fastapi import FastAPI, UploadFile, File
 import shutil
+import uuid
+import os
+from PIL import Image
+
 class PersonalPathParameters(BaseModel):
     path:str
     
@@ -45,7 +49,39 @@ def switch_personal_path(data:PersonalPathParameters):
             return {"status": False, 'error':f"Couldn't switch path: {ex}"}    
         
 @router.post("/upload_avatar")
-def upload_avatar(avatar: UploadFile = File(...)):
-    with open(lollmsElfServer.lollms_paths.personal_user_infos_path/avatar.filename, "wb") as buffer:
-        shutil.copyfileobj(avatar.file, buffer)    
-    return {"status": True,"fileName":avatar.filename}
+async def upload_avatar(avatar: UploadFile = File(...)):
+    """
+    Uploads a user avatar file to a dedicated directory, preventing path traversal attacks.
+
+    Parameters:
+        - avatar: UploadFile object representing the user avatar file.
+
+    Returns:
+        - Dictionary with the status of the upload and the generated file name.
+
+    Raises:
+        - HTTPException with a 400 status code and an error message if the file is invalid or has an invalid type.
+    """
+    # Only allow certain file types
+    if avatar.filename.endswith((".jpg", ".png")):
+        # Create a random file name
+        random_filename = str(uuid.uuid4())
+        
+        # Use the file extension of the uploaded file
+        extension = os.path.splitext(avatar.filename)[1]
+        
+        # Create the new file path in a dedicated directory
+        file_location = os.path.join(lollmsElfServer.lollms_paths.personal_user_infos_path, f"{random_filename}{extension}")
+
+        try:
+            # Open the image to check if it's a valid image
+            img = Image.open(avatar.file)
+            
+            # Save the file
+            img.save(file_location)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail="Invalid image file.")
+    else:
+        raise HTTPException(status_code=400, detail="Invalid file type.")
+        
+    return {"status": True,"fileName": f"{random_filename}{extension}"}

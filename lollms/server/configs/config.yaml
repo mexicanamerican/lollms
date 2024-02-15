@@ -1,9 +1,10 @@
-# =================== Lord Of Large Language Models Configuration file =========================== 
-version: 43
+# =================== Lord Of Large Language Multimodal Systems Configuration file =========================== 
+version: 58
 binding_name: null
 model_name: null
 
-
+headless_server_mode: False
+allowed_origins: []
 
 # Host information
 host: localhost
@@ -41,13 +42,24 @@ db_path: database.db
 
 # Automatic updates
 debug: False
+debug_log_file_path: ""
 auto_update: true
+auto_sync_personalities: true
+auto_sync_extensions: true
+auto_sync_bindings: true
+auto_sync_models: true
+
+
+
 auto_save: true
 auto_title: false
 # Install mode (cpu, cpu-noavx, nvidia-tensorcores, nvidia, amd-noavx, amd, apple-intel, apple-silicon)
 hardware_mode: nvidia-tensorcores
 # Automatically open the browser
 auto_show_browser: true
+
+# copy to clipboard 
+copy_to_clipboard_add_all_details: false
 
 # Voice service
 enable_voice_service: false
@@ -63,6 +75,24 @@ sd_base_url: http://127.0.0.1:7860
 # ollama service
 enable_ollama_service: false
 ollama_base_url: http://0.0.0.0:11434
+
+# petals service
+enable_petals_service: false
+petals_base_url: http://0.0.0.0:8010
+
+# lollms service
+enable_lollms_service: false
+lollms_base_url: http://0.0.0.0:1234
+
+# elastic search service
+elastic_search_service: false
+elastic_search_url: http://0.0.0.0:9200
+
+# vll service
+vllm_service: false
+vllm_url: http://0.0.0.0:8000
+vllm_model_path: mistralai/Mistral-7B-v0.1
+
 
 # Audio
 media_on: false
@@ -90,7 +120,14 @@ data_vectorization_build_keys_words: false # If true, when querrying the databas
 data_vectorization_force_first_chunk: false # If true, the first chunk of the document will systematically be used
 data_vectorization_make_persistance: false # If true, the data will be persistant webween runs
 
-
+# Activate internet search
+activate_internet_search: false
+internet_vectorization_chunk_size: 512 # chunk size
+internet_vectorization_overlap_size: 128 # overlap between chunks size
+internet_vectorization_nb_chunks: 2 # number of chunks to use
+internet_nb_search_pages: 3 # number of pages to select
+internet_quick_search: False # If active the search engine will not load and read the webpages
+internet_activate_search_decision: False # If active the ai decides by itself if it needs to do search
 # Helpers
 pdf_latex_path: null
 
@@ -99,3 +136,12 @@ positive_boost: null
 negative_boost: null
 force_output_language_to_be: null
 fun_mode: False
+
+
+# webui configurations
+show_code_of_conduct: true
+activate_audio_infos: true
+
+
+# whisper configuration
+whisper_model: base

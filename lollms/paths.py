@@ -66,6 +66,7 @@ class LollmsPaths:
         self.personal_models_path           = self.personal_path / "models"
         self.personal_uploads_path          = self.personal_path / "uploads"
         self.personal_log_path              = self.personal_path / "logs"
+        self.personal_certificates          = self.personal_path / "certs"
         self.personal_outputs_path          = self.personal_path / "outputs"
         self.personal_user_infos_path       = self.personal_path / "user_infos"
 
@@ -168,6 +169,7 @@ class LollmsPaths:
         self.personal_data_path.mkdir(parents=True, exist_ok=True)
         self.personal_databases_path.mkdir(parents=True, exist_ok=True)
         self.personal_log_path.mkdir(parents=True, exist_ok=True)
+        self.personal_certificates.mkdir(parents=True, exist_ok=True)
         self.personal_outputs_path.mkdir(parents=True, exist_ok=True)
         self.personal_uploads_path.mkdir(parents=True, exist_ok=True)
         self.personal_user_infos_path.mkdir(parents=True, exist_ok=True)
