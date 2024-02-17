@@ -144,6 +144,8 @@ class LLMBinding:
 
     def install_model(self, model_type:str, model_path:str, variant_name:str, client_id:int=None):
         print("Install model triggered")
+        if(".." in model_path):
+            raise "Detected an attempt of path traversal. Are you kidding me?"
         model_path = model_path.replace("\\","/")
 
         if model_type.lower() in model_path.lower():

@@ -1,11 +1,6 @@
 tqdm
 pyyaml
 Pillow
-flask
-flask_socketio
-flask-cors
-simple-websocket
-eventlet
 wget
 setuptools
 requests

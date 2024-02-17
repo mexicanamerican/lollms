@@ -1,14 +1,12 @@
 tqdm
 pyyaml
 Pillow
-flask
-flask_socketio
-flask-cors
-simple-websocket
 wget
 setuptools
 requests
+
 safe_store
+ascii_colors>=0.1.3
 
 autopep8
 

@@ -7,23 +7,23 @@ description:
     application. These routes are specific to bindings
 
 """
-from fastapi import APIRouter, Request
-from pydantic import BaseModel
+from fastapi import APIRouter, Request, HTTPException
+from pydantic import BaseModel, Field
 import pkg_resources
 from lollms.server.elf_server import LOLLMSElfServer
 from lollms.binding import BindingBuilder, InstallOption
 from ascii_colors import ASCIIColors
 from lollms.utilities import load_config, trace_exception, gc
 from pathlib import Path
-from typing import List
+from typing import List, Any
 import json
 import os
 # ----------------------------------- Personal files -----------------------------------------
 class ReloadBindingParams(BaseModel):
-    binding_name: str
+    binding_name: str = Field(..., min_length=1, max_length=50)
 
 class BindingInstallParams(BaseModel):
-    name: str
+    name: str = Field(..., min_length=1, max_length=50)
 
 
 # ----------------------- Defining router and main class ------------------------------
@@ -76,20 +76,22 @@ def list_bindings():
     return bindings
 
 # ----------------------------------- Reloading ----------------------------------------
+class BindingReloadRequest(BaseModel):
+    name: str = Field(..., min_length=1, max_length=50)
 
 @router.post("/reload_binding")
-async def reload_binding(request: Request):
+async def reload_binding(request: BindingReloadRequest):
     """
-    Opens code in vs code.
+    Reloads a binding.
 
-    :param request: The HTTP request object.
+    :param request: The BindingReloadRequest object.
     :return: A JSON response with the status of the operation.
     """
 
     try:
-        data = (await request.json())
-        print(f"Roloading binding selected : {data['name']}")
-        lollmsElfServer.config["binding_name"]=data['name']
+        print(f"Reloading binding selected : {request.name}")
+        safe_name = os.path.basename(request.name) # sanitize the file path to prevent path traversal
+        lollmsElfServer.config["binding_name"]=safe_name
         if lollmsElfServer.binding:
             lollmsElfServer.binding.destroy_model()
         lollmsElfServer.binding = None
@@ -123,6 +125,11 @@ def install_binding(data:BindingInstallParams):
     Returns:
         dict: Status of operation.
     """
+    
+    if ".." in data.name:
+        ASCIIColors.error("A potential path traversal attack detected. The name of the binding sent to the server has .. in it!")
+        raise HTTPException(status_code=400, detail="Invalid path!")
+    
     ASCIIColors.info(f"- Reinstalling binding {data.name}...")
     try:
         lollmsElfServer.info("Unmounting binding and model")
@@ -238,33 +245,34 @@ def get_active_binding_settings():
     else:
         return {}
 
+class BindingSettingsRequest(BaseModel):
+    type: str = Field(..., min_length=1, max_length=50)
+    value: Any
 
 @router.post("/set_active_binding_settings")
-async def set_active_binding_settings(request: Request):
+async def set_active_binding_settings(request: BindingSettingsRequest):
     """
-    Opens code in vs code.
+    Sets the active binding settings.
 
-    :param request: The HTTP request object.
+    :param request: The BindingSettingsRequest object.
     :return: A JSON response with the status of the operation.
     """
 
     try:
-        data = (await request.json())
         print("- Setting binding settings")
         
         if lollmsElfServer.binding is not None:
             if hasattr(lollmsElfServer.binding,"binding_config"):
-                for entry in data:
-                    if entry["type"]=="list" and type(entry["value"])==str:
-                        try:
-                            v = json.loads(entry["value"])
-                        except:
-                            v= ""
-                        if type(v)==list:
-                            entry["value"] = v
-                        else:
-                            entry["value"] = [entry["value"]]
-                lollmsElfServer.binding.binding_config.update_template(data)
+                if request.type=="list" and type(request.value)==str:
+                    try:
+                        v = json.loads(request.value)
+                    except:
+                        v= ""
+                    if type(v)==list:
+                        request.value = v
+                    else:
+                        request.value = [request.value]
+                lollmsElfServer.binding.binding_config.update_template([{"type": request.type, "value": request.value}])
                 lollmsElfServer.binding.binding_config.config.save_config()
                 lollmsElfServer.binding.settings_updated()
                 if lollmsElfServer.config.auto_save:
@@ -281,7 +289,7 @@ async def set_active_binding_settings(request: Request):
         return {"status":False,"error":str(ex)}
     
 @router.get("/update_binding_settings")
-def update_binding_settings(self):
+def update_binding_settings():
     if lollmsElfServer.binding:
         lollmsElfServer.binding.settings_updated()
         ASCIIColors.green("Binding setting updated successfully")

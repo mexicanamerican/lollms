@@ -46,19 +46,3 @@ def get_server_address(request:Request):
     srv_addr = "/".join(str(server_address).split("/")[:-1])
     ASCIIColors.yellow(server_address)
     return srv_addr
-
-
-
-def open_folder(path: str):
-    path = Path(path).absolute()
-    if not path.is_dir():
-        raise FileNotFoundError(f"The provided path '{path}' is not a directory.")
-    os.startfile(path)
-    
-@router.get("/open_folder")
-async def open_folder(request: Request, path: str):
-    if Path(path).exists() and Path(path).is_dir():
-        os.startfile(path)
-        return {"message": "Folder opened successfully."}
-    else:
-        return {"message": "Invalid folder path or the folder does not exist."}

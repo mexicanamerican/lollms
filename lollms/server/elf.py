@@ -21,7 +21,7 @@ from socketio import ASGIApp
 
 
 sio = socketio.AsyncServer(async_mode="asgi")
-app = FastAPI()
+app = FastAPI(title="LoLLMS", description="This is the LoLLMS-Elf API documentation")
 
 def main():
     # Parsong parameters

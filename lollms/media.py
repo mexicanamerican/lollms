@@ -83,7 +83,6 @@ from scipy.signal import spectrogram
 class AudioRecorder:
     def __init__(self, sio:socketio.Client, filename, channels=1, sample_rate=16000, chunk_size=24678, silence_threshold=150.0, silence_duration=2, callback=None, lollmsCom:LoLLMsCom=None, build_spectrogram=False, model = "base", transcribe=False):
         self.sio = sio
-        self.sio = sio
         self.filename = filename
         self.channels = channels
         self.sample_rate = sample_rate
@@ -286,3 +285,55 @@ class MusicPlayer(threading.Thread):
         import pygame
         self.stopped = True
         pygame.mixer.music.stop()
+
+
+class RealTimeTranscription:
+    def __init__(self, callback):
+        if not PackageManager.check_package_installed('pyaudio'):
+            try:
+                import conda.cli
+                conda.cli.main("install", "anaconda::pyaudio", "-y")
+            except:
+                ASCIIColors.bright_red("Couldn't install pyaudio. whisper won't work. Please install it manually")
+        import pyaudio
+        # Initialize Whisper ASR
+        print("Loading whisper ...", end="")
+        self.whisper = whisper.load_model("base")
+        print("ok")
+
+        # Set up PyAudio
+        self.p = pyaudio.PyAudio()
+        self.stream = self.p.open(format=pyaudio.paInt16, channels=1, rate=16000, input=True, frames_per_buffer=1024)
+
+        # Set the callback
+        self.callback = callback
+
+    def start(self):
+        import torch
+        # Start the stream
+        self.stream.start_stream()
+
+        try:
+            while True:
+                # Read a chunk of audio data
+                data = self.stream.read(1024)
+
+                # Convert bytes to numpy array
+                data_np = np.frombuffer(data, dtype=np.int16)
+                # Convert numpy array to float tensor
+                data_tensor = torch.tensor(data_np).float()
+                # Send the chunk to Whisper for transcription
+                result = self.whisper.transcribe(data_tensor)
+                
+                # If the result is not empty, call the callback
+                if result:
+                    self.callback(result["text"])
+        except KeyboardInterrupt:
+            # If the user hits Ctrl+C, stop the stream
+            self.stop()
+
+    def stop(self):
+        # Stop the stream and clean up
+        self.stream.stop_stream()
+        self.stream.close()
+        self.p.terminate()

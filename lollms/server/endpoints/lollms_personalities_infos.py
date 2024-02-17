@@ -10,7 +10,7 @@ description:
 from fastapi import APIRouter, Request
 from fastapi import HTTPException
 from fastapi.responses import FileResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import pkg_resources
 from lollms.server.elf_server import LOLLMSElfServer
 from lollms.personality import AIPersonality, InstallOption
@@ -175,23 +175,26 @@ def get_current_personality_path_infos():
 # ----------------------------------- Installation/Uninstallation/Reinstallation ----------------------------------------
 
 
-@router.post("/reinstall_personality")
-async def reinstall_personality(request: Request):
-    """
-    Endpoint to apply configuration settings.
+class PersonalityIn(BaseModel):
+    name: str = Field(None)
 
-    :param request: The HTTP request object.
+@router.post("/reinstall_personality")
+async def reinstall_personality(personality_in: PersonalityIn):
+    """
+    Endpoint to reinstall personality
+
+    :param personality_in: PersonalityIn contans personality name.
     :return: A JSON response with the status of the operation.
     """
-
     try:
-        data = (await request.json())
-        if not 'name' in data:
-            data['name']=lollmsElfServer.config.personalities[lollmsElfServer.config["active_personality_id"]]
-        personality_path = lollmsElfServer.lollms_paths.personalities_zoo_path / data['name']
-        ASCIIColors.info(f"- Reinstalling personality {data['name']}...")
+        if(".." in personality_in.name):
+            raise "Detected an attempt of path traversal. Are you kidding me?"
+        if not personality_in.name:
+            personality_in.name=lollmsElfServer.config.personalities[lollmsElfServer.config["active_personality_id"]]
+        personality_path = lollmsElfServer.lollms_paths.personalities_zoo_path / personality_in.name
+        ASCIIColors.info(f"- Reinstalling personality {personality_in.name}...")
         ASCIIColors.info("Unmounting personality")
-        idx = lollmsElfServer.config.personalities.index(data['name'])
+        idx = lollmsElfServer.config.personalities.index(personality_in.name)
         print(f"index = {idx}")
         lollmsElfServer.mounted_personalities[idx] = None
         gc.collect()
@@ -204,7 +207,7 @@ async def reinstall_personality(request: Request):
                                         run_scripts=True,installation_option=InstallOption.FORCE_INSTALL)
             return {"status":True}
         except Exception as ex:
-            ASCIIColors.error(f"Personality file not found or is corrupted ({data['name']}).\nReturned the following exception:{ex}\nPlease verify that the personality you have selected exists or select another personality. Some updates may lead to change in personality name or category, so check the personality selection in settings to be sure.")
+            ASCIIColors.error(f"Personality file not found or is corrupted ({personality_in.name}).\nReturned the following exception:{ex}\nPlease verify that the personality you have selected exists or select another personality. Some updates may lead to change in personality name or category, so check the personality selection in settings to be sure.")
             ASCIIColors.info("Trying to force reinstall")
             return {"status":False, 'error':str(e)}
 
@@ -231,6 +234,9 @@ class RemoveFileData(BaseModel):
     
 @router.post("/remove_file")
 def remove_file(data:RemoveFileData):
+    """
+    Removes a file form the personality files
+    """
     if lollmsElfServer.personality is None:
         return {"state":False, "error":"No personality selected"}
     lollmsElfServer.personality.remove_file(data.name)

@@ -34,6 +34,25 @@ import urllib
 import os
 import sys
 
+
+def show_yes_no_dialog(title, text):
+    import tkinter as tk
+    from tkinter import messagebox
+    # Create a new Tkinter root window and hide it
+    root = tk.Tk()
+    root.withdraw()
+
+    # Make the window appear on top
+    root.attributes('-topmost', True)
+    
+    # Show the dialog box
+    result = messagebox.askyesno(title, text)
+
+    # Destroy the root window
+    root.destroy()
+
+    return result
+
 def is_linux():
     return sys.platform.startswith("linux")
 
