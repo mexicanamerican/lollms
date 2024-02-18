@@ -42,11 +42,32 @@ async def serve_user_infos(path: str):
         ASCIIColors.error("A suspected LFI attack detected. The path sent to the server has .. in it!")
         raise HTTPException(status_code=400, detail="Invalid path!")
 
-    file_path = (lollmsElfServer.lollms_paths.personal_user_infos_path / path.path).resolve()
+    file_path = (lollmsElfServer.lollms_paths.personal_user_infos_path / path).resolve()
     return FileResponse(str(file_path))
 
 # ----------------------------------- Lollms zoos -----------------------------------------
 @router.get("/bindings/{path:path}")
+async def serve_bindings(path: str):
+    """
+    Serve bindings file.
+
+    Args:
+        path (FilePath): The path of the bindings file to serve.
+
+    Returns:
+        FileResponse: The file response containing the requested bindings file.
+    """
+    if ".." in path:
+        ASCIIColors.error("A suspected LFI attack detected. The path sent to the server has .. in it!")
+        raise HTTPException(status_code=400, detail="Invalid path!")
+    
+    file_path = (lollmsElfServer.lollms_paths.bindings_zoo_path / path).resolve()
+
+    if not Path(file_path).exists():
+        raise ValueError("File not found")
+
+    return FileResponse(str(file_path))
+@router.get("/personalities/{path:path}")
 async def serve_personalities(path: str):
     """
     Serve personalities file.
