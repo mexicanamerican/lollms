@@ -62,7 +62,8 @@ class LollmsPaths:
         self.personal_path                  = personal_path.resolve()
         self.personal_configuration_path    = self.personal_path / "configs"
         self.personal_data_path             = self.personal_path / "data"
-        self.personal_databases_path        = self.personal_path / "databases"
+        self.personal_memory_path           = self.personal_path / "memory"
+        self.personal_discussions_path      = self.personal_path / "discussion_databases"
         self.personal_models_path           = self.personal_path / "models"
         self.personal_uploads_path          = self.personal_path / "uploads"
         self.personal_log_path              = self.personal_path / "logs"
@@ -106,8 +107,8 @@ class LollmsPaths:
         ASCIIColors.yellow(f"{self.personal_path}")
         ASCIIColors.red("personal_configuration_path:",end="")
         ASCIIColors.yellow(f"{self.personal_configuration_path}")
-        ASCIIColors.red("personal_databases_path:",end="")
-        ASCIIColors.yellow(f"{self.personal_databases_path}")
+        ASCIIColors.red("personal_discussions_path:",end="")
+        ASCIIColors.yellow(f"{self.personal_discussions_path}")
         ASCIIColors.red("personal_models_path:",end="")
         ASCIIColors.yellow(f"{self.personal_models_path}")
         ASCIIColors.red("personal_user_infos_path:",end="")
@@ -145,7 +146,7 @@ class LollmsPaths:
             "Global paths configuration Path": self.global_paths_cfg_path,
             "Personal Configuration Path": self.personal_configuration_path,
             "Personal Data Path": self.personal_data_path,
-            "Personal Databases Path": self.personal_databases_path,
+            "Personal Databases Path": self.personal_discussions_path,
             "Personal Models Path": self.personal_models_path,
             "Personal Uploads Path": self.personal_uploads_path,
             "Personal Log Path": self.personal_log_path,
@@ -167,7 +168,7 @@ class LollmsPaths:
         self.personal_configuration_path.mkdir(parents=True, exist_ok=True)
         self.personal_models_path.mkdir(parents=True, exist_ok=True)
         self.personal_data_path.mkdir(parents=True, exist_ok=True)
-        self.personal_databases_path.mkdir(parents=True, exist_ok=True)
+        self.personal_discussions_path.mkdir(parents=True, exist_ok=True)
         self.personal_log_path.mkdir(parents=True, exist_ok=True)
         self.personal_certificates.mkdir(parents=True, exist_ok=True)
         self.personal_outputs_path.mkdir(parents=True, exist_ok=True)

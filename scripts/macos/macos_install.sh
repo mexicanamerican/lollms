@@ -73,7 +73,7 @@ REPO_URL="https://github.com/ParisNeo/lollms.git"
 if [ ! -f "$MINICONDA_DIR/Scripts/conda" ]; then
   # Download Miniconda
   echo "Downloading Miniconda installer from $MINICONDA_DOWNLOAD_URL"
-  curl -LOk "$MINICONDA_DOWNLOAD_URL"
+  curl -LO "$MINICONDA_DOWNLOAD_URL"
 
   # Install Miniconda
   echo

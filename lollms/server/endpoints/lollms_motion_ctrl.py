@@ -27,8 +27,8 @@ lollmsElfServer:LOLLMSWebUI = LOLLMSWebUI.get_instance()
 
 # ----------------------- voice ------------------------------
 
-@router.get("/install_ollama")
-def install_ollama():
+@router.get("/install_motion_ctrl")
+def install_motion_ctrl():
     try:
         if lollmsElfServer.config.headless_server_mode:
             return {"status":False,"error":"Service installation is blocked when in headless mode for obvious security reasons!"}
@@ -36,14 +36,12 @@ def install_ollama():
         if lollmsElfServer.config.host!="localhost" and lollmsElfServer.config.host!="127.0.0.1":
             return {"status":False,"error":"Service installation is blocked when the server is exposed outside for very obvious reasons!"}
 
-        lollmsElfServer.ShowBlockingMessage("Installing ollama server\nPlease stand by")
-        from lollms.services.ollama.lollms_ollama import install_ollama
-        if install_ollama(lollmsElfServer):
-            lollmsElfServer.HideBlockingMessage()
-            return {"status":True}
-        else:
-            return {"status":False, 'error':str(ex)}            
+        lollmsElfServer.ShowBlockingMessage("Installing Motion Ctrl api server\nPlease stand by")
+        from lollms.services.motion_ctrl.lollms_motion_ctrl import install_motion_ctrl
+        install_motion_ctrl(lollmsElfServer)
+        ASCIIColors.success("Done")
+        lollmsElfServer.HideBlockingMessage()
+        return {"status":True}
     except Exception as ex:
-        trace_exception(ex)
         lollmsElfServer.HideBlockingMessage()
         return {"status":False, 'error':str(ex)}

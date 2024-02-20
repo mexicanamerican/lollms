@@ -69,7 +69,7 @@ def add_events(sio:socketio):
             print(f"Invalid file type: {filename}")
             return
 
-        path:Path = lollmsElfServer.lollms_paths.personal_uploads_path / lollmsElfServer.personality.personality_folder_name
+        path:Path = lollmsElfServer.get_uploads_path(client_id) / lollmsElfServer.personality.personality_folder_name
         path.mkdir(parents=True, exist_ok=True)
         file_path = path / filename
 

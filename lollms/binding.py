@@ -86,8 +86,10 @@ class LLMBinding:
         self.sync_configuration(self.binding_config, lollms_paths)
         # Installation
         if (not self.configuration_file_path.exists() or installation_option==InstallOption.FORCE_INSTALL) and installation_option!=InstallOption.NEVER_INSTALL:
+            self.ShowBlockingMessage("Installing Binding")
             self.install()
             self.binding_config.config.save_config()
+            self.HideBlockingMessage()
         else:
             self.load_binding_config()
 

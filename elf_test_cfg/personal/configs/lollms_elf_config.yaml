@@ -37,7 +37,7 @@ user_avatar: default_user.svg
 use_user_informations_in_discussion: false
 
 # UI parameters
-db_path: database.db
+discussion_db_name: database.db
 
 # Automatic updates
 debug: False

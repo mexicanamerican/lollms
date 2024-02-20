@@ -72,6 +72,7 @@ def get_vllm(lollms_app:LollmsApplication):
         ASCIIColors.success("Loading source file...",end="")
         # use importlib to load the module from the file path
         ASCIIColors.success("ok")
+        
         return Service
     else:
         return None
@@ -80,7 +81,7 @@ class Service:
     def __init__(
                     self, 
                     app:LollmsApplication,
-                    base_url="http://127.0.0.1:11434",
+                    base_url="http://localhost:8000",
                     wait_max_retries = 5
                 ):
         self.base_url = base_url
@@ -104,9 +105,10 @@ class Service:
 
         # run vllm
         if platform.system() == 'Windows':
-            subprocess.Popen(['wsl', 'bash', '~/run_vllm.sh '])
+            #subprocess.Popen(['wsl', 'ls', '$HOME'])
+            subprocess.Popen(['wsl', 'bash', '$HOME/run_vllm.sh', self.app.config.vllm_model_path])
         else:
-            subprocess.Popen(['bash', f'{Path.home()}/run_vllm.sh'])
+            subprocess.Popen(['bash', f'{Path.home()}/run_vllm.sh', self.app.config.vllm_model_path])
 
         # Wait until the service is available at http://127.0.0.1:7860/
         self.wait_for_service(max_retries=wait_max_retries)

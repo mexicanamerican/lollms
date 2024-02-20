@@ -13,7 +13,7 @@ from lollms.config import InstallOption, TypedConfig, BaseConfig
 from lollms.main_config import LOLLMSConfig
 from lollms.paths import LollmsPaths
 from lollms.binding import LLMBinding, BindingType
-from lollms.utilities import PromptReshaper, PackageManager
+from lollms.utilities import PromptReshaper, PackageManager, discussion_path_to_url
 from lollms.com import NotificationType, NotificationDisplayType
 
 import pkg_resources
@@ -930,8 +930,8 @@ Date: {{date}}
     def add_file(self, path, callback=None):
         if not self.callback:
             self.callback = callback
-        db_path = self.lollms_paths.personal_databases_path / "personalities" / self.name / "db.json"
-        db_path.parent.mkdir(parents=True, exist_ok=True)
+        discussion_db_name = self.lollms_paths.personal_discussions_path / "personalities" / self.name / "db.json"
+        discussion_db_name.parent.mkdir(parents=True, exist_ok=True)
         path = Path(path)
         if path.suffix in [".wav",".mp3"]:
             self.new_message("")
@@ -961,9 +961,8 @@ Date: {{date}}
             if self.callback:
                 try:
                     pth = str(path).replace("\\","/").split('/')
-                    if "uploads" in pth:
-                        idx = pth.index("uploads")
-                        pth = "/".join(pth[idx:])
+                    if "discussion_databases" in pth:
+                        pth = discussion_path_to_url(path)
                         self.new_message("",MSG_TYPE.MSG_TYPE_FULL)
                         output = f'<img src="{pth}" width="800">\n\n'
                         self.full(output)
@@ -1001,7 +1000,7 @@ Date: {{date}}
                     self.vectorizer = TextVectorizer(
                                 self.config.data_vectorization_method, # supported "model_embedding" or "tfidf_vectorizer"
                                 model=self.model, #needed in case of using model_embedding
-                                database_path=db_path,
+                                database_path=discussion_db_name,
                                 save_db=self.config.data_vectorization_save_db,
                                 data_visualization_method=VisualizationMethod.PCA,
                                 database_dict=None)

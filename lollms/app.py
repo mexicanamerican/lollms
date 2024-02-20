@@ -28,8 +28,6 @@ class LollmsApplication(LoLLMsCom):
                     lollms_paths:LollmsPaths, 
                     load_binding=True, 
                     load_model=True, 
-                    load_voice_service=True,
-                    load_sd_service=True,
                     try_select_binding=False, 
                     try_select_model=False,
                     callback=None,
@@ -59,29 +57,6 @@ class LollmsApplication(LoLLMsCom):
         self.tts                        = None
 
         if not free_mode:
-            if self.config.enable_ollama_service:
-                try:
-                    from lollms.services.ollama.lollms_ollama import Service
-                    self.ollama = Service(self, base_url=self.config.ollama_base_url)
-                except Exception as ex:
-                    trace_exception(ex)
-                    self.warning(f"Couldn't load Ollama")
-
-
-            if self.config.enable_voice_service and load_voice_service:
-                try:
-                    from lollms.services.xtts.lollms_xtts import LollmsXTTS
-                    self.tts = LollmsXTTS(self, voice_samples_path=lollms_paths.custom_voices_path, xtts_base_url=self.config.xtts_base_url, wait_for_service=False)
-                except:
-                    self.warning(f"Couldn't load XTTS")
-
-            if self.config.enable_sd_service and load_sd_service:
-                try:
-                    from lollms.services.sd.lollms_sd import LollmsSD
-                    self.sd = LollmsSD(self, auto_sd_base_url=self.config.sd_base_url)
-                except:
-                    self.warning(f"Couldn't load SD")
-
             try:
                 if config.auto_update:
                     # Clone the repository to the target path
@@ -147,13 +122,48 @@ class LollmsApplication(LoLLMsCom):
             self.mount_personalities()
             self.mount_extensions()
 
+    def get_uploads_path(self, client_id):
+        return self.lollms_paths.personal_uploads_path
+
+    def start_servers(  self ):
+        if self.config.enable_ollama_service:
+            try:
+                from lollms.services.ollama.lollms_ollama import Service
+                self.ollama = Service(self, base_url=self.config.ollama_base_url)
+            except Exception as ex:
+                trace_exception(ex)
+                self.warning(f"Couldn't load Ollama")
+
+        if self.config.vllm_service:
+            try:
+                from lollms.services.vllm.lollms_vllm import Service
+                self.vllm = Service(self, base_url=self.config.vllm_url)
+            except Exception as ex:
+                trace_exception(ex)
+                self.warning(f"Couldn't load Ollama")
+
+
+        if self.config.enable_voice_service:
+            try:
+                from lollms.services.xtts.lollms_xtts import LollmsXTTS
+                self.tts = LollmsXTTS(self, voice_samples_path=self.lollms_paths.custom_voices_path, xtts_base_url=self.config.xtts_base_url, wait_for_service=False)
+            except:
+                self.warning(f"Couldn't load XTTS")
+
+        if self.config.enable_sd_service:
+            try:
+                from lollms.services.sd.lollms_sd import LollmsSD
+                self.sd = LollmsSD(self, auto_sd_base_url=self.config.sd_base_url)
+            except:
+                self.warning(f"Couldn't load SD")
+
     def build_long_term_skills_memory(self):
-        db_path:Path = self.lollms_paths.personal_databases_path/self.config.db_path.split(".")[0]
-        db_path.mkdir(exist_ok=True, parents=True)
+        discussion_db_name:Path = self.lollms_paths.personal_discussions_path/self.config.discussion_db_name.split(".")[0]
+        discussion_db_name.mkdir(exist_ok=True, parents=True)
         self.long_term_memory = TextVectorizer(
                 vectorization_method=VectorizationMethod.TFIDF_VECTORIZER,
                 model=self.model,
-                database_path=db_path/"skills_memory.json",
+                database_path=discussion_db_name/"skills_memory.json",
                 save_db=True,
                 data_visualization_method=VisualizationMethod.PCA,
             )

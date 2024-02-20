@@ -245,12 +245,14 @@ def get_active_binding_settings():
     else:
         return {}
 
-class BindingSettingsRequest(BaseModel):
-    type: str = Field(..., min_length=1, max_length=50)
-    value: Any
+# class BindingSettingsRequest(BaseModel):
+#     value: list 
 
+# @router.post("/set_active_binding_settings")
+# async def set_active_binding_settings(request: BindingSettingsRequest):
 @router.post("/set_active_binding_settings")
-async def set_active_binding_settings(request: BindingSettingsRequest):
+async def set_active_binding_settings(request: Request):
+    data = await request.json()
     """
     Sets the active binding settings.
 
@@ -263,16 +265,7 @@ async def set_active_binding_settings(request: BindingSettingsRequest):
         
         if lollmsElfServer.binding is not None:
             if hasattr(lollmsElfServer.binding,"binding_config"):
-                if request.type=="list" and type(request.value)==str:
-                    try:
-                        v = json.loads(request.value)
-                    except:
-                        v= ""
-                    if type(v)==list:
-                        request.value = v
-                    else:
-                        request.value = [request.value]
-                lollmsElfServer.binding.binding_config.update_template([{"type": request.type, "value": request.value}])
+                lollmsElfServer.binding.binding_config.update_template(data)
                 lollmsElfServer.binding.binding_config.config.save_config()
                 lollmsElfServer.binding.settings_updated()
                 if lollmsElfServer.config.auto_save:

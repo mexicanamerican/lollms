@@ -29,6 +29,12 @@ lollmsElfServer:LOLLMSWebUI = LOLLMSWebUI.get_instance()
 
 @router.get("/list_voices")
 def list_voices():
+    if lollmsElfServer.config.headless_server_mode:
+        return {"status":False,"error":"Code execution is blocked when in headless mode for obvious security reasons!"}
+
+    if lollmsElfServer.config.host!="localhost" and lollmsElfServer.config.host!="127.0.0.1":
+        return {"status":False,"error":"Code execution is blocked when the server is exposed outside for very obvious reasons!"}
+
     ASCIIColors.yellow("Listing voices")
     voices=["main_voice"]
     voices_dir:Path=lollmsElfServer.lollms_paths.custom_voices_path
@@ -43,6 +49,11 @@ async def set_voice(request: Request):
     :param request: The HTTP request object.
     :return: A JSON response with the status of the operation.
     """
+    if lollmsElfServer.config.headless_server_mode:
+        return {"status":False,"error":"Code execution is blocked when in headless mode for obvious security reasons!"}
+
+    if lollmsElfServer.config.host!="localhost" and lollmsElfServer.config.host!="127.0.0.1":
+        return {"status":False,"error":"Code execution is blocked when the server is exposed outside for very obvious reasons!"}
 
     try:
         data = (await request.json())
@@ -69,6 +80,11 @@ async def text2Audio(request: LollmsText2AudioRequest):
     :param request: The HTTP request object.
     :return: A JSON response with the status of the operation.
     """
+    if lollmsElfServer.config.headless_server_mode:
+        return {"status":False,"error":"Code execution is blocked when in headless mode for obvious security reasons!"}
+
+    if lollmsElfServer.config.host!="localhost" and lollmsElfServer.config.host!="127.0.0.1":
+        return {"status":False,"error":"Code execution is blocked when the server is exposed outside for very obvious reasons!"}
 
     try:
         # Get the JSON data from the POST request.
@@ -115,6 +131,12 @@ async def text2Audio(request: LollmsText2AudioRequest):
 @router.get("/install_xtts")
 def install_xtts():
     try:
+        if lollmsElfServer.config.headless_server_mode:
+            return {"status":False,"error":"Service installation is blocked when in headless mode for obvious security reasons!"}
+
+        if lollmsElfServer.config.host!="localhost" and lollmsElfServer.config.host!="127.0.0.1":
+            return {"status":False,"error":"Service installation is blocked when the server is exposed outside for very obvious reasons!"}
+        
         from lollms.services.xtts.lollms_xtts import install_xtts
         lollmsElfServer.ShowBlockingMessage("Installing xTTS api server\nPlease stand by")
         install_xtts(lollmsElfServer)

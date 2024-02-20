@@ -6,17 +6,22 @@ if [ -e "$HOME/miniconda3/bin/conda" ]; then
 else
     echo "Conda is not installed. Please install it first."
     echo Installing conda
-    curl -LOk https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+    curl -LO https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
     ./Miniconda3-latest-Linux-x86_64.sh -b
-    $HOME/miniconda3/bin/conda init --all
     rm ./Miniconda3-latest-Linux-x86_64.sh
     echo Done
 fi
 PATH="$HOME/miniconda3/bin:$PATH"
-conda init
 export PATH
-echo "Installing vllm"
-conda create -n vllm python=3.9 -y
-conda activate vllm 
-pip install vllm
+echo "Initializing conda"
+conda init --all
+export PATH
+echo "Installing petals"
+conda create -n petals python=3.9 -y
+echo "Activating petals environment"
+source activate petals 
+pip install petals
+git clone https://github.com/ParisNeo/petals_server.git
+cd petals_server
+pip install -e .
 echo "Done"

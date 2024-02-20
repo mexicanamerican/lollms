@@ -273,3 +273,30 @@ async def serve_uploads(path: str):
 
     return FileResponse(str(file_path))
 
+
+
+@router.get("/discussions/{path:path}")
+async def serve_discussions(path: str):
+    """
+    Serve discussion file.
+
+    Args:
+        filename (str): The name of the uploads file to serve.
+
+    Returns:
+        FileResponse: The file response containing the requested uploads file.
+    """
+    if ".." in path:
+        ASCIIColors.error("A suspected LFI attack detected. The path sent to the server has .. in it!")
+        raise HTTPException(status_code=400, detail="Invalid path!")
+
+    root_dir = lollmsElfServer.lollms_paths.personal_discussions_path
+    root_dir.mkdir(exist_ok=True, parents=True)
+    file_path = root_dir / path
+
+    if not Path(file_path).exists():
+        raise HTTPException(status_code=404, detail="File not found")
+
+    return FileResponse(str(file_path))
+
+

@@ -30,6 +30,12 @@ lollmsElfServer:LOLLMSWebUI = LOLLMSWebUI.get_instance()
 @router.get("/install_sd")
 def install_sd():
     try:
+        if lollmsElfServer.config.headless_server_mode:
+            return {"status":False,"error":"Service installation is blocked when in headless mode for obvious security reasons!"}
+
+        if lollmsElfServer.config.host!="localhost" and lollmsElfServer.config.host!="127.0.0.1":
+            return {"status":False,"error":"Service installation is blocked when the server is exposed outside for very obvious reasons!"}
+
         lollmsElfServer.ShowBlockingMessage("Installing SD api server\nPlease stand by")
         from lollms.services.sd.lollms_sd import install_sd
         install_sd(lollmsElfServer)

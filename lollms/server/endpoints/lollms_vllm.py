@@ -29,6 +29,12 @@ lollmsElfServer:LOLLMSWebUI = LOLLMSWebUI.get_instance()
 @router.get("/install_vllm")
 def install_vllm():
     try:
+        if lollmsElfServer.config.headless_server_mode:
+            return {"status":False,"error":"Service installation is blocked when in headless mode for obvious security reasons!"}
+
+        if lollmsElfServer.config.host!="localhost" and lollmsElfServer.config.host!="127.0.0.1":
+            return {"status":False,"error":"Service installation is blocked when the server is exposed outside for very obvious reasons!"}
+
         lollmsElfServer.ShowBlockingMessage("Installing vllm server\nPlease stand by")
         from lollms.services.vllm.lollms_vllm import install_vllm
         if install_vllm(lollmsElfServer):
@@ -44,10 +50,16 @@ def install_vllm():
 @router.get("/start_vllm")
 def start_vllm():
     try:
-        if not hasattr(lollmsElfServer,"vllm") or lollmsElfServer.vllm is none:
+        if hasattr(lollmsElfServer,"vllm") and lollmsElfServer.vllm is not None:
+            return {"status":False, 'error':"Service is already on"}
+
+        if not hasattr(lollmsElfServer,"vllm") or lollmsElfServer.vllm is None:
             lollmsElfServer.ShowBlockingMessage("Loading vllm server\nPlease stand by")
             from lollms.services.vllm.lollms_vllm import get_vllm
-            if get_vllm(lollmsElfServer):
+            server = get_vllm(lollmsElfServer)
+
+            if server:
+                lollmsElfServer.vllm = server(lollmsElfServer, lollmsElfServer.config.vllm_url)
                 lollmsElfServer.HideBlockingMessage()
                 return {"status":True}
             else:

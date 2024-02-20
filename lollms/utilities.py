@@ -35,6 +35,24 @@ import os
 import sys
 
 
+def get_conda_path():
+    # Get the path to the Python executable that's running the script
+    python_executable_path = sys.executable
+    # Construct the path to the 'conda' executable based on the Python executable path
+    # Assuming that 'conda' is in the same directory as the Python executable
+    conda_executable_path = os.path.join(os.path.dirname(python_executable_path), 'conda')
+    return conda_executable_path
+
+def yes_or_no_input(prompt):
+    while True:
+        user_input = input(prompt + " (yes/no): ").lower()
+        if user_input == 'yes':
+            return True
+        elif user_input == 'no':
+            return False
+        else:
+            print("Please enter 'yes' or 'no'.")
+
 def show_yes_no_dialog(title, text):
     import tkinter as tk
     from tkinter import messagebox
@@ -97,6 +115,17 @@ def file_path_to_url(file_path):
     url = "/"+file_path[file_path.index("outputs"):].replace("\\","/")
     return "/".join([urllib.parse.quote(p, safe="") for p in url.split("/")])
 
+
+def discussion_path_to_url(file_path:str|Path)->str:
+    """
+    This function takes a file path as an argument and converts it into a URL format. It first removes the initial part of the file path until the "outputs" string is reached, then replaces backslashes with forward slashes and quotes each segment with urllib.parse.quote() before joining them with forward slashes to form the final URL.
+
+    :param file_path: str, the file path in the format of a Windows system
+    :return: str, the converted URL format of the given file path
+    """
+    file_path = str(file_path)
+    url = "/"+file_path[file_path.index("discussion_databases"):].replace("\\","/").replace("discussion_databases","discussions")
+    return "/".join([urllib.parse.quote(p, safe="") for p in url.split("/")])
 
 
 def is_asyncio_loop_running():

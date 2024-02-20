@@ -38,7 +38,7 @@ def add_events(sio:socketio):
                 run_async(partial(sio.emit,'show_progress'))
                 lollmsElfServer.sio.sleep(0)
                 ASCIIColors.yellow("0- Detected discussion vectorization request")
-                folder = lollmsElfServer.lollms_paths.personal_databases_path/"vectorized_dbs"
+                folder = lollmsElfServer.lollms_paths.personal_discussions_path/"vectorized_dbs"
                 folder.mkdir(parents=True, exist_ok=True)
                 lollmsElfServer.build_long_term_skills_memory()
                 
