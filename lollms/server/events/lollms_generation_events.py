@@ -122,8 +122,8 @@ def add_events(sio:socketio):
                                 # Emit the generated text to the client
                                 run_async(partial(lollmsElfServer.sio.emit,'text_generated', {'text': generated_text}, to=client_id))   
                     except Exception as ex:
-                        run_async(partial(lollmsElfServer.sio.emit,'generation_error', {'error': str(ex)}, to=client_id))
-                        ASCIIColors.error(f"\ndone")
+                        lollmsElfServer.error(str(ex))
+                        trace_exception(ex)
                     lollmsElfServer.busy = False
                 else:
                     try:

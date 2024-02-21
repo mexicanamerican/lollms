@@ -128,6 +128,19 @@ def discussion_path_to_url(file_path:str|Path)->str:
     return "/".join([urllib.parse.quote(p, safe="") for p in url.split("/")])
 
 
+def url2host_port(url, default_port =8000):
+    if "http" in url:
+        parts = url.split(":")
+        host = ":".join(parts[:2])
+        host_no_http = parts[1].replace("//","")
+        port = url.split(":")[2] if len(parts)==3 else default_port
+        return host, host_no_http, port
+    else:
+        parts = url.split(":")
+        host = parts[0]
+        port = url.split(":")[1] if len(parts)==2 else default_port
+        return host, host, port
+
 def is_asyncio_loop_running():
     """
     # This function checks if an AsyncIO event loop is currently running. If an event loop is running, it returns True. If not, it returns False.

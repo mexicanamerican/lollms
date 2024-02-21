@@ -134,13 +134,13 @@ class LollmsApplication(LoLLMsCom):
                 trace_exception(ex)
                 self.warning(f"Couldn't load Ollama")
 
-        if self.config.vllm_service:
+        if self.config.enable_vllm_service:
             try:
                 from lollms.services.vllm.lollms_vllm import Service
                 self.vllm = Service(self, base_url=self.config.vllm_url)
             except Exception as ex:
                 trace_exception(ex)
-                self.warning(f"Couldn't load Ollama")
+                self.warning(f"Couldn't load vllm")
 
 
         if self.config.enable_voice_service:

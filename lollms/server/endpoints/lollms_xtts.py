@@ -113,13 +113,13 @@ async def text2Audio(request: LollmsText2AudioRequest):
             if voice!="main_voice":
                 voices_folder = lollmsElfServer.lollms_paths.custom_voices_path
             else:
-                voices_folder = Path(__file__).parent.parent/"voices"
+                voices_folder = Path(__file__).parent.parent.parent/"services/xtts/voices"
             lollmsElfServer.tts.set_speaker_folder(voices_folder)
             url = f"audio/{output_fn}"
             preprocessed_text= add_period(request.text)
 
             lollmsElfServer.tts.tts_to_file(preprocessed_text, f"{voice}.wav", f"{output_fn}", language=language)
-            lollmsElfServer.info("Voice file ready")
+            lollmsElfServer.info(f"Voice file ready at {url}")
             return {"url": url}
         except:
             return {"url": None}

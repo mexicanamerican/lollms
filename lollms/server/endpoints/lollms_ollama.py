@@ -47,3 +47,28 @@ def install_ollama():
         trace_exception(ex)
         lollmsElfServer.HideBlockingMessage()
         return {"status":False, 'error':str(ex)}
+
+@router.get("/start_ollama")
+def start_vllm():
+    try:
+        if hasattr(lollmsElfServer,"vllm") and lollmsElfServer.vllm is not None:
+            return {"status":False, 'error':"Service is already on"}
+
+        if not hasattr(lollmsElfServer,"vllm") or lollmsElfServer.vllm is None:
+            lollmsElfServer.ShowBlockingMessage("Loading vllm server\nPlease stand by")
+            from lollms.services.vllm.lollms_vllm import get_vllm
+            server = get_vllm(lollmsElfServer)
+
+            if server:
+                lollmsElfServer.vllm = server(lollmsElfServer, lollmsElfServer.config.vllm_url)
+                lollmsElfServer.HideBlockingMessage()
+                return {"status":True}
+            else:
+                return {"status":False, 'error':str(ex)}            
+        else:
+            return {"status":False, 'error':'Service already running'}            
+
+    except Exception as ex:
+        trace_exception(ex)
+        lollmsElfServer.HideBlockingMessage()
+        return {"status":False, 'error':str(ex)}
