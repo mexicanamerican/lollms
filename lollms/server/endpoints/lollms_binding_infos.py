@@ -14,6 +14,7 @@ from lollms.server.elf_server import LOLLMSElfServer
 from lollms.binding import BindingBuilder, InstallOption
 from ascii_colors import ASCIIColors
 from lollms.utilities import load_config, trace_exception, gc
+from lollms.security import sanitize_path_from_endpoint
 from pathlib import Path
 from typing import List, Any
 import json
@@ -125,10 +126,7 @@ def install_binding(data:BindingInstallParams):
     Returns:
         dict: Status of operation.
     """
-    
-    if ".." in data.name:
-        ASCIIColors.error("A potential path traversal attack detected. The name of the binding sent to the server has .. in it!")
-        raise HTTPException(status_code=400, detail="Invalid path!")
+    sanitize_path_from_endpoint(path)    
     
     ASCIIColors.info(f"- Reinstalling binding {data.name}...")
     try:

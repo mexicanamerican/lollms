@@ -14,6 +14,7 @@ import pkg_resources
 from lollms.server.elf_server import LOLLMSElfServer
 from fastapi.responses import FileResponse
 from lollms.binding import BindingBuilder, InstallOption
+from lollms.security import sanitize_path_from_endpoint
 from ascii_colors import ASCIIColors
 from lollms.utilities import load_config, trace_exception, gc
 from pathlib import Path
@@ -38,9 +39,7 @@ async def serve_user_infos(path: str):
     Returns:
         FileResponse: The file response containing the requested file.
     """ 
-    if ".." in path:
-        ASCIIColors.error("A suspected LFI attack detected. The path sent to the server has .. in it!")
-        raise HTTPException(status_code=400, detail="Invalid path!")
+    sanitize_path_from_endpoint(path)
 
     file_path = (lollmsElfServer.lollms_paths.personal_user_infos_path / path).resolve()
     return FileResponse(str(file_path))
@@ -57,10 +56,8 @@ async def serve_bindings(path: str):
     Returns:
         FileResponse: The file response containing the requested bindings file.
     """
-    if ".." in path:
-        ASCIIColors.error("A suspected LFI attack detected. The path sent to the server has .. in it!")
-        raise HTTPException(status_code=400, detail="Invalid path!")
     
+    sanitize_path_from_endpoint(path)    
     file_path = (lollmsElfServer.lollms_paths.bindings_zoo_path / path).resolve()
 
     if not Path(file_path).exists():
@@ -78,9 +75,7 @@ async def serve_personalities(path: str):
     Returns:
         FileResponse: The file response containing the requested personalities file.
     """
-    if ".." in path:
-        ASCIIColors.error("A suspected LFI attack detected. The path sent to the server has .. in it!")
-        raise HTTPException(status_code=400, detail="Invalid path!")
+    sanitize_path_from_endpoint(path)    
     
     if "custom_personalities" in path:
         file_path = (lollmsElfServer.lollms_paths.custom_personalities_path / "/".join(str(path).split("/")[1:])).resolve()
@@ -104,9 +99,7 @@ async def serve_extensions(path: str):
     Returns:
         FileResponse: The file response containing the requested extensions file.
     """
-    if ".." in path:
-        ASCIIColors.error("A suspected LFI attack detected. The path sent to the server has .. in it!")
-        raise HTTPException(status_code=400, detail="Invalid path!")
+    sanitize_path_from_endpoint(path)    
     
     file_path = (lollmsElfServer.lollms_paths.extensions_zoo_path / path).resolve()
 
@@ -132,9 +125,7 @@ async def serve_audio(path: str):
     Returns:
         FileResponse: The file response containing the requested audio file.
     """
-    if ".." in path:
-        ASCIIColors.error("A suspected LFI attack detected. The path sent to the server has .. in it!")
-        raise HTTPException(status_code=400, detail="Invalid path!")
+    sanitize_path_from_endpoint(path)    
 
     root_dir = Path(lollmsElfServer.lollms_paths.personal_outputs_path).resolve()
     file_path = root_dir/ 'audio_out' / path
@@ -156,9 +147,7 @@ async def serve_images(path: str):
     Returns:
         FileResponse: The file response containing the requested image file.
     """
-    if ".." in path:
-        ASCIIColors.error("A suspected LFI attack detected. The path sent to the server has .. in it!")
-        raise HTTPException(status_code=400, detail="Invalid path!")
+    sanitize_path_from_endpoint(path)    
 
     root_dir = Path(os.getcwd())/ "images/"
     file_path = (root_dir / path).resolve()
@@ -182,9 +171,7 @@ async def serve_outputs(path: str):
     Returns:
         FileResponse: The file response containing the requested output file.
     """
-    if ".." in path:
-        ASCIIColors.error("A suspected LFI attack detected. The path sent to the server has .. in it!")
-        raise HTTPException(status_code=400, detail="Invalid path!")
+    sanitize_path_from_endpoint(path)    
 
     root_dir = lollmsElfServer.lollms_paths.personal_outputs_path
     root_dir.mkdir(exist_ok=True, parents=True)
@@ -208,9 +195,7 @@ async def serve_data(path: str):
     Returns:
         FileResponse: The file response containing the requested data file.
     """
-    if ".." in path:
-        ASCIIColors.error("A suspected LFI attack detected. The path sent to the server has .. in it!")
-        raise HTTPException(status_code=400, detail="Invalid path!")
+    sanitize_path_from_endpoint(path)    
 
     root_dir = lollmsElfServer.lollms_paths.personal_path / "data"
     root_dir.mkdir(exist_ok=True, parents=True)
@@ -235,9 +220,7 @@ async def serve_help(path: str):
     Returns:
         FileResponse: The file response containing the requested data file.
     """
-    if ".." in path:
-        ASCIIColors.error("A suspected LFI attack detected. The path sent to the server has .. in it!")
-        raise HTTPException(status_code=400, detail="Invalid path!")
+    sanitize_path_from_endpoint(path)    
 
     root_dir = Path(os.getcwd())
     file_path = root_dir/'help/' / path
@@ -260,9 +243,7 @@ async def serve_uploads(path: str):
     Returns:
         FileResponse: The file response containing the requested uploads file.
     """
-    if ".." in path:
-        ASCIIColors.error("A suspected LFI attack detected. The path sent to the server has .. in it!")
-        raise HTTPException(status_code=400, detail="Invalid path!")
+    sanitize_path_from_endpoint(path)    
 
     root_dir = lollmsElfServer.lollms_paths.personal_path / "uploads"
     root_dir.mkdir(exist_ok=True, parents=True)
@@ -286,9 +267,7 @@ async def serve_discussions(path: str):
     Returns:
         FileResponse: The file response containing the requested uploads file.
     """
-    if ".." in path:
-        ASCIIColors.error("A suspected LFI attack detected. The path sent to the server has .. in it!")
-        raise HTTPException(status_code=400, detail="Invalid path!")
+    sanitize_path_from_endpoint(path)    
 
     root_dir = lollmsElfServer.lollms_paths.personal_discussions_path
     root_dir.mkdir(exist_ok=True, parents=True)

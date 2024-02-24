@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import List, Optional
 import psutil
 import yaml
+from lollms.security import sanitize_path
 
 # --------------------- Parameter Classes -------------------------------
 
@@ -187,8 +188,7 @@ async def reinstall_personality(personality_in: PersonalityIn):
     :return: A JSON response with the status of the operation.
     """
     try:
-        if(".." in personality_in.name):
-            raise "Detected an attempt of path traversal. Are you kidding me?"
+        sanitize_path(personality_in.name)
         if not personality_in.name:
             personality_in.name=lollmsElfServer.config.personalities[lollmsElfServer.config["active_personality_id"]]
         personality_path = lollmsElfServer.lollms_paths.personalities_zoo_path / personality_in.name

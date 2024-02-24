@@ -13,6 +13,7 @@ from typing import Callable
 from lollms.paths import LollmsPaths
 from ascii_colors import ASCIIColors
 
+
 import tempfile
 import requests
 import shutil
@@ -23,6 +24,9 @@ import subprocess
 from lollms.config import TypedConfig, InstallOption
 from lollms.main_config import LOLLMSConfig
 from lollms.com import NotificationType, NotificationDisplayType, LoLLMsCom
+from lollms.security import sanitize_path
+from lollms.utilities import show_message_dialog
+
 import urllib
 import inspect
 from datetime import datetime
@@ -146,9 +150,14 @@ class LLMBinding:
 
     def install_model(self, model_type:str, model_path:str, variant_name:str, client_id:int=None):
         print("Install model triggered")
-        if(".." in model_path):
-            raise "Detected an attempt of path traversal. Are you kidding me?"
+        sanitize_path(model_path)
         model_path = model_path.replace("\\","/")
+        parts = model_path.split("/")
+        if parts[2]=="huggingface.co":
+            ASCIIColors.cyan("Hugging face model detected")
+            model_name = parts[4]
+        else:
+            model_name = variant_name
 
         if model_type.lower() in model_path.lower():
             model_type:str=model_type
@@ -172,15 +181,21 @@ class LLMBinding:
             else:
                 filename = parts[4]
             installation_path = installation_dir / filename
+
         elif model_type=="gpt4all":
             filename = variant_name
             model_path = "http://gpt4all.io/models/gguf/"+filename
-            installation_path = installation_dir / filename
+            installation_root_dir = installation_dir / model_name 
+            installation_root_dir.mkdir(parents=True, exist_ok=True)
+            installation_path = installation_root_dir / filename
         else:
             filename = Path(model_path).name
-            installation_path = installation_dir / filename
+            installation_root_dir = installation_dir / model_name 
+            installation_root_dir.mkdir(parents=True, exist_ok=True)
+            installation_path = installation_root_dir / filename
         print("Model install requested")
         print(f"Model path : {model_path}")
+        print(f"Installation Path : {installation_path}")
 
         model_name = filename
         binding_folder = self.config["binding_name"]
@@ -703,7 +718,7 @@ class LLMBinding:
         models = []
         for models_folder in self.models_folders:
             if models_folder.name in ["ggml","gguf","gpt4all"]:
-                models+=[f.name for f in models_folder.iterdir() if f.suffix in self.supported_file_extensions or f.suffix==".reference"]
+                models+=[f.name for f in models_folder.iterdir() if f.is_dir() and not f.stem.startswith(".") or f.suffix==".reference"]
             else:
                 models+=[f.name for f in models_folder.iterdir() if f.is_dir() and not f.stem.startswith(".") or f.suffix==".reference"]
         return models

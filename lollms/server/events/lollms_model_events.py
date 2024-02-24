@@ -13,6 +13,8 @@ import pkg_resources
 from lollms.server.elf_server import LOLLMSElfServer
 from fastapi.responses import FileResponse
 from lollms.binding import BindingBuilder, InstallOption
+from lollms.security import sanitize_path
+
 from ascii_colors import ASCIIColors
 from lollms.personality import MSG_TYPE, AIPersonality
 from lollms.utilities import load_config, trace_exception, gc, terminate_thread, run_async
@@ -38,8 +40,7 @@ def add_events(sio:socketio):
 
     @sio.on('uninstall_model')
     def uninstall_model(sid, data):
-        if(".." in data['path']):
-            raise "Detected an attempt of path traversal. Are you kidding me?"
+        sanitize_path(data['path'])
 
         model_path = os.path.realpath(data['path'])
         model_type:str=data.get("type","ggml")
