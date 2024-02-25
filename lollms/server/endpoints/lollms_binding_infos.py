@@ -126,7 +126,7 @@ def install_binding(data:BindingInstallParams):
     Returns:
         dict: Status of operation.
     """
-    sanitize_path_from_endpoint(path)    
+    sanitize_path_from_endpoint(data.name)    
     
     ASCIIColors.info(f"- Reinstalling binding {data.name}...")
     try:

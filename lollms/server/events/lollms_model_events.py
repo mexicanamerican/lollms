@@ -43,8 +43,8 @@ def add_events(sio:socketio):
         sanitize_path(data['path'])
 
         model_path = os.path.realpath(data['path'])
-        model_type:str=data.get("type","ggml")
-        installation_dir = lollmsElfServer.binding.searchModelParentFolder(model_path)
+        model_type:str=data.get("type","gguf")
+        installation_dir = lollmsElfServer.binding.searchModelParentFolder(model_path, model_type)
         
         binding_folder = lollmsElfServer.config["binding_name"]
         if model_type=="gptq" or  model_type=="awq" or  model_type=="exl2":
@@ -66,6 +66,8 @@ def add_events(sio:socketio):
         try:
             if not installation_path.exists():
                 # Try to find a version
+
+
                 model_path = installation_path.name.lower().replace("-ggml","").replace("-gguf","")
                 candidates = [m for m in installation_dir.iterdir() if model_path in m.name]
                 if len(candidates)>0:
