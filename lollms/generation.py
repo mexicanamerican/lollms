@@ -22,7 +22,7 @@ class ROLE_CHANGE_OURTPUT:
         self.status = status
         self.value = value
 
-class RECPTION_MANAGER:
+class RECEPTION_MANAGER:
     done:bool=False
     chunk:str=""
     new_role:str=""

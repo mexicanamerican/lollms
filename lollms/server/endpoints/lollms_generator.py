@@ -14,7 +14,7 @@ from pydantic import BaseModel
 from starlette.responses import StreamingResponse
 from lollms.types import MSG_TYPE
 from lollms.utilities import detect_antiprompt, remove_text_from_string, trace_exception
-from lollms.generation import RECPTION_MANAGER, ROLE_CHANGE_DECISION, ROLE_CHANGE_OURTPUT
+from lollms.generation import RECEPTION_MANAGER, ROLE_CHANGE_DECISION, ROLE_CHANGE_OURTPUT
 from ascii_colors import ASCIIColors
 import time
 import threading
@@ -87,7 +87,7 @@ async def lollms_generate(request: LollmsGenerateRequest):
     """
 
     try:
-        reception_manager=RECPTION_MANAGER()
+        reception_manager=RECEPTION_MANAGER()
         prompt = request.prompt
         n_predict = request.n_predict if request.n_predict>0 else 1024
         stream = request.stream
@@ -274,7 +274,7 @@ class GenerationRequest(BaseModel):
 @router.post("/v1/chat/completions")
 async def v1_chat_completions(request: GenerationRequest):
     try:
-        reception_manager=RECPTION_MANAGER()
+        reception_manager=RECEPTION_MANAGER()
         messages = request.messages
         prompt = ""
         roles= False

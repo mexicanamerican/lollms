@@ -34,8 +34,10 @@ def add_events(sio:socketio):
     @sio.on('get_personality_files')
     def get_personality_files(sid, data):
         client_id = sid
-        lollmsElfServer.connections[client_id]["generated_text"]       = ""
-        lollmsElfServer.connections[client_id]["cancel_generation"]    = False
+        client = lollmsElfServer.session.get_client(client_id)
+
+        client.generated_text       = ""
+        client.cancel_generation    = False
         
         try:
             lollmsElfServer.personality.setCallback(partial(lollmsElfServer.process_chunk,client_id = client_id))
@@ -47,8 +49,8 @@ def add_events(sio:socketio):
     import mimetypes
 
     ALLOWED_EXTENSIONS = {
-        'txt', 'py', 'html', 'js', 'jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff', 'ico', 'svg', 'mp4', 'mp3', 'avi', 'mov',
-        'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'pdf'
+        'txt', 'csv', 'py', 'html', 'js', 'jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff', 'ico', 'svg', 'mp4', 'mp3', 'avi', 'mov',
+        'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'pdf', 'js'
     }
 
     def allowed_file(filename):
@@ -58,7 +60,9 @@ def add_events(sio:socketio):
     @sio.on('send_file_chunk')
     def send_file_chunk(sid, data):
         client_id = sid
-        filename = os.path.basename(data['filename'])  # sanitize filename
+        client = lollmsElfServer.session.get_client(client_id)
+
+        filename:str = os.path.basename(data['filename'])  # sanitize filename
         filename = filename.lower()
         chunk = data['chunk']
         offset = data['offset']
@@ -68,8 +72,14 @@ def add_events(sio:socketio):
         if not allowed_file(filename):
             print(f"Invalid file type: {filename}")
             return
+        ext = filename.split(".")[-1].lower()
+        if ext in ["wav", "mp3"]:
+            path:Path = client.discussion.discussion_audio_folder
+        elif ext in [".png",".jpg",".jpeg",".gif",".bmp",".svg",".webp"]:
+            path:Path = client.discussion.discussion_images_folder
+        else:
+            path:Path = client.discussion.discussion_text_folder
 
-        path:Path = lollmsElfServer.get_uploads_path(client_id) / lollmsElfServer.personality.personality_folder_name
         path.mkdir(parents=True, exist_ok=True)
         file_path = path / filename
 
@@ -85,11 +95,11 @@ def add_events(sio:socketio):
             return
 
         if is_last_chunk:
-            ASCIIColors.success('File received and saved successfully')
+            lollmsElfServer.success('File received and saved successfully')
             if lollmsElfServer.personality.processor:
                 result = lollmsElfServer.personality.processor.add_file(file_path, partial(lollmsElfServer.process_chunk, client_id=client_id))
             else:
-                result = lollmsElfServer.personality.add_file(file_path, partial(lollmsElfServer.process_chunk, client_id=client_id))
+                result = lollmsElfServer.personality.add_file(file_path, client, partial(lollmsElfServer.process_chunk, client_id=client_id))
 
             ASCIIColors.success('File processed successfully')
             run_async(partial(sio.emit,'file_received', {'status': True, 'filename': filename}))
@@ -100,11 +110,13 @@ def add_events(sio:socketio):
     @sio.on('execute_command')
     def execute_command(sid, data):
         client_id = sid
+        client = lollmsElfServer.session.get_client(client_id)
+
         lollmsElfServer.cancel_gen = False
-        lollmsElfServer.connections[client_id]["generated_text"]=""
-        lollmsElfServer.connections[client_id]["cancel_generation"]=False
-        lollmsElfServer.connections[client_id]["continuing"]=False
-        lollmsElfServer.connections[client_id]["first_chunk"]=True
+        client.generated_text=""
+        client.cancel_generation=False
+        client.continuing=False
+        client.first_chunk=True
         
         if not lollmsElfServer.model:
             ASCIIColors.error("Model not selected. Please select a model")
@@ -112,14 +124,14 @@ def add_events(sio:socketio):
             return
 
         if not lollmsElfServer.busy:
-            if lollmsElfServer.connections[client_id]["current_discussion"] is None:
+            if lollmsElfServer.session.get_client(client_id).discussion is None:
                 if lollmsElfServer.db.does_last_discussion_have_messages():
-                    lollmsElfServer.connections[client_id]["current_discussion"] = lollmsElfServer.db.create_discussion()
+                    lollmsElfServer.session.get_client(client_id).discussion = lollmsElfServer.db.create_discussion()
                 else:
-                    lollmsElfServer.connections[client_id]["current_discussion"] = lollmsElfServer.db.load_last_discussion()
+                    lollmsElfServer.session.get_client(client_id).discussion = lollmsElfServer.db.load_last_discussion()
 
             ump = lollmsElfServer.config.discussion_prompt_separator +lollmsElfServer.config.user_name.strip() if lollmsElfServer.config.use_user_name_in_discussions else lollmsElfServer.personality.user_message_prefix
-            message = lollmsElfServer.connections[client_id]["current_discussion"].add_message(
+            message = lollmsElfServer.session.get_client(client_id).discussion.add_message(
                 message_type    = MSG_TYPE.MSG_TYPE_FULL.value,
                 sender_type     = SENDER_TYPES.SENDER_TYPES_USER.value,
                 sender          = ump.replace(lollmsElfServer.config.discussion_prompt_separator,"").replace(":",""),
@@ -130,6 +142,8 @@ def add_events(sio:socketio):
             lollmsElfServer.busy=True
 
             client_id = sid
+            client = lollmsElfServer.session.get_client(client_id)
+
             command = data["command"]
             parameters = data["parameters"]
             lollmsElfServer.prepare_reception(client_id)

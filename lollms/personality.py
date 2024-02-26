@@ -15,7 +15,7 @@ from lollms.paths import LollmsPaths
 from lollms.binding import LLMBinding, BindingType
 from lollms.utilities import PromptReshaper, PackageManager, discussion_path_to_url
 from lollms.com import NotificationType, NotificationDisplayType
-
+from lollms.client_session import Session, Client
 import pkg_resources
 from pathlib import Path
 from PIL import Image
@@ -152,21 +152,22 @@ class AIPersonality:
 
         # Conditionning
         self._personality_description: str = "This personality is a helpful and Kind AI ready to help you solve your problems"
-        self._personality_conditioning: str = """!@> Instructions:
-lollms (Lord of LLMs) is a smart and helpful Assistant built by the computer geek ParisNeo.
-It is compatible with many bindings to LLM models such as llama, gpt4all, gptj, autogptq etc.
-It can discuss with humans and assist them on many subjects.
-It runs locally on your machine. No need to connect to the internet.
-It answers the questions with precise details
-Its performance depends on the underlying model size and training.
-Try to answer with as much details as you can
-Date: {{date}}
-"""
+        self._personality_conditioning: str = "\n".join([
+            "!@>system:",
+            "lollms (Lord of LLMs) is a smart and helpful Assistant built by the computer geek ParisNeo.",
+            "It is compatible with many bindings to LLM models such as llama, gpt4all, gptj, autogptq etc.",
+            "It can discuss with humans and assist them on many subjects.",
+            "It runs locally on your machine. No need to connect to the internet.",
+            "It answers the questions with precise details",
+            "Its performance depends on the underlying model size and training.",
+            "Try to answer with as much details as you can",
+            "Date: {{date}}",
+        ])
         self._welcome_message: str = "Welcome! I am lollms (Lord of LLMs) A free and open assistant built by ParisNeo. What can I do for you today?"
         self._include_welcome_message_in_disucssion: bool = True
-        self._user_message_prefix: str = "!@> Human: "
+        self._user_message_prefix: str = "!@>human: "
         self._link_text: str = "\n"
-        self._ai_message_prefix: str = "!@> lollms:"
+        self._ai_message_prefix: str = "!@>lollms:"
         self._anti_prompts:list = [self.config.discussion_prompt_separator]
 
         # Extra
@@ -927,11 +928,11 @@ Date: {{date}}
         self.vectorizer = None
         return True     
     
-    def add_file(self, path, callback=None):
+    def add_file(self, path, client:Client, callback=None):
+
         if not self.callback:
             self.callback = callback
-        discussion_db_name = self.lollms_paths.personal_discussions_path / "personalities" / self.name / "db.json"
-        discussion_db_name.parent.mkdir(parents=True, exist_ok=True)
+            
         path = Path(path)
         if path.suffix in [".wav",".mp3"]:
             self.new_message("")
@@ -954,10 +955,11 @@ Date: {{date}}
             transcription_fn = str(path)+".txt"
             with open(transcription_fn, "w", encoding="utf-8") as f:
                 f.write(result["text"])
+
             self.info(f"File saved to {transcription_fn}")
             self.full(result["text"])
             self.step_end("Transcribing ... ")
-        elif path.suffix in [".png",".jpg",".gif",".bmp",".webp"]:
+        elif path.suffix in [".png",".jpg",".jpeg",".gif",".bmp",".svg",".webp"]:
             if self.callback:
                 try:
                     pth = str(path).replace("\\","/").split('/')
@@ -1000,18 +1002,19 @@ Date: {{date}}
                     self.vectorizer = TextVectorizer(
                                 self.config.data_vectorization_method, # supported "model_embedding" or "tfidf_vectorizer"
                                 model=self.model, #needed in case of using model_embedding
-                                database_path=discussion_db_name,
+                                database_path=client.discussion.discussion_rag_folder/"db.json",
                                 save_db=self.config.data_vectorization_save_db,
                                 data_visualization_method=VisualizationMethod.PCA,
                                 database_dict=None)
                     data = GenericDataLoader.read_file(path)
-                    self.vectorizer.add_document(path, data, self.config.data_vectorization_chunk_size, self.config.data_vectorization_overlap_size)
+                    self.vectorizer.add_document(path, data, self.config.data_vectorization_chunk_size, self.config.data_vectorization_overlap_size, add_first_line_to_all_chunks=True if path.suffix==".csv" else False)
                     self.vectorizer.index()
                     if callback is not None:
                         callback("File added successfully",MSG_TYPE.MSG_TYPE_INFO)
                     self.HideBlockingMessage("Adding file to vector store.\nPlease stand by")
                     return True
             except Exception as e:
+                trace_exception(e)
                 self.HideBlockingMessage("Adding file to vector store.\nPlease stand by")
                 self.InfoMessage(f"Unsupported file format or empty file.\nSupported formats are {GenericDataLoader.get_supported_file_types()}")
                 return False

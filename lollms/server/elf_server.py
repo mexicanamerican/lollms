@@ -86,10 +86,10 @@ class LOLLMSElfServer(LollmsApplication):
         return None
 
     def prepare_reception(self, client_id):
-        if not self.connections[client_id]["continuing"]:
-            self.connections[client_id]["generated_text"] = ""
+        if not self.session.get_client(client_id).continuing:
+            self.session.get_client(client_id).generated_text = ""
             
-        self.connections[client_id]["first_chunk"]=True
+        self.session.get_client(client_id).first_chunk=True
             
         self.nb_received_tokens = 0
         self.start_time = datetime.now()

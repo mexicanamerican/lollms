@@ -7,13 +7,16 @@ from lollms.config import InstallOption
 from lollms.helpers import ASCIIColors, trace_exception
 from lollms.com import NotificationType, NotificationDisplayType, LoLLMsCom
 from lollms.terminal import MainMenu
+from lollms.types import MSG_TYPE, SENDER_TYPES
 from lollms.utilities import PromptReshaper
+from lollms.client_session import Client, Session
 from safe_store import TextVectorizer, VectorizationMethod, VisualizationMethod
 from typing import Callable
 from pathlib import Path
 from datetime import datetime
 from functools import partial
 from socketio import AsyncServer
+from typing import Tuple, List
 import subprocess
 import importlib
 import sys, os
@@ -55,6 +58,7 @@ class LollmsApplication(LoLLMsCom):
         self.long_term_memory           = None
 
         self.tts                        = None
+        self.session                    = Session(lollms_paths)
 
         if not free_mode:
             try:
@@ -432,3 +436,317 @@ class LollmsApplication(LoLLMsCom):
             if file_path.name!=f"{lollms_paths.tool_prefix}local_config.yaml" and file_path.suffix.lower()==".yaml":
                 file_path.unlink()
                 ASCIIColors.info(f"Deleted file: {file_path}")
+
+    # -------------------------------------- Prompt preparing
+    def prepare_query(self, client_id: str, message_id: int = -1, is_continue: bool = False, n_tokens: int = 0, generation_type = None) -> Tuple[str, str, List[str]]:
+        """
+        Prepares the query for the model.
+
+        Args:
+            client_id (str): The client ID.
+            message_id (int): The message ID. Default is -1.
+            is_continue (bool): Whether the query is a continuation. Default is False.
+            n_tokens (int): The number of tokens. Default is 0.
+
+        Returns:
+            Tuple[str, str, List[str]]: The prepared query, original message content, and tokenized query.
+        """
+        if self.personality.callback is None:
+            self.personality.callback = partial(self.process_chunk, client_id=client_id)
+        # Get the list of messages
+        messages = self.session.get_client(client_id).discussion.get_messages()
+
+        # Find the index of the message with the specified message_id
+        message_index = -1
+        for i, message in enumerate(messages):
+            if message.id == message_id:
+                message_index = i
+                break
+        
+        # Define current message
+        current_message = messages[message_index]
+
+        # Build the conditionning text block
+        conditionning = self.personality.personality_conditioning
+
+        # Check if there are document files to add to the prompt
+        internet_search_results = ""
+        internet_search_infos = []
+        documentation = ""
+        knowledge = ""
+
+
+        # boosting information
+        if self.config.positive_boost:
+            positive_boost="\n!@>important information: "+self.config.positive_boost+"\n"
+            n_positive_boost = len(self.model.tokenize(positive_boost))
+        else:
+            positive_boost=""
+            n_positive_boost = 0
+
+        if self.config.negative_boost:
+            negative_boost="\n!@>important information: "+self.config.negative_boost+"\n"
+            n_negative_boost = len(self.model.tokenize(negative_boost))
+        else:
+            negative_boost=""
+            n_negative_boost = 0
+
+        if self.config.force_output_language_to_be:
+            force_language="\n!@>important information: Answer the user in this language :"+self.config.force_output_language_to_be+"\n"
+            n_force_language = len(self.model.tokenize(force_language))
+        else:
+            force_language=""
+            n_force_language = 0
+
+        if self.config.fun_mode:
+            fun_mode="\n!@>important information: Fun mode activated. In this mode you must answer in a funny playful way. Do not be serious in your answers. Each answer needs to make the user laugh.\n"
+            n_fun_mode = len(self.model.tokenize(positive_boost))
+        else:
+            fun_mode=""
+            n_fun_mode = 0
+
+        discussion = None
+        if generation_type != "simple_question":
+
+            if self.config.activate_internet_search:
+                if discussion is None:
+                    discussion = self.recover_discussion(client_id)
+                if self.config.internet_activate_search_decision:
+                    self.personality.step_start(f"Requesting if {self.personality.name} needs to search internet to answer the user")
+                    need = not self.personality.yes_no(f"Do you have enough information to give a satisfactory answer to {self.config.user_name}'s request without internet search? (If you do not know or you can't answer 0 (no)", discussion)
+                    self.personality.step_end(f"Requesting if {self.personality.name} needs to search internet to answer the user")
+                    self.personality.step("Yes" if need else "No")
+                else:
+                    need=True
+                if need:
+                    self.personality.step_start("Crafting internet search query")
+                    query = self.personality.fast_gen(f"!@>discussion:\n{discussion[-2048:]}\n!@>system: Read the discussion and craft a web search query suited to recover needed information to reply to last {self.config.user_name} message.\nDo not answer the prompt. Do not add explanations.\n!@>websearch query: ", max_generation_size=256, show_progress=True, callback=self.personality.sink)
+                    self.personality.step_end("Crafting internet search query")
+                    self.personality.step(f"web search query: {query}")
+
+                    self.personality.step_start("Performing Internet search")
+
+                    internet_search_results=f"!@>important information: Use the internet search results data to answer {self.config.user_name}'s last message. It is strictly forbidden to give the user an answer without having actual proof from the documentation.\n!@>Web search results:\n"
+
+                    docs, sorted_similarities, document_ids = self.personality.internet_search(query, self.config.internet_quick_search)
+                    for doc, infos,document_id in zip(docs, sorted_similarities, document_ids):
+                        internet_search_infos.append(document_id)
+                        internet_search_results += f"search result chunk:\nchunk_infos:{document_id['url']}\nchunk_title:{document_id['title']}\ncontent:{doc}"
+                    self.personality.step_end("Performing Internet search")
+
+            if self.personality.persona_data_vectorizer:
+                if documentation=="":
+                    documentation="\n!@>important information: Use the documentation data to answer the user questions. If the data is not present in the documentation, please tell the user that the information he is asking for does not exist in the documentation section. It is strictly forbidden to give the user an answer without having actual proof from the documentation.\n!@>Documentation:\n"
+
+                if self.config.data_vectorization_build_keys_words:
+                    if discussion is None:
+                        discussion = self.recover_discussion(client_id)
+                    query = self.personality.fast_gen(f"\n!@>instruction: Read the discussion and rewrite the last prompt for someone who didn't read the entire discussion.\nDo not answer the prompt. Do not add explanations.\n!@>discussion:\n{discussion[-2048:]}\n!@>enhanced query: ", max_generation_size=256, show_progress=True)
+                    ASCIIColors.cyan(f"Query:{query}")
+                else:
+                    query = current_message.content
+                try:
+                    docs, sorted_similarities, document_ids = self.personality.persona_data_vectorizer.recover_text(query, top_k=self.config.data_vectorization_nb_chunks)
+                    for doc, infos, doc_id in zip(docs, sorted_similarities, document_ids):
+                        documentation += f"document chunk:\nchunk_infos:{infos}\ncontent:{doc}"
+                except:
+                    self.warning("Couldn't add documentation to the context. Please verify the vector database")
+            
+            if len(self.personality.text_files) > 0 and self.personality.vectorizer:
+                if documentation=="":
+                    documentation="\n!@>important information: Use the documentation data to answer the user questions. If the data is not present in the documentation, please tell the user that the information he is asking for does not exist in the documentation section. It is strictly forbidden to give the user an answer without having actual proof from the documentation.\n!@>Documentation:\n"
+
+                if self.config.data_vectorization_build_keys_words:
+                    discussion = self.recover_discussion(client_id)
+                    query = self.personality.fast_gen(f"\n!@>instruction: Read the discussion and rewrite the last prompt for someone who didn't read the entire discussion.\nDo not answer the prompt. Do not add explanations.\n!@>discussion:\n{discussion[-2048:]}\n!@>enhanced query: ", max_generation_size=256, show_progress=True)
+                    ASCIIColors.cyan(f"Query: {query}")
+                else:
+                    query = current_message.content
+
+                try:
+                    docs, sorted_similarities, document_ids = self.personality.vectorizer.recover_text(query, top_k=self.config.data_vectorization_nb_chunks)
+                    for doc, infos in zip(docs, sorted_similarities):
+                        documentation += f"document chunk:\nchunk path: {infos[0]}\nchunk content:{doc}"
+                    documentation += "\n!@>important information: Use the documentation data to answer the user questions. If the data is not present in the documentation, please tell the user that the information he is asking for does not exist in the documentation section. It is strictly forbidden to give the user an answer without having actual proof from the documentation."
+                except:
+                    self.warning("Couldn't add documentation to the context. Please verify the vector database")
+            # Check if there is discussion knowledge to add to the prompt
+            if self.config.activate_ltm and self.long_term_memory is not None:
+                if knowledge=="":
+                    knowledge="!@>knowledge:\n"
+
+                try:
+                    docs, sorted_similarities, document_ids = self.long_term_memory.recover_text(current_message.content, top_k=self.config.data_vectorization_nb_chunks)
+                    for i,(doc, infos) in enumerate(zip(docs, sorted_similarities)):
+                        knowledge += f"!@>knowledge {i}:\n!@>title:\n{infos[0]}\ncontent:\n{doc}"
+                except:
+                    self.warning("Couldn't add long term memory information to the context. Please verify the vector database")        # Add information about the user
+        user_description=""
+        if self.config.use_user_name_in_discussions:
+            user_description="!@>User description:\n"+self.config.user_description+"\n"
+
+
+        # Tokenize the conditionning text and calculate its number of tokens
+        tokens_conditionning = self.model.tokenize(conditionning)
+        n_cond_tk = len(tokens_conditionning)
+
+
+        # Tokenize the internet search results text and calculate its number of tokens
+        if len(internet_search_results)>0:
+            tokens_internet_search_results = self.model.tokenize(internet_search_results)
+            n_isearch_tk = len(tokens_internet_search_results)
+        else:
+            tokens_internet_search_results = []
+            n_isearch_tk = 0
+
+
+        # Tokenize the documentation text and calculate its number of tokens
+        if len(documentation)>0:
+            tokens_documentation = self.model.tokenize(documentation)
+            n_doc_tk = len(tokens_documentation)
+        else:
+            tokens_documentation = []
+            n_doc_tk = 0
+
+        # Tokenize the knowledge text and calculate its number of tokens
+        if len(knowledge)>0:
+            tokens_history = self.model.tokenize(knowledge)
+            n_history_tk = len(tokens_history)
+        else:
+            tokens_history = []
+            n_history_tk = 0
+
+
+        # Tokenize user description
+        if len(user_description)>0:
+            tokens_user_description = self.model.tokenize(user_description)
+            n_user_description_tk = len(tokens_user_description)
+        else:
+            tokens_user_description = []
+            n_user_description_tk = 0
+
+
+        # Calculate the total number of tokens between conditionning, documentation, and knowledge
+        total_tokens = n_cond_tk + n_isearch_tk + n_doc_tk + n_history_tk + n_user_description_tk + n_positive_boost + n_negative_boost + n_force_language + n_fun_mode
+
+        # Calculate the available space for the messages
+        available_space = self.config.ctx_size - n_tokens - total_tokens
+
+        # if self.config.debug:
+        #     self.info(f"Tokens summary:\nConditionning:{n_cond_tk}\nn_isearch_tk:{n_isearch_tk}\ndoc:{n_doc_tk}\nhistory:{n_history_tk}\nuser description:{n_user_description_tk}\nAvailable space:{available_space}",10)
+
+        # Raise an error if the available space is 0 or less
+        if available_space<1:
+            self.error(f"Not enough space in context!!\nVerify that your vectorization settings for documents or internet search are realistic compared to your context size.\nYou are {available_space} short of context!")
+            raise Exception("Not enough space in context!!")
+
+        # Accumulate messages until the cumulative number of tokens exceeds available_space
+        tokens_accumulated = 0
+
+
+        # Initialize a list to store the full messages
+        full_message_list = []
+        # If this is not a continue request, we add the AI prompt
+        if not is_continue:
+            message_tokenized = self.model.tokenize(
+                "\n" +self.personality.ai_message_prefix.strip()
+            )
+            full_message_list.append(message_tokenized)
+            # Update the cumulative number of tokens
+            tokens_accumulated += len(message_tokenized)
+
+
+        if generation_type != "simple_question":
+            # Accumulate messages starting from message_index
+            for i in range(message_index, -1, -1):
+                message = messages[i]
+
+                # Check if the message content is not empty and visible to the AI
+                if message.content != '' and (
+                        message.message_type <= MSG_TYPE.MSG_TYPE_FULL_INVISIBLE_TO_USER.value and message.message_type != MSG_TYPE.MSG_TYPE_FULL_INVISIBLE_TO_AI.value):
+
+                    # Tokenize the message content
+                    message_tokenized = self.model.tokenize(
+                        "\n" + self.config.discussion_prompt_separator + message.sender + ": " + message.content.strip())
+
+                    # Check if adding the message will exceed the available space
+                    if tokens_accumulated + len(message_tokenized) > available_space:
+                        break
+
+                    # Add the tokenized message to the full_message_list
+                    full_message_list.insert(0, message_tokenized)
+
+                    # Update the cumulative number of tokens
+                    tokens_accumulated += len(message_tokenized)
+        else:
+            message = messages[message_index]
+
+            # Check if the message content is not empty and visible to the AI
+            if message.content != '' and (
+                    message.message_type <= MSG_TYPE.MSG_TYPE_FULL_INVISIBLE_TO_USER.value and message.message_type != MSG_TYPE.MSG_TYPE_FULL_INVISIBLE_TO_AI.value):
+
+                # Tokenize the message content
+                message_tokenized = self.model.tokenize(
+                    "\n" + self.config.discussion_prompt_separator + message.sender + ": " + message.content.strip())
+
+                # Add the tokenized message to the full_message_list
+                full_message_list.insert(0, message_tokenized)
+
+                # Update the cumulative number of tokens
+                tokens_accumulated += len(message_tokenized)
+
+        # Build the final discussion messages by detokenizing the full_message_list
+        discussion_messages = ""
+        for i in range(len(full_message_list)-1):
+            message_tokens = full_message_list[i]
+            discussion_messages += self.model.detokenize(message_tokens)
+        
+        if len(full_message_list)>0:
+            ai_prefix = self.model.detokenize(full_message_list[-1])
+        else:
+            ai_prefix = ""
+        # Build the final prompt by concatenating the conditionning and discussion messages
+        prompt_data = conditionning + internet_search_results + documentation + knowledge + user_description + discussion_messages + positive_boost + negative_boost + force_language + fun_mode + ai_prefix
+
+        # Tokenize the prompt data
+        tokens = self.model.tokenize(prompt_data)
+
+        # if this is a debug then show prompt construction details
+        if self.config["debug"]:
+            ASCIIColors.bold("CONDITIONNING")
+            ASCIIColors.yellow(conditionning)
+            ASCIIColors.bold("INTERNET SEARCH")
+            ASCIIColors.yellow(internet_search_results)
+            ASCIIColors.bold("DOC")
+            ASCIIColors.yellow(documentation)
+            ASCIIColors.bold("HISTORY")
+            ASCIIColors.yellow(knowledge)
+            ASCIIColors.bold("DISCUSSION")
+            ASCIIColors.hilight(discussion_messages,"!@>",ASCIIColors.color_yellow,ASCIIColors.color_bright_red,False)
+            ASCIIColors.bold("Final prompt")
+            ASCIIColors.hilight(prompt_data,"!@>",ASCIIColors.color_yellow,ASCIIColors.color_bright_red,False)
+            ASCIIColors.info(f"prompt size:{len(tokens)} tokens") 
+            ASCIIColors.info(f"available space after doc and knowledge:{available_space} tokens") 
+
+            # self.info(f"Tokens summary:\nPrompt size:{len(tokens)}\nTo generate:{available_space}",10)
+
+        # Details
+        context_details = {
+            "conditionning":conditionning,
+            "internet_search_infos":internet_search_infos,
+            "internet_search_results":internet_search_results,
+            "documentation":documentation,
+            "knowledge":knowledge,
+            "user_description":user_description,
+            "discussion_messages":discussion_messages,
+            "positive_boost":positive_boost,
+            "negative_boost":negative_boost,
+            "force_language":force_language,
+            "fun_mode":fun_mode,
+            "ai_prefix":ai_prefix
+
+        }    
+
+        # Return the prepared query, original message content, and tokenized query
+        return prompt_data, current_message.content, tokens, context_details, internet_search_infos                
+

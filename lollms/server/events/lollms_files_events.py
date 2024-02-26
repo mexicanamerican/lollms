@@ -26,7 +26,7 @@ import socketio
 import threading
 import os
 from functools import partial
-from api.db import Discussion
+from lollms.databases.discussions_database import Discussion
 from datetime import datetime
 
 router = APIRouter()
