@@ -97,7 +97,7 @@ def add_events(sio:socketio):
         if is_last_chunk:
             lollmsElfServer.success('File received and saved successfully')
             if lollmsElfServer.personality.processor:
-                result = lollmsElfServer.personality.processor.add_file(file_path, partial(lollmsElfServer.process_chunk, client_id=client_id))
+                result = lollmsElfServer.personality.processor.add_file(file_path, client, partial(lollmsElfServer.process_chunk, client_id=client_id))
             else:
                 result = lollmsElfServer.personality.add_file(file_path, client, partial(lollmsElfServer.process_chunk, client_id=client_id))
 

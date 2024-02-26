@@ -251,30 +251,6 @@ class LollmsApplication(LoLLMsCom):
 
         return string
 
-    def safe_generate(self, full_discussion:str, n_predict=None, callback: Callable[[str, int, dict], bool]=None, placeholder={}, place_holders_to_sacrifice=[], debug=False):
-        """safe_generate
-
-        Args:
-            full_discussion (string): A prompt or a long discussion to use for generation
-            callback (_type_, optional): A callback to call for each received token. Defaults to None.
-
-        Returns:
-            str: Model output
-        """
-        full_discussion = PromptReshaper(full_discussion).build(placeholder, self.model.tokenize, self.model.detokenize, max_nb_tokens=self.config.ctx_size-n_predict, place_holders_to_sacrifice=place_holders_to_sacrifice )
-        if debug:
-            ASCIIColors.yellow(full_discussion)
-        if n_predict == None:
-            n_predict =self.personality.model_n_predicts
-        self.bot_says = ""
-        if self.personality.processor is not None and self.personality.processor_cfg["custom_workflow"]:
-            ASCIIColors.info("processing...")
-            generated_text = self.personality.processor.run_workflow(full_discussion.split("!@>")[-1] if "!@>" in full_discussion else full_discussion, previous_discussion_text=self.personality.personality_conditioning+fd, callback=callback)
-        else:
-            ASCIIColors.info("generating...")
-            generated_text = self.personality.model.generate(full_discussion, n_predict=n_predict, callback=callback)
-        return generated_text
-
     def load_binding(self):
         try:
             binding = BindingBuilder().build_binding(self.config, self.lollms_paths, lollmsCom=self)
@@ -558,7 +534,9 @@ class LollmsApplication(LoLLMsCom):
 
                 if self.config.data_vectorization_build_keys_words:
                     discussion = self.recover_discussion(client_id)
-                    query = self.personality.fast_gen(f"\n!@>instruction: Read the discussion and rewrite the last prompt for someone who didn't read the entire discussion.\nDo not answer the prompt. Do not add explanations.\n!@>discussion:\n{discussion[-2048:]}\n!@>enhanced query: ", max_generation_size=256, show_progress=True)
+                    self.personality.step_start("Building vector store query")
+                    query = self.personality.fast_gen(f"\n!@>instruction: Read the discussion and rewrite the last prompt for someone who didn't read the entire discussion.\nDo not answer the prompt. Do not add explanations.\n!@>discussion:\n{discussion[-2048:]}\n!@>enhanced query: ", max_generation_size=256, show_progress=True, callback=self.personality.sink)
+                    self.personality.step_end("Building vector store query")
                     ASCIIColors.cyan(f"Query: {query}")
                 else:
                     query = current_message.content

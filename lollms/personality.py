@@ -1950,10 +1950,10 @@ class APScript(StateMachine):
         ASCIIColors.blue("*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*")
 
 
-    def add_file(self, path, callback=None):
+    def add_file(self, path, client:Client, callback=None):
         if callback is not None:
             callback("File added successfully",MSG_TYPE.MSG_TYPE_INFO)
-        self.personality.add_file(path,callback=callback)
+        self.personality.add_file(path, client=client,callback=callback)
         return True
 
     def remove_file(self, path):
