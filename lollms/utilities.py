@@ -184,8 +184,11 @@ def run_async(func):
     """
     if is_asyncio_loop_running():
         # We're in a running event loop, so we can call the function with asyncio.create_task
-        asyncio.create_task(func())
-    else: 
+        #task = asyncio.run_coroutine_threadsafe(func(), asyncio.get_event_loop())
+        #task.result()        
+        loop = asyncio.get_running_loop()
+        task = loop.create_task(func())
+    else:
         # We're not in a running event loop, so we need to create one and run the function in it
         try:
             asyncio.run(func()) 

@@ -929,7 +929,7 @@ class AIPersonality:
         return True     
     
     def add_file(self, path, client:Client, callback=None):
-
+        output = ""
         if not self.callback:
             self.callback = callback
             
@@ -976,7 +976,7 @@ class AIPersonality:
                         # Convert the image to RGB mode
                         img = img.convert("RGB")
                         output += "## image description :\n"+ self.model.interrogate_blip([img])[0]
-                        # output += "## image description :\n"+ self.model.qna_blip([img],"Describe this photo with details.\n")[0]
+                        # output += "## image description :\n"+ self.model.qna_blip([img],"q:Describe this photo with as much details as possible.\na:")[0]
                         self.full(output)
                         self.HideBlockingMessage("Understanding image (please wait)")
                         if self.config.debug:

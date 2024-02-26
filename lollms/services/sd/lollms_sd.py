@@ -38,7 +38,15 @@ def verify_sd(lollms_paths:LollmsPaths):
     shared_folder = root_dir/"shared"
     sd_folder = shared_folder / "auto_sd"
     return sd_folder.exists()
-    
+
+def download_file(url, folder_path, local_filename):
+    with requests.get(url, stream=True) as r:
+        r.raise_for_status()
+        with open(folder_path + '/' + local_filename, 'wb') as f:
+            for chunk in r.iter_content(chunk_size=8192): 
+                f.write(chunk)
+    return local_filename
+
 def install_sd(lollms_app:LollmsApplication):
     root_dir = lollms_app.lollms_paths.personal_path
     shared_folder = root_dir/"shared"
@@ -50,7 +58,8 @@ def install_sd(lollms_app:LollmsApplication):
             sd_folder.unlink(True)
     subprocess.run(["git", "clone", "https://github.com/ParisNeo/stable-diffusion-webui.git", str(sd_folder)])
     subprocess.run(["git", "clone", "https://github.com/ParisNeo/SD-CN-Animation.git", str(sd_folder/"extensions/SD-CN-Animation")])
-    
+    if lollms_app.YesNoMessage("Do you want to install a model from civitai?\nIsuggest dreamshaper xl."):
+        download_file("https://civitai.com/api/download/models/351306", sd_folder/"models/Stable-diffusion","dreamshaperXL_v21TurboDPMSDE.safetensors")
     ASCIIColors.green("Stable diffusion installed successfully")
 
 
