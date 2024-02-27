@@ -29,7 +29,7 @@ from typing import List, Dict, Any
 
 from ascii_colors import ASCIIColors, trace_exception
 from lollms.paths import LollmsPaths
-from lollms.utilities import git_pull
+from lollms.utilities import git_pull, show_yes_no_dialog
 import subprocess
 import platform
 
@@ -47,7 +47,7 @@ def install_petals(lollms_app:LollmsApplication):
     if platform.system() == 'Windows':
         root_path = "/mnt/"+"".join(str(Path(__file__).parent).replace("\\","/").split(":"))
         if not os.path.exists('C:\\Windows\\System32\\wsl.exe'):
-            if not lollms_app.YesNoMessage("No WSL is detected on your system. Do you want me to install it for you? petals won't be abble to work without wsl."):
+            if not show_yes_no_dialog("warning!","No WSL is detected on your system. Do you want me to install it for you? petals won't be abble to work without wsl."):
                 return False
             subprocess.run(['wsl', '--install', 'Ubuntu'])
         subprocess.run(['wsl', 'bash', '-c', 'cp {} ~'.format( root_path + '/install_petals.sh')])

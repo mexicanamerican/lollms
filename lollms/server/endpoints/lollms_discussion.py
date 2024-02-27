@@ -75,39 +75,6 @@ def select_database(data:DatabaseSelectionParameters):
     if lollmsElfServer.config.auto_save:
         lollmsElfServer.config.save_config()
     
-    if lollmsElfServer.config.data_vectorization_activate and lollmsElfServer.config.activate_ltm:
-        try:
-            ASCIIColors.yellow("0- Detected discussion vectorization request")
-            folder = lollmsElfServer.lollms_paths.personal_discussions_path/"vectorized_dbs"
-            folder.mkdir(parents=True, exist_ok=True)
-            lollmsElfServer.long_term_memory = TextVectorizer(
-                vectorization_method=VectorizationMethod.TFIDF_VECTORIZER,#=VectorizationMethod.BM25_VECTORIZER,
-                database_path=folder/lollmsElfServer.config.discussion_db_name,
-                data_visualization_method=VisualizationMethod.PCA,#VisualizationMethod.PCA,
-                save_db=True
-            )
-            ASCIIColors.yellow("1- Exporting discussions")
-            lollmsElfServer.info("Exporting discussions")
-            discussions = lollmsElfServer.db.export_all_as_markdown_list_for_vectorization()
-            ASCIIColors.yellow("2- Adding discussions to vectorizer")
-            lollmsElfServer.info("Adding discussions to vectorizer")
-            index = 0
-            nb_discussions = len(discussions)
-
-            for (title,discussion) in tqdm(discussions):
-                lollmsElfServer.sio.emit('update_progress',{'value':int(100*(index/nb_discussions))})
-                index += 1
-                if discussion!='':
-                    skill = lollmsElfServer.learn_from_discussion(title, discussion)
-                    lollmsElfServer.long_term_memory.add_document(title, skill, chunk_size=lollmsElfServer.config.data_vectorization_chunk_size, overlap_size=lollmsElfServer.config.data_vectorization_overlap_size, force_vectorize=False, add_as_a_bloc=False)
-            ASCIIColors.yellow("3- Indexing database")
-            lollmsElfServer.info("Indexing database",True, None)
-            lollmsElfServer.long_term_memory.index()
-            ASCIIColors.yellow("Ready")
-        except Exception as ex:
-            lollmsElfServer.error(f"Couldn't vectorize the database:{ex}")
-            return {"status":False}
-
     return {"status":True}
 
 

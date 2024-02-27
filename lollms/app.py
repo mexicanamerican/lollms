@@ -10,6 +10,7 @@ from lollms.terminal import MainMenu
 from lollms.types import MSG_TYPE, SENDER_TYPES
 from lollms.utilities import PromptReshaper
 from lollms.client_session import Client, Session
+from lollms.databases.skills_database import SkillsLibrary
 from safe_store import TextVectorizer, VectorizationMethod, VisualizationMethod
 from typing import Callable
 from pathlib import Path
@@ -59,6 +60,7 @@ class LollmsApplication(LoLLMsCom):
 
         self.tts                        = None
         self.session                    = Session(lollms_paths)
+        self.skills_library             = SkillsLibrary(self.lollms_paths.personal_skills_path/(self.config.skills_lib_database_name+".db"))
 
         if not free_mode:
             try:
@@ -549,7 +551,7 @@ class LollmsApplication(LoLLMsCom):
                 except:
                     self.warning("Couldn't add documentation to the context. Please verify the vector database")
             # Check if there is discussion knowledge to add to the prompt
-            if self.config.activate_ltm and self.long_term_memory is not None:
+            if self.config.activate_skills_lib and self.long_term_memory is not None:
                 if knowledge=="":
                     knowledge="!@>knowledge:\n"
 

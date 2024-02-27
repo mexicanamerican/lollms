@@ -29,7 +29,7 @@ from typing import List, Dict, Any
 
 from ascii_colors import ASCIIColors, trace_exception
 from lollms.paths import LollmsPaths
-from lollms.utilities import git_pull
+from lollms.utilities import git_pull, show_yes_no_dialog
 import subprocess
 import platform
 
@@ -45,7 +45,7 @@ def install_xtts(lollms_app:LollmsApplication):
     shared_folder = root_dir/"shared"
     xtts_folder = shared_folder / "xtts"
     if xtts_folder.exists() and PackageManager.check_package_installed("xtts-api-server"):
-        if not lollms_app.YesNoMessage("It looks like xtts is already installed on your system.\nDo you want to reinstall it?"):
+        if not show_yes_no_dialog("warning!","It looks like xtts is already installed on your system.\nDo you want to reinstall it?"):
             lollms_app.error("Service installation canceled")
             return
     

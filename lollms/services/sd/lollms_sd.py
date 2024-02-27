@@ -28,7 +28,7 @@ from typing import List, Dict, Any
 
 from ascii_colors import ASCIIColors, trace_exception
 from lollms.paths import LollmsPaths
-from lollms.utilities import git_pull
+from lollms.utilities import git_pull, show_yes_no_dialog
 import subprocess
 
 
@@ -52,13 +52,13 @@ def install_sd(lollms_app:LollmsApplication):
     shared_folder = root_dir/"shared"
     sd_folder = shared_folder / "auto_sd"
     if sd_folder.exists():
-        if not lollms_app.YesNoMessage("I have detected that there is a previous installation of stable diffusion.\nShould I remove it and continue installing?"):
+        if not show_yes_no_dialog("warning!","I have detected that there is a previous installation of stable diffusion.\nShould I remove it and continue installing?"):
             return
         else:
             sd_folder.unlink(True)
     subprocess.run(["git", "clone", "https://github.com/ParisNeo/stable-diffusion-webui.git", str(sd_folder)])
     subprocess.run(["git", "clone", "https://github.com/ParisNeo/SD-CN-Animation.git", str(sd_folder/"extensions/SD-CN-Animation")])
-    if lollms_app.YesNoMessage("Do you want to install a model from civitai?\nIsuggest dreamshaper xl."):
+    if show_yes_no_dialog("warning!","Do you want to install a model from civitai?\nIsuggest dreamshaper xl."):
         download_file("https://civitai.com/api/download/models/351306", sd_folder/"models/Stable-diffusion","dreamshaperXL_v21TurboDPMSDE.safetensors")
     ASCIIColors.green("Stable diffusion installed successfully")
 
@@ -282,7 +282,7 @@ class LollmsSD:
         self.default_sampler = sampler
         self.default_steps = steps
 
-        self.session = requests.Session(lollms_paths)
+        self.session = requests.Session()
 
         if username and password:
             self.set_auth(username, password)

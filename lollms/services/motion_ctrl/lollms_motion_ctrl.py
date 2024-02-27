@@ -11,7 +11,7 @@ import sys
 from lollms.app import LollmsApplication
 from lollms.paths import LollmsPaths
 from lollms.config import TypedConfig, ConfigTemplate, BaseConfig
-from lollms.utilities import get_conda_path
+from lollms.utilities import get_conda_path, show_yes_no_dialog
 import time
 import io
 import sys
@@ -48,7 +48,7 @@ def install_motion_ctrl(lollms_app:LollmsApplication):
     shared_folder = root_dir/"shared"
     motion_ctrl_folder = shared_folder / "auto_motion_ctrl"
     if motion_ctrl_folder.exists():
-        if not lollms_app.YesNoMessage("I have detected that there is a previous installation of stable diffusion.\nShould I remove it and continue installing?"):
+        if not show_yes_no_dialog("warning!","I have detected that there is a previous installation of motion ctrl.\nShould I remove it and continue installing?"):
             return
         else:
             motion_ctrl_folder.unlink(True)
@@ -166,7 +166,7 @@ class LollmsMotionCtrl:
         self.default_sampler = sampler
         self.default_steps = steps
 
-        self.session = requests.Session(lollms_paths)
+        self.session = requests.Session()
 
         if username and password:
             self.set_auth(username, password)
