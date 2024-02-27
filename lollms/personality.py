@@ -126,6 +126,7 @@ class AIPersonality:
 
         self.text_files = []
         self.image_files = []
+        self.audio_files = []
         self.images_descriptions = []
         self.vectorizer = None
 
@@ -928,68 +929,69 @@ class AIPersonality:
         self.vectorizer = None
         return True     
     
-    def add_file(self, path, client:Client, callback=None):
+    def add_file(self, path, client:Client, callback=None, process=True):
         output = ""
         if not self.callback:
             self.callback = callback
             
         path = Path(path)
         if path.suffix in [".wav",".mp3"]:
-            self.new_message("")
-            self.info(f"Transcribing ... ")
-            self.step_start("Transcribing ... ")
-            if self.whisper is None:
-                if not PackageManager.check_package_installed("whisper"):
-                    PackageManager.install_package("openai-whisper")
-                    try:
-                        import conda.cli
-                        conda.cli.main("install", "conda-forge::ffmpeg", "-y")
-                    except:
-                        ASCIIColors.bright_red("Couldn't install ffmpeg. whisper won't work. Please install it manually")
+            self.audio_files.append(path)
+            if process:
+                self.new_message("")
+                self.info(f"Transcribing ... ")
+                self.step_start("Transcribing ... ")
+                if self.whisper is None:
+                    if not PackageManager.check_package_installed("whisper"):
+                        PackageManager.install_package("openai-whisper")
+                        try:
+                            import conda.cli
+                            conda.cli.main("install", "conda-forge::ffmpeg", "-y")
+                        except:
+                            ASCIIColors.bright_red("Couldn't install ffmpeg. whisper won't work. Please install it manually")
 
-                import whisper
-                self.whisper = whisper.load_model("base")
+                    import whisper
+                    self.whisper = whisper.load_model("base")
+                result = self.whisper.transcribe(str(path))
+                transcription_fn = str(path)+".txt"
+                with open(transcription_fn, "w", encoding="utf-8") as f:
+                    f.write(result["text"])
 
-
-            result = self.whisper.transcribe(str(path))
-            transcription_fn = str(path)+".txt"
-            with open(transcription_fn, "w", encoding="utf-8") as f:
-                f.write(result["text"])
-
-            self.info(f"File saved to {transcription_fn}")
-            self.full(result["text"])
-            self.step_end("Transcribing ... ")
+                self.info(f"File saved to {transcription_fn}")
+                self.full(result["text"])
+                self.step_end("Transcribing ... ")
         elif path.suffix in [".png",".jpg",".jpeg",".gif",".bmp",".svg",".webp"]:
-            if self.callback:
-                try:
-                    pth = str(path).replace("\\","/").split('/')
-                    if "discussion_databases" in pth:
-                        pth = discussion_path_to_url(path)
-                        self.new_message("",MSG_TYPE.MSG_TYPE_FULL)
-                        output = f'<img src="{pth}" width="800">\n\n'
-                        self.full(output)
-
-                    if self.model.binding_type not in [BindingType.TEXT_IMAGE, BindingType.TEXT_IMAGE_VIDEO]:
-                        # self.ShowBlockingMessage("Understanding image (please wait)")
-                        from PIL import Image
-                        img = Image.open(str(path))
-                        # Convert the image to RGB mode
-                        img = img.convert("RGB")
-                        output += "## image description :\n"+ self.model.interrogate_blip([img])[0]
-                        # output += "## image description :\n"+ self.model.qna_blip([img],"q:Describe this photo with as much details as possible.\na:")[0]
-                        self.full(output)
-                        self.HideBlockingMessage("Understanding image (please wait)")
-                        if self.config.debug:
-                            ASCIIColors.yellow(output)
-                    else:
-                        # self.ShowBlockingMessage("Importing image (please wait)")
-                        self.HideBlockingMessage("Importing image (please wait)")
-
-                except Exception as ex:
-                    trace_exception(ex)
-                    self.HideBlockingMessage("Understanding image (please wait)", False)
-                    ASCIIColors.error("Couldn't create new message")
             self.image_files.append(path)
+            if process:
+                if self.callback:
+                    try:
+                        pth = str(path).replace("\\","/").split('/')
+                        if "discussion_databases" in pth:
+                            pth = discussion_path_to_url(path)
+                            self.new_message("",MSG_TYPE.MSG_TYPE_FULL)
+                            output = f'<img src="{pth}" width="800">\n\n'
+                            self.full(output)
+
+                        if self.model.binding_type not in [BindingType.TEXT_IMAGE, BindingType.TEXT_IMAGE_VIDEO]:
+                            # self.ShowBlockingMessage("Understanding image (please wait)")
+                            from PIL import Image
+                            img = Image.open(str(path))
+                            # Convert the image to RGB mode
+                            img = img.convert("RGB")
+                            output += "## image description :\n"+ self.model.interrogate_blip([img])[0]
+                            # output += "## image description :\n"+ self.model.qna_blip([img],"q:Describe this photo with as much details as possible.\na:")[0]
+                            self.full(output)
+                            self.HideBlockingMessage("Understanding image (please wait)")
+                            if self.config.debug:
+                                ASCIIColors.yellow(output)
+                        else:
+                            # self.ShowBlockingMessage("Importing image (please wait)")
+                            self.HideBlockingMessage("Importing image (please wait)")
+
+                    except Exception as ex:
+                        trace_exception(ex)
+                        self.HideBlockingMessage("Understanding image (please wait)", False)
+                        ASCIIColors.error("Couldn't create new message")
             ASCIIColors.info("Received image file")
             if callback is not None:
                 callback("Image file added successfully", MSG_TYPE.MSG_TYPE_INFO)
@@ -998,21 +1000,22 @@ class AIPersonality:
                 # self.ShowBlockingMessage("Adding file to vector store.\nPlease stand by")
                 self.text_files.append(path)
                 ASCIIColors.info("Received text compatible file")
-                if self.vectorizer is None:
-                    self.vectorizer = TextVectorizer(
-                                self.config.data_vectorization_method, # supported "model_embedding" or "tfidf_vectorizer"
-                                model=self.model, #needed in case of using model_embedding
-                                database_path=client.discussion.discussion_rag_folder/"db.json",
-                                save_db=self.config.data_vectorization_save_db,
-                                data_visualization_method=VisualizationMethod.PCA,
-                                database_dict=None)
-                    data = GenericDataLoader.read_file(path)
-                    self.vectorizer.add_document(path, data, self.config.data_vectorization_chunk_size, self.config.data_vectorization_overlap_size, add_first_line_to_all_chunks=True if path.suffix==".csv" else False)
-                    self.vectorizer.index()
-                    if callback is not None:
-                        callback("File added successfully",MSG_TYPE.MSG_TYPE_INFO)
-                    self.HideBlockingMessage("Adding file to vector store.\nPlease stand by")
-                    return True
+                if process:
+                    if self.vectorizer is None:
+                        self.vectorizer = TextVectorizer(
+                                    self.config.data_vectorization_method, # supported "model_embedding" or "tfidf_vectorizer"
+                                    model=self.model, #needed in case of using model_embedding
+                                    database_path=client.discussion.discussion_rag_folder/"db.json",
+                                    save_db=self.config.data_vectorization_save_db,
+                                    data_visualization_method=VisualizationMethod.PCA,
+                                    database_dict=None)
+                        data = GenericDataLoader.read_file(path)
+                        self.vectorizer.add_document(path, data, self.config.data_vectorization_chunk_size, self.config.data_vectorization_overlap_size, add_first_line_to_all_chunks=True if path.suffix==".csv" else False)
+                        self.vectorizer.index()
+                        if callback is not None:
+                            callback("File added successfully",MSG_TYPE.MSG_TYPE_INFO)
+                        self.HideBlockingMessage("Adding file to vector store.\nPlease stand by")
+                        return True
             except Exception as e:
                 trace_exception(e)
                 self.HideBlockingMessage("Adding file to vector store.\nPlease stand by")
@@ -1950,10 +1953,10 @@ class APScript(StateMachine):
         ASCIIColors.blue("*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*")
 
 
-    def add_file(self, path, client:Client, callback=None):
+    def add_file(self, path, client:Client, callback=None, process=True):
+        self.personality.add_file(path, client=client,callback=callback, process=process)
         if callback is not None:
             callback("File added successfully",MSG_TYPE.MSG_TYPE_INFO)
-        self.personality.add_file(path, client=client,callback=callback)
         return True
 
     def remove_file(self, path):

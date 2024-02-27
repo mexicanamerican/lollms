@@ -20,4 +20,15 @@ from typing import List
 from safe_store.text_vectorizer import TextVectorizer, VectorizationMethod, VisualizationMethod
 import tqdm
 from pathlib import Path
+# ----------------------- Defining router and main class ------------------------------
 
+router = APIRouter()
+lollmsElfServer:LOLLMSWebUI = LOLLMSWebUI.get_instance()
+
+class DiscussionInfos(BaseModel):
+    client_id: str
+
+@router.get("/add_discussion_to_skills_library")
+def add_discussion_to_skills_library(discussionInfos:DiscussionInfos):
+    client = lollmsElfServer.session.get_client(discussionInfos.client_id)
+    lollmsElfServer.add_discussion_tto_skills_library(client)    

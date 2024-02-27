@@ -163,6 +163,15 @@ class LollmsApplication(LoLLMsCom):
             except:
                 self.warning(f"Couldn't load SD")
 
+        if self.config.enable_motion_ctrl_service:
+            try:
+                from lollms.services.motion_ctrl.lollms_motion_ctrl import Service
+                self.motion_ctrl = Service(self, base_url=self.config.motion_ctrl_base_url)
+            except Exception as ex:
+                trace_exception(ex)
+                self.warning(f"Couldn't load Motion control")
+
+
     def build_long_term_skills_memory(self):
         discussion_db_name:Path = self.lollms_paths.personal_discussions_path/self.config.discussion_db_name.split(".")[0]
         discussion_db_name.mkdir(exist_ok=True, parents=True)
@@ -562,7 +571,7 @@ class LollmsApplication(LoLLMsCom):
                 except:
                     self.warning("Couldn't add long term memory information to the context. Please verify the vector database")        # Add information about the user
         user_description=""
-        if self.config.use_user_name_in_discussions:
+        if self.config.use_user_informations_in_discussion:
             user_description="!@>User description:\n"+self.config.user_description+"\n"
 
 
