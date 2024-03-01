@@ -274,7 +274,9 @@ class PersonalityConfig(BaseModel):
     category:str
     name:str
     config:dict
-    
+
+
+
 @router.post("/set_personality_config")
 def set_personality_config(data:PersonalityConfig):
     print("- Recovering personality config")
@@ -292,6 +294,9 @@ def set_personality_config(data:PersonalityConfig):
     if config_file.exists():
         with open(config_file,"w") as f:
             yaml.safe_dump(config, f)
+
+        lollmsElfServer.mounted_personalities = lollmsElfServer.rebuild_personalities(reload_all=True)
+        lollmsElfServer.InfoMessage("Personality updated")
         return {"status":True}
     else:
         return {"status":False, "error":"Not found"}
@@ -471,6 +476,8 @@ def select_personality(data:PersonalitySelectionInfos):
     if id<len(lollmsElfServer.mounted_personalities):
         lollmsElfServer.config["active_personality_id"]=id
         lollmsElfServer.personality:AIPersonality = lollmsElfServer.mounted_personalities[lollmsElfServer.config["active_personality_id"]]
+        if lollmsElfServer.personality is None:
+            return {"status": False, "error":"Something is wrong with the personality"}
         if lollmsElfServer.personality.processor:
             lollmsElfServer.personality.processor.selected()
         ASCIIColors.success("ok")
@@ -581,8 +588,8 @@ async def copy_to_custom_personas(data: PersonalityInfos):
         return {"status":False}
     else:
         personality_folder = lollmsElfServer.lollms_paths.personalities_zoo_path/f"{category}"/f"{name}"
-        destination_folder = lollmsElfServer.lollms_paths.personal_personalities_path
-        shutil.copy(personality_folder, destination_folder)
+        destination_folder = lollmsElfServer.lollms_paths.custom_personalities_path
+        shutil.copytree(personality_folder, destination_folder/f"{name}")
         return {"status":True}
 
 # ------------------------------------------- Interaction with personas ------------------------------------------------

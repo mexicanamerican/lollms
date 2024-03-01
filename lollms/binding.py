@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Callable
 from lollms.paths import LollmsPaths
 from ascii_colors import ASCIIColors
-
+from urllib import request
 
 import tempfile
 import requests
@@ -34,6 +34,7 @@ from enum import Enum
 from lollms.utilities import trace_exception
 
 from tqdm import tqdm
+import sys
 
 __author__ = "parisneo"
 __github__ = "https://github.com/ParisNeo/lollms_bindings_zoo"
@@ -107,6 +108,97 @@ class LLMBinding:
             self.models_dir_names = [self.binding_folder_name]
         for models_folder in self.models_folders:
             models_folder.mkdir(parents=True, exist_ok=True)
+
+
+
+    def searchModelFolder(self, model_name:str):
+        for mn in self.models_folders:
+            if mn.name in model_name.lower():
+                return mn
+        return self.models_folders[0]
+    
+    
+    def searchModelPath(self, model_name:str):
+        model_path=self.searchModelFolder(model_name)
+        mp:Path = None
+        for f in model_path.iterdir():
+            print(f)
+            a =  model_name.lower()
+            b = f.name.lower()
+            if a in b :
+                mp = f
+                break
+        if not mp:
+            return None
+        
+        if model_path.name in ["ggml","gguf"]:
+            # model_path/str(model_name).split("/")[-1]
+            if mp.is_dir():
+                for f in mp.iterdir():
+                    if not "mmproj" in f.stem and not f.is_dir():
+                        if f.suffix==".reference":
+                            with open(f,"r") as f:
+                                return Path(f.read())
+                        return f
+            else:
+                show_message_dialog("Warning","I detected that your model was installed with previous format.\nI'll just migrate it to thre new format.\nThe new format allows you to have multiple model variants and also have the possibility to use multimodal models.")
+                model_root:Path = model_path.parent/model_path.stem
+                model_root.mkdir(exist_ok=True, parents=True)
+                shutil.move(model_path, model_root)
+                model_path = model_root/model_path.name
+                self.config.model_name = model_root.name
+                root_path = model_root
+                self.config.save_config()
+                return model_path
+        else:
+            return mp
+    
+    def download_model(self, url, model_name, callback = None):
+        folder_path = self.searchModelFolder(model_name)
+        model_full_path = (folder_path/model_name)/str(url).split("/")[-1]
+        # Check if file already exists in folder
+        if model_full_path.exists():
+            print("File already exists in folder")
+        else:
+            # Create folder if it doesn't exist
+            folder_path.mkdir(parents=True, exist_ok=True)
+            if not callback:
+                progress_bar = tqdm(total=100, unit="%", unit_scale=True, desc=f"Downloading {url.split('/')[-1]}")
+            # Define callback function for urlretrieve
+            downloaded_size = [0]
+            def report_progress(block_num, block_size, total_size):
+                if callback:
+                    downloaded_size[0] += block_size
+                    callback(downloaded_size[0], total_size)
+                else:
+                    progress_bar.update(block_size/total_size)
+            # Download file from URL to folder
+            try:
+                Path(model_full_path).parent.mkdir(parents=True, exist_ok=True)
+                request.urlretrieve(url, model_full_path, reporthook=report_progress)
+                print("File downloaded successfully!")
+            except Exception as e:
+                ASCIIColors.error("Error downloading file:", e)
+                sys.exit(1)
+
+    def reference_model(self, path):
+        path = Path(str(path).replace("\\","/"))
+        model_name  = path.stem+".reference"
+        folder_path = self.searchModelFolder(model_name)/path.stem
+        model_full_path = (folder_path / model_name)
+
+        # Check if file already exists in folder
+        if model_full_path.exists():
+            print("File already exists in folder")
+            return False
+        else:
+            # Create folder if it doesn't exist
+            folder_path.mkdir(parents=True, exist_ok=True)
+            with open(model_full_path,"w") as f:
+                f.write(str(path))
+            self.InfoMessage("Reference created, please make sure you don't delete or move the referenced file.\nThis can cause the link to be broken.\nNow I'm reloading the zoo.")
+            return True
+
 
     def sync_configuration(self, binding_config:TypedConfig, lollms_paths:LollmsPaths):
         self.configuration_file_path = lollms_paths.personal_configuration_path/"bindings"/self.binding_folder_name/f"config.yaml"
@@ -197,7 +289,6 @@ class LLMBinding:
         print(f"Model path : {model_path}")
         print(f"Installation Path : {installation_path}")
 
-        model_name = filename
         binding_folder = self.config["binding_name"]
         model_url = model_path
         signature = f"{model_name}_{binding_folder}_{model_url}"
@@ -261,61 +352,37 @@ class LLMBinding:
                     raise Exception("canceled")
                     
                 
-            if hasattr(self, "download_model"):
-                try:
-                    self.download_model(model_path, installation_path, callback)
-                except Exception as ex:
-                    ASCIIColors.warning(str(ex))
-                    trace_exception(ex)
-                    self.lollmsCom.notify_model_install(
-                                installation_path,
-                                model_name,
-                                binding_folder,
-                                model_url,
-                                self.download_infos[signature]['start_time'].strftime("%Y-%m-%d %H:%M:%S"),
-                                self.download_infos[signature]['total_size'],
-                                self.download_infos[signature]['downloaded_size'],
-                                self.download_infos[signature]['progress'],
-                                self.download_infos[signature]['speed'],
-                                client_id,
-                                status=False,
-                                error="Canceled",
-                                )
+            try:
+                self.download_model(model_path, model_name, callback)
+            except Exception as ex:
+                ASCIIColors.warning(str(ex))
+                trace_exception(ex)
+                self.lollmsCom.notify_model_install(
+                            installation_path,
+                            model_name,
+                            binding_folder,
+                            model_url,
+                            self.download_infos[signature]['start_time'].strftime("%Y-%m-%d %H:%M:%S"),
+                            self.download_infos[signature]['total_size'],
+                            self.download_infos[signature]['downloaded_size'],
+                            self.download_infos[signature]['progress'],
+                            self.download_infos[signature]['speed'],
+                            client_id,
+                            status=False,
+                            error="Canceled",
+                            )
 
-                    del self.download_infos[signature]
-                    try:
-                        if installation_path.is_dir():
-                            shutil.rmtree(installation_path)
-                        else:
-                            installation_path.unlink()
-                    except Exception as ex:
-                        trace_exception(ex)
-                        ASCIIColors.error(f"Couldn't delete file. Please try to remove it manually.\n{installation_path}")
-                    return
-
-            else:
+                del self.download_infos[signature]
                 try:
-                    self.download_file(model_path, installation_path, callback)
+                    if installation_path.is_dir():
+                        shutil.rmtree(installation_path)
+                    else:
+                        installation_path.unlink()
                 except Exception as ex:
-                    ASCIIColors.warning(str(ex))
                     trace_exception(ex)
-                    self.lollmsCom.notify_model_install(
-                                installation_path,
-                                model_name,
-                                binding_folder,
-                                model_url,
-                                self.download_infos[signature]['start_time'].strftime("%Y-%m-%d %H:%M:%S"),
-                                self.download_infos[signature]['total_size'],
-                                self.download_infos[signature]['downloaded_size'],
-                                self.download_infos[signature]['progress'],
-                                self.download_infos[signature]['speed'],
-                                client_id,
-                                status=False,
-                                error="Canceled",
-                                )
-                    del self.download_infos[signature]
-                    installation_path.unlink()
-                    return    
+                    ASCIIColors.error(f"Couldn't delete file. Please try to remove it manually.\n{installation_path}")
+                return
+   
             self.lollmsCom.notify_model_install(
                         installation_path,
                         model_name,
@@ -545,7 +612,7 @@ class LLMBinding:
             model_path = self.models_folders[0]
         return model_path
 
-
+    """
     def searchModelPath(self, model_name:str):
         model_path=None
         for mn in self.models_folders:
@@ -556,7 +623,7 @@ class LLMBinding:
 
         model_path = self.models_folders[0]/model_name
         return model_path
-    
+    """
     def get_model_path(self):
         """
         Retrieves the path of the model based on the configuration.
@@ -570,17 +637,8 @@ class LLMBinding:
         if self.config.model_name is None:
             return None
         
-        if self.config.model_name.endswith(".reference"):
-            ASCIIColors.yellow("Loading a reference model:")
-            ref_path = self.searchModelPath(self.config.model_name)
-            if ref_path.exists():
-                with open(str(ref_path), 'r') as f:
-                    model_path = Path(f.read())
-                ASCIIColors.yellow(model_path)
-            else:
-                return None
-        else:
-            model_path = self.searchModelPath(self.config.model_name)
+ 
+        model_path = self.searchModelPath(self.config.model_name)
 
         return model_path
 

@@ -45,6 +45,22 @@ def get_generation_status():
 
 
 # ----------------------------------- Generation -----------------------------------------
+class LollmsTokenizeRequest(BaseModel):
+    prompt: str
+
+@router.post("/lollms_tokenize")
+async def lollms_tokenize(request: LollmsTokenizeRequest):
+    try:
+        tokens = elf_server.model.tokenize(request.prompt)
+        named_tokens=[]
+        for token in tokens:
+            detoken = elf_server.model.detokenize([token])
+            named_tokens.append([detoken,token])
+        tokens = elf_server.model.tokenize(request.prompt)
+        return {"status":True,"raw_tokens":tokens, "named_tokens":named_tokens}
+    except Exception as ex:
+        return {"status":False,"error":str(ex)}
+
 class LollmsGenerateRequest(BaseModel):
     prompt: str
     model_name: Optional[str] = None

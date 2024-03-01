@@ -50,7 +50,7 @@ def add_events(sio:socketio):
 
     ALLOWED_EXTENSIONS = {
         'txt', 'csv', 'py', 'html', 'js', 'jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff', 'ico', 'svg', 'mp4', 'mp3', 'avi', 'mov',
-        'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'pdf', 'js'
+        'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'pdf', 'js', "md"
     }
 
     def allowed_file(filename):
@@ -71,6 +71,7 @@ def add_events(sio:socketio):
 
         if not allowed_file(filename):
             print(f"Invalid file type: {filename}")
+            lollmsElfServer.InfoMessage(f"Invalid file type: {filename}")
             return
         ext = filename.split(".")[-1].lower()
         if ext in ["wav", "mp3"]:

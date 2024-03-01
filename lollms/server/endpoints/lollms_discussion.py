@@ -25,6 +25,7 @@ class GenerateRequest(BaseModel):
     text: str
 
 class DatabaseSelectionParameters(BaseModel):
+    client_id: str
     name: str
 
 class EditTitleParameters(BaseModel):
@@ -63,6 +64,9 @@ async def list_databases():
 @router.post("/select_database")
 def select_database(data:DatabaseSelectionParameters):
     sanitize_path(data.name)
+    client = lollmsElfServer.session.get_client(data.client_id)
+    
+
     print(f'Selecting database {data.name}')
     # Create database object
     lollmsElfServer.db = DiscussionsDB(lollmsElfServer.lollms_paths, data.name)

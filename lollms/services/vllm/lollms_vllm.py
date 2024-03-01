@@ -51,15 +51,19 @@ def install_vllm(lollms_app:LollmsApplication):
             if not show_yes_no_dialog("No WSL is detected on your system. Do you want me to install it for you? vLLM won't be abble to work without wsl."):
                 return False
             subprocess.run(['wsl', '--install', 'Ubuntu'])
-        subprocess.run(['wsl', 'bash', '-c', 'cp {} ~'.format( root_path + '/install_vllm.sh')])
-        subprocess.run(['wsl', 'bash', '-c', 'cp {} ~'.format( root_path + '/run_vllm.sh')])
-        subprocess.run(['wsl', 'bash', '~/install_vllm.sh'])
+        subprocess.run(['wsl', 'bash', '-c', 'mkdir ~/vllm'])
+        subprocess.run(['wsl', 'bash', '-c', 'cp {} ~/vllm'.format( root_path + '/install_vllm.sh')])
+        subprocess.run(['wsl', 'bash', '-c', 'cp {} ~/vllm'.format( root_path + '/run_vllm.sh')])
+        subprocess.run(['wsl', 'bash', '~/vllm/install_vllm.sh'])
     else:
         root_path = str(Path(__file__).parent)
-        home = Path.home()
-        subprocess.run(['cp {} {}'.format( root_path + '/install_vllm.sh', home)])
-        subprocess.run(['cp {} {}'.format( root_path + '/run_vllm.sh', home)])
-        subprocess.run(['bash', f'{home}/install_vllm.sh'])
+        vllm_installer_path = root_path/'install_vllm.sh'
+        vllm_run_path = root_path/'run_vllm.sh'
+        vllm_path = Path.home()/"vllm"
+        subprocess.run([f'mkdir {vllm_path}'])
+        subprocess.run([f'cp {vllm_installer_path} {vllm_path}'])
+        subprocess.run([f'cp {vllm_run_path} {vllm_path}'])
+        subprocess.run(['bash', f'{vllm_path}/install_vllm.sh'])
     root_dir = lollms_app.lollms_paths.personal_path
     shared_folder = root_dir/"shared"
     vllm_folder = shared_folder / "vllm"

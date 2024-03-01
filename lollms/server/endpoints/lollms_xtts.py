@@ -14,6 +14,7 @@ from starlette.responses import StreamingResponse
 from lollms.types import MSG_TYPE
 from lollms.main_config import BaseConfig
 from lollms.utilities import detect_antiprompt, remove_text_from_string, trace_exception, find_first_available_file_index, add_period, PackageManager
+from lollms.security import sanitize_path, validate_path
 from pathlib import Path
 from ascii_colors import ASCIIColors
 import os
@@ -86,6 +87,10 @@ async def text2Audio(request: LollmsText2AudioRequest):
     if lollmsElfServer.config.host!="localhost" and lollmsElfServer.config.host!="127.0.0.1":
         return {"status":False,"error":"Code execution is blocked when the server is exposed outside for very obvious reasons!"}
 
+    if request.fn:
+        request.fn = os.path.realpath(str((lollmsElfServer.lollms_paths.personal_outputs_path/"audio_out")/request.fn))
+        validate_path(request.fn,[str(lollmsElfServer.lollms_paths.personal_outputs_path/"audio_out")])
+        
     try:
         # Get the JSON data from the POST request.
         try:

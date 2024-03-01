@@ -11,6 +11,7 @@ from fastapi import APIRouter, Request
 from pydantic import BaseModel
 import pkg_resources
 from lollms.server.elf_server import LOLLMSElfServer
+from lollms.security import sanitize_path, forbid_remote_access
 from ascii_colors import ASCIIColors
 from lollms.utilities import load_config
 from pathlib import Path
@@ -86,12 +87,14 @@ def get_model_status():
 
 @router.post("/add_reference_to_local_model")
 def add_reference_to_local_model(data:ModelReferenceParams):     
+   
+    forbid_remote_access(lollmsElfServer)
     if data.path=="":
         return {"status": False, "error":"Empty model path"}   
-        
+
     path = Path(data.path)
     if path.exists():
-        lollmsElfServer.config.reference_model(path)
+        lollmsElfServer.binding.reference_model(path)
         return {"status": True} 
     else:        
         return {"status": False, "error":"Model not found"}       

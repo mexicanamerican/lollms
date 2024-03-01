@@ -30,6 +30,8 @@ from typing import List, Dict, Any
 from ascii_colors import ASCIIColors, trace_exception
 from lollms.paths import LollmsPaths
 from lollms.utilities import git_pull
+from lollms.utilities import url2host_port
+
 import subprocess
 import shutil
 
@@ -44,37 +46,30 @@ def verify_motion_ctrl(lollms_paths:LollmsPaths):
     return motion_ctrl_folder.exists()
     
 def install_motion_ctrl(lollms_app:LollmsApplication):
-    import conda.cli
-
+    if platform.system() == 'Windows':
+        root_path = "/mnt/"+"".join(str(Path(__file__).parent).replace("\\","/").split(":"))
+        if not os.path.exists('C:\\Windows\\System32\\wsl.exe'):
+            if not show_yes_no_dialog("No WSL is detected on your system. Do you want me to install it for you? vLLM won't be abble to work without wsl."):
+                return False
+            subprocess.run(['wsl', '--install', 'Ubuntu'])
+        subprocess.run(['wsl', 'bash', '-c', 'mkdir ~/motion_ctrl'])
+        subprocess.run(['wsl', 'bash', '-c', 'cp {} ~/motion_ctrl'.format( root_path + '/install_motion_ctrl.sh')])
+        subprocess.run(['wsl', 'bash', '-c', 'cp {} ~/motion_ctrl'.format( root_path + '/run_motion_ctrl.sh')])
+        subprocess.run(['wsl', 'bash', '~/motion_ctrl/install_motion_ctrl.sh'])
+    else:
+        root_path = str(Path(__file__).parent)
+        vllm_installer_path = root_path/'install_motion_ctrl.sh'
+        vllm_run_path = root_path/'run_motion_ctrl.sh'
+        vllm_path = Path.home()/"motion_ctrl"
+        subprocess.run([f'mkdir {vllm_path}'])
+        subprocess.run([f'cp {vllm_installer_path} {vllm_path}'])
+        subprocess.run([f'cp {vllm_run_path} {vllm_path}'])
+        subprocess.run(['bash', f'{vllm_path}/install_motion_ctrl.sh'])
     root_dir = lollms_app.lollms_paths.personal_path
     shared_folder = root_dir/"shared"
-    motion_ctrl_folder = shared_folder / "auto_motion_ctrl"
-    if motion_ctrl_folder.exists():
-        if not show_yes_no_dialog("warning!","I have detected that there is a previous installation of motion ctrl.\nShould I remove it and continue installing?"):
-            return
-        else:
-            try:
-                shutil.rmtree(motion_ctrl_folder)
-            except Exception as ex:
-                trace_exception(ex)
-            try:
-                conda.cli.main('conda', 'remove', '--name', env_name, '--all', '--yes')
-            except Exception as ex:
-                trace_exception(ex)
-
-
-    subprocess.run(["git", "clone", "https://github.com/ParisNeo/MotionCtrl.git", str(motion_ctrl_folder)])
-    env_name = "MotionCtrl"
-
-    conda.cli.main('conda', 'create', '--name', env_name, 'python=3.10', '--yes')
-    # Replace 'your_env_name' with the name of the environment you created
-    activate_env_command = f"conda activate {env_name} && "
-    pip_install_command = "pip install -r " + str(motion_ctrl_folder) + "/requirements.txt"
-
-    # Run the combined command
-    subprocess.run(activate_env_command + pip_install_command, shell=True)    
-    #pip install -r requirements.txt    
-    ASCIIColors.green("Motion ctrl installed successfully")
+    vllm_folder = shared_folder / "motion_ctrl"
+    vllm_folder.mkdir(exist_ok=True, parents=True)
+    return True
 
 
 def get_motion_ctrl(lollms_paths:LollmsPaths):
@@ -151,10 +146,15 @@ class Service:
             env_name = "MotionCtrl"
             # Replace 'your_env_name' with the name of the environment you created
             activate_env_command = f"conda activate {env_name} && "
-            pip_install_command = "python -m app --share"
+            pip_install_command = ""
+            _, host, port = url2host_port(base_url)
+            # run motion_ctrl
+            if platform.system() == 'Windows':
+                #subprocess.Popen(['wsl', 'ls', '$HOME'])
+                subprocess.Popen(['wsl', 'bash', '$HOME/run_motion_ctrl.sh',  host, str(port)])
+            else:
+                subprocess.Popen(['bash', f'{Path.home()}/run_motion_ctrl.sh', host, str(port)])
 
-            # Run the combined command
-            subprocess.run(activate_env_command + pip_install_command, shell=True)    
 
 
         # Wait until the service is available at http://127.0.0.1:7860/
