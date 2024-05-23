@@ -105,6 +105,7 @@ def run_pip_in_env(env_name, pip_args, cwd=None):
     
     # Activate the Conda environment
     python_path = Path(sys.executable).parent.parent/"miniconda3"/"envs"/env_name/"python"
+    ASCIIColors.yellow(f"Executing:{python_path} -m pip {pip_args}")
     process = subprocess.Popen(f'{python_path} -m pip {pip_args}', shell=True)
     
     # Wait for the process to finish
@@ -119,6 +120,7 @@ def run_python_script_in_env(env_name, script_path, cwd=None, wait=True):
     
     # Activate the Conda environment
     python_path = Path(sys.executable).parent.parent/"miniconda3"/"envs"/env_name/"python"
+    ASCIIColors.yellow(f"Executing:{python_path} {script_path}")
     process = subprocess.Popen(f'{python_path} {script_path}', shell=True)
     
     # Wait for the process to finish
