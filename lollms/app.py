@@ -271,7 +271,7 @@ class LollmsApplication(LoLLMsCom):
 
         ASCIIColors.yellow(f" -> self.config.xtts_enable: {self.config.xtts_enable}")
         ASCIIColors.yellow(f" -> self.config.active_stt_service: {self.config.active_stt_service}")
-        if self.config.xtts_enable or self.config.active_stt_service == "xtts":
+        if self.config.xtts_enable or self.config.active_tts_service == "xtts":
             ASCIIColors.yellow("Loading XTTS")
             try:
                 from lollms.services.xtts.lollms_xtts import LollmsXTTS
@@ -366,7 +366,7 @@ class LollmsApplication(LoLLMsCom):
                     self.whisper = LollmsWhisper(self, self.config.whisper_model, self.lollms_paths.personal_outputs_path)
                 except Exception as ex:
                     trace_exception(ex)
-            if (self.config.xtts_enable or self.config.active_stt_service == "xtts") and self.xtts is None:
+            if (self.config.xtts_enable or self.config.active_tts_service == "xtts") and self.xtts is None:
                 ASCIIColors.yellow("Loading XTTS")
                 try:
                     from lollms.services.xtts.lollms_xtts import LollmsXTTS
@@ -423,7 +423,7 @@ class LollmsApplication(LoLLMsCom):
             if self.config.active_tts_service == "openai_tts":
                 from lollms.services.open_ai_tts.lollms_openai_tts import LollmsOpenAITTS
                 self.tts = LollmsOpenAITTS(self, self.config.openai_tts_model, self.config.openai_tts_voice,  self.config.openai_tts_key)
-            elif self.config.active_stt_service == "xtts" and self.xtts:
+            elif self.config.active_tts_service == "xtts" and self.xtts:
                 self.tts = self.xtts
 
             if self.config.active_stt_service == "openai_whisper":
