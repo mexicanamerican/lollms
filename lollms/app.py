@@ -243,7 +243,7 @@ class LollmsApplication(LoLLMsCom):
 
     def start_servers(self):
 
-
+        ASCIIColors.yellow("* - * - * - Starting services - * - * - *")
 
 
         if self.config.enable_ollama_service:
@@ -338,6 +338,7 @@ class LollmsApplication(LoLLMsCom):
 
 
     def verify_servers(self, reload_all=False):
+        ASCIIColors.yellow("* - * - * - Verifying services - * - * - *")
 
         try:
             if self.config.enable_ollama_service and self.ollama is None:
