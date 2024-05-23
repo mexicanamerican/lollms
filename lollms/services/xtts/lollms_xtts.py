@@ -135,6 +135,7 @@ class LollmsXTTS(LollmsTTS):
         requirements_path = os.path.join(xtts_path, "requirements.txt")
         run_pip_in_env("xtts", f"install -r {requirements_path}", cwd=xtts_path)
         run_pip_in_env("xtts", f"install torch==2.1.1+cu118 torchaudio==2.1.1+cu118 --index-url https://download.pytorch.org/whl/cu118", cwd=xtts_path)
+        run_pip_in_env("xtts", f"install -e {xtts_path}", cwd=xtts_path)
 
         # Step 4: Launch the server
         # Assuming the server can be started with a Python script in the cloned repository
