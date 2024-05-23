@@ -269,7 +269,10 @@ class LollmsApplication(LoLLMsCom):
             except Exception as ex:
                 trace_exception(ex)
 
+        ASCIIColors.yellow(f" -> self.config.xtts_enable: {self.config.xtts_enable}")
+        ASCIIColors.yellow(f" -> self.config.active_stt_service: {self.config.active_stt_service}")
         if self.config.xtts_enable or self.config.active_stt_service == "xtts":
+            ASCIIColors.yellow("Loading XTTS")
             try:
                 from lollms.services.xtts.lollms_xtts import LollmsXTTS
                 voice=self.config.xtts_current_voice
