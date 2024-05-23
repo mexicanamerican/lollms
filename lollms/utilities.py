@@ -156,8 +156,10 @@ def get_conda_path():
 def environment_exists(env_name):
     from lollms.security import sanitize_shell_code
     env_name = sanitize_shell_code(env_name)
+    env_name = Path(sys.executable).parent.parent / "miniconda3" / "env" / env_name
     conda_path = get_conda_path()
     ASCIIColors.yellow(f"Using conda from : {conda_path}")
+
     result = subprocess.run(f'{conda_path} env list --json', shell=True, capture_output=True, text=True)
     envs_info = json.loads(result.stdout)
     env_names = [Path(env).name for env in envs_info['envs']]
