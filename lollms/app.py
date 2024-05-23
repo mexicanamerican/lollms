@@ -362,7 +362,7 @@ class LollmsApplication(LoLLMsCom):
                     self.whisper = LollmsWhisper(self, self.config.whisper_model, self.lollms_paths.personal_outputs_path)
                 except Exception as ex:
                     trace_exception(ex)
-            if self.config.xtts_enable and self.xtts is None:
+            if (self.config.xtts_enable or self.config.active_stt_service == "xtts") and self.xtts is None:
                 try:
                     from lollms.services.xtts.lollms_xtts import LollmsXTTS
                     voice=self.config.xtts_current_voice
