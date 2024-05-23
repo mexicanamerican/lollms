@@ -129,7 +129,7 @@ class LollmsXTTS(LollmsTTS):
             # running `conda update` commands or similar.
         else:
             print("Creating Conda environment 'xtts'...")
-            create_conda_env("xtts", "3.8")
+            create_conda_env("xtts", "3.10")
 
         # Step 3: Install or update dependencies using your custom function
         requirements_path = os.path.join(xtts_path, "requirements.txt")
