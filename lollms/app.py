@@ -262,14 +262,14 @@ class LollmsApplication(LoLLMsCom):
                 trace_exception(ex)
                 self.warning(f"Couldn't load vllm")
 
-        if self.config.whisper_activate:
+        if self.config.whisper_activate or self.config.active_stt_service == "whisper":
             try:
                 from lollms.services.whisper.lollms_whisper import LollmsWhisper
                 self.whisper = LollmsWhisper(self, self.config.whisper_model, self.lollms_paths.personal_outputs_path)
             except Exception as ex:
                 trace_exception(ex)
 
-        if self.config.xtts_enable:
+        if self.config.xtts_enable or self.config.active_stt_service == "xtts":
             try:
                 from lollms.services.xtts.lollms_xtts import LollmsXTTS
                 voice=self.config.xtts_current_voice
