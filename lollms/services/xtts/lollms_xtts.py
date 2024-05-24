@@ -314,13 +314,13 @@ class LollmsXTTS(LollmsTTS):
             voice_file =  [v for v in voices_folder.iterdir() if v.stem==voice and v.suffix==".wav"]
             if len(voice_file)==0:
                 return {"status":False,"error":"Voice not found"}
-            self.xtts_audio(preprocessed_text, voice_file[0].name, f"{output_fn}", language=language)
+            self.xtts_audio(preprocessed_text, voice_file[0].name, f"{output_fn}", language=language, use_threading=use_threading)
 
         except Exception as ex:
             trace_exception(ex)
             return {"status":False,"error":f"{ex}"}
 
-    def xtts_audio(self, text, speaker, file_name_or_path:Path|str=None, language="en", use_threading=True):
+    def xtts_audio(self, text, speaker, file_name_or_path:Path|str=None, language="en", use_threading=False):
         text = self.clean_text(text)
         def tts2_audio_th(thread_uid=None):
             url = f"{self.xtts_base_url}/tts_to_audio"
