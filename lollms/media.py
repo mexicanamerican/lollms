@@ -141,10 +141,10 @@ class RTCom:
 
         if snd_input_device is None:
             devices = sd.query_devices()
-            snd_input_device = [device['name'] for device in devices if device['type'] == 'input'][0]
+            snd_input_device = [device['name'] for device in devices  if device["max_input_channels"]>0][0]
         if snd_output_device is None:
             devices = sd.query_devices()
-            snd_output_device = [device['name'] for device in devices if device['type'] == 'output'][0]
+            snd_output_device = [device['name'] for device in devices  if device["max_output_channels"]>0][0]
 
         self.snd_input_device = snd_input_device
         self.snd_output_device = snd_output_device
