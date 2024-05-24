@@ -218,14 +218,17 @@ class LollmsXTTS(LollmsTTS):
                 if response.status_code == 200:
                     self.update_settings()
                     print(f"voices_folder is {self.voices_folder}.")
+                    self.ready = True
                     if self.voices_folder is not None:
                         print("Generating sample audio.")
                         voice_file =  [v for v in self.voices_folder.iterdir() if v.suffix==".wav"]
-                        self.tts_audio("x t t s is ready",voice_file[0].stem)
+                        try:
+                            self.tts_audio("x t t s is ready",voice_file[0].stem)
+                        except Exception as ex:
+                            return True
                     print("Service is available.")
                     if self.app is not None:
                         self.app.success("XTTS Service is now available.")
-                    self.ready = True
                     return True
             except:
                 pass
