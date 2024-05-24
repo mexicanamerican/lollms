@@ -388,9 +388,10 @@ class RTCom:
             #self.transcription_signal.update_status.emit("Listening")
 
     def get_voices(self):
-        if self.lc.tts:
+        if self.lc.tts and self.lc.tts.ready:
             voices = self.lc.tts.get_voices()  # Assuming the response is in JSON format
             return voices
+        return []
 
 
 class WebcamImageSender:
