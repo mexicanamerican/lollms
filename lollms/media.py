@@ -213,7 +213,7 @@ class RTCom:
     def _record(self):
         with sd.InputStream(channels=self.channels, device=self.snd_input_device, samplerate=self.rate, callback=self.callback, dtype='int16'):
             while not self.stop_flag:
-                time.sleep(0.1)
+                time.sleep(1)
 
         if self.frames:
             self._save_wav(self.frames)
