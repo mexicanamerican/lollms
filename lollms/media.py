@@ -247,8 +247,10 @@ class RTCom:
                 self.longest_silence_duration = self.current_silence_duration
 
             if self.silence_counter > (self.rate / frames * self.silence_duration):
+                ASCIIColors.red("Silence counter reached threshold")
                 trimmed_frames = self._trim_silence(self.frames)
                 sound_percentage = self._calculate_sound_percentage(trimmed_frames)
+                ASCIIColors.red(f"Sound percentage {sound_percentage}")
                 if sound_percentage >= self.sound_threshold_percentage:
                     self._save_wav(self.frames)
                 self.frames = []
@@ -256,6 +258,9 @@ class RTCom:
                 self.total_frames = 0
                 self.sound_frames = 0
             else:
+                ASCIIColors.red(f"Appending data")
+                ASCIIColors.yellow(f"silence_counter: {self.silence_counter}")
+                print(f"silence duration: {self.rate / frames * self.silence_duration}")
                 self.frames.append(indata.copy())
         else:
             self.frames = []
