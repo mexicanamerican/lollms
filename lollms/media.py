@@ -134,14 +134,14 @@ class RTCom:
                         snd_input_device=None,
                         snd_output_device=None,
                         logs_folder="logs", 
-                        block_while_talking=True, 
-                        context_size=4096
+                        block_while_talking=True,
+                        use_keyword_audio=False,
+                        keyword_audio_path=None
                     ):
         self.sio = sio
         self.lc = lc
         self.client = client
         self.block_listening = False
-        self.context_size = context_size
         self.personality = personality
         self.rate = rate
         self.channels = channels
@@ -152,6 +152,14 @@ class RTCom:
         self.sound_threshold_percentage = sound_threshold_percentage
         self.block_while_talking = block_while_talking
         self.image_shot = None
+        self.use_keyword_audio=use_keyword_audio,
+        self.keyword_audio_path=keyword_audio_path
+        self.summoned = False
+        self.sample_mfccs = None
+        if self.use_keyword_audio and self.keyword_audio_path:
+            self.sample_features = self.load_and_extract_features()
+
+
 
         if snd_input_device is None:
             devices = sd.query_devices()
@@ -186,6 +194,36 @@ class RTCom:
         self.buffer_lock = threading.Condition()
         self.transcribed_lock = threading.Condition()
 
+    def load_and_extract_features(self, file_path):
+        if not PackageManager.check_package_installed("librosa"):
+            PackageManager.install_package(librosa)
+        import librosa
+        y, sr = librosa.load(file_path, sr=None)
+        mfccs = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
+        return np.mean(mfccs.T, axis=0)
+
+    def extract_features(self, buffer):
+        if not PackageManager.check_package_installed("librosa"):
+            PackageManager.install_package("librosa")
+        import librosa
+        y, sr = librosa.load(buffer, sr=self.rate)
+        mfccs = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
+        return np.mean(mfccs.T, axis=0)
+    
+    def compare_voices(self, sample_features, realtime_features, th = 20):
+        if not PackageManager.check_package_installed("scipy"):
+            PackageManager.install_package("scipy")
+        from scipy.spatial.distance import euclidean
+        # Calculate the Euclidean distance between the features
+        distance = euclidean(sample_features, realtime_features)
+        
+        # If the distance is smaller than the threshold, we have a match!
+        if distance < th:
+            print(f"Voice match found! (distance: {distance}) 🎉🤡")
+            return True
+        else:
+            print(f"No match found. (distance: {distance}) 😢🤡")
+            return False
     def start_recording(self):
         self.recording = True
         self.stop_flag = False
@@ -204,9 +242,6 @@ class RTCom:
         with sd.InputStream(channels=self.channels, device=self.snd_input_device, samplerate=self.rate, callback=self.callback, dtype='int16'):
             while not self.stop_flag:
                 time.sleep(1)
-
-        if self.frames:
-            self._save_wav(self.frames)
         self.recording = False
 
         # self._save_histogram(self.audio_values)
@@ -243,11 +278,19 @@ class RTCom:
 
             if self.silence_counter > max_scilence:
                 trimmed_frames = self._trim_silence(self.frames)
+                ASCIIColors.yellow(f"\nsound duration: {len(trimmed_frames)/self.rate}")
                 sound_percentage = self._calculate_sound_percentage(trimmed_frames)
                 if sound_percentage >= self.sound_threshold_percentage:
                     ASCIIColors.red(f"Sound percentage {sound_percentage}")
                     ASCIIColors.red("\nSilence counter reached threshold")
-                    self._save_wav(self.frames)
+
+                    if self.use_keyword_audio and self.keyword_audio_path and self.summoned == False:
+                        features = self.extract_features(self.frames)
+                        if self.compare_voices(self.sample_features, features):
+                            self.summoned = True
+                    else:
+                        self._save_wav(self.frames)
+                        self.summoned = False
                 self.frames = []
                 self.silence_counter = 0
                 self.total_frames = 0
@@ -426,8 +469,7 @@ class AudioNinja:
         def callback(indata, frames, time, status):
             if self.is_recording:
                 self.frames.append(indata.copy())
-                self.lc.info("Ninja is capturing sounds... Shhh!")
-
+    
         with sd.InputStream(callback=callback, device=self.device):
             while self.is_recording:
                 sd.sleep(1000)
@@ -450,8 +492,9 @@ class AudioNinja:
         if self.is_recording:
             self.is_recording = False
             self.recording_thread.join()
-            self._save_recording()
+            filename = self._save_recording()
             self.lc.info("Ninja recording stopped! 🥷⚪️")
+            return filename
 
     def _save_recording(self):
         """
@@ -465,6 +508,7 @@ class AudioNinja:
             wf.setframerate(44100)
             wf.writeframes(b''.join(self.frames))
         self.lc.info(f"Ninja stored the audio file at '{filename}'! 🥷📂")
+        return filename
 
 
 class WebcamImageSender:
