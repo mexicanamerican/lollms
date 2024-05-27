@@ -8,7 +8,7 @@ import sys
 from lollms.app import LollmsApplication
 from lollms.paths import LollmsPaths
 from lollms.config import TypedConfig, ConfigTemplate, BaseConfig
-from lollms.utilities import PackageManager, check_and_install_torch
+from lollms.utilities import PackageManager, check_and_install_torch, find_next_available_filename
 import time
 import io
 import sys
@@ -73,14 +73,17 @@ def install_diffusers(lollms_app:LollmsApplication):
     root_dir = lollms_app.lollms_paths.personal_path
     shared_folder = root_dir/"shared"
     diffusers_folder = shared_folder / "diffusers"
+    diffusers_folder.mkdir(exist_ok=True, parents=True)
     if not PackageManager.check_package_installed("diffusers"):
         PackageManager.install_or_update("diffusers")
-    diffusers_folder.mkdir(exist_ok=True, parents=True)
+        PackageManager.install_or_update("xformers")
+        
 
 
 
 def upgrade_diffusers(lollms_app:LollmsApplication):
     PackageManager.install_or_update("diffusers")
+    PackageManager.install_or_update("xformers")
 
 
 class LollmsDiffusers(LollmsTTI):
@@ -115,13 +118,17 @@ class LollmsDiffusers(LollmsTTI):
         ASCIIColors.red("                              ______                                       ")
         ASCIIColors.red("                             |______|                                      ")
 
-        import torch
+        import torch 
         from diffusers import PixArtSigmaPipeline
         self.model = PixArtSigmaPipeline.from_pretrained(
-            "PixArt-alpha/PixArt-Sigma-XL-2-1024-MS", torch_dtype=torch.float16, cache_dir=self.models_dir
+            app.config.diffusers_model, torch_dtype=torch.float16, cache_dir=self.models_dir,
+            use_safetensors=True,
         )
         # Enable memory optimizations.
-        self.model.enable_model_cpu_offload()
+        if app.config.diffusers_offloading_mode=="sequential_cpu_offload":
+            self.model.enable_sequential_cpu_offload()
+        elif app.coinfig.diffusers_offloading_mode=="model_cpu_offload":
+            self.model.enable_model_cpu_offload()
 
     @staticmethod
     def verify(app:LollmsApplication):
@@ -162,11 +169,13 @@ class LollmsDiffusers(LollmsTTI):
                 restore_faces=True,
                 output_path=None
                 ):
-
-        array = self.model(diffusers_positive_prompt).images[0]
-        image = Image.fromarray(array)
-
+        if output_path is None:
+            output_path = self.output_dir
+        from diffusers.utils.pil_utils import pt_to_pil
+        image = self.model(diffusers_positive_prompt, negative_prompt=diffusers_negative_prompt, guidance_scale=scale, num_inference_steps=steps,).images[0]
+        output_path = Path(output_path)
+        fn = find_next_available_filename(output_path,"diff_img_")
         # Save the image
-        image.save('output_image.png')
-        return None, None
+        image.save(fn)
+        return fn, {"prompt":diffusers_positive_prompt, "negative_prompt":diffusers_negative_prompt}
     
