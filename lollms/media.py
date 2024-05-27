@@ -20,6 +20,7 @@ from scipy.signal import butter, lfilter
 
 import os
 import threading
+import re
 
 if not PackageManager.check_package_installed("cv2"):
     if platform.system() == "Darwin":
@@ -342,6 +343,21 @@ class RTCom:
         sound_percentage = (sound_count / num_bins) * 100 if num_bins > 0 else 0
         return sound_percentage
 
+    def contains_unwanted_special_characters(self, s):
+        # Define a regex pattern to match any character that is not a Unicode letter, digit, punctuation, or whitespace
+        pattern = re.compile(r'[^a-zA-Z0-9\s.,!?;:()\'"“”‘’—\-\u00C0-\u017F\u0400-\u04FF\u0600-\u06FF\u3040-\u30FF\u4E00-\u9FFF]', re.UNICODE)
+        # Search for the pattern in the string
+        if pattern.search(s):
+            return True
+        return False
+
+    def remove_special_characters(self, s:str)->str:
+        # Define a regex pattern to match any character that is not a Unicode letter, digit, punctuation, or whitespace
+        pattern = re.compile(r'[^a-zA-Z0-9\s.,!?;:()\'"“”‘’—\-\u00C0-\u017F\u0400-\u04FF\u0600-\u06FF\u3040-\u30FF\u4E00-\u9FFF]', re.UNICODE)
+        # Substitute the matched characters with an empty string
+        cleaned_string = pattern.sub('', s)
+        return cleaned_string
+
     def _save_wav(self, frames):
         ASCIIColors.green("<<SEGMENT_RECOVERED>>")
         # Todo annouce
@@ -398,14 +414,16 @@ class RTCom:
                     wav_file_path = str(Path(self.logs_folder)/filename)
                     ASCIIColors.cyan(f"Logging to : {wav_file_path}")
                     transcription = self.lc.stt.transcribe(wav_file_path)
-                    transcription_fn = str(Path(self.logs_folder)/filename) + ".txt"
-                    with open(transcription_fn, "w", encoding="utf-8") as f:
-                        f.write(transcription)
+                    transcription = self.remove_special_characters(transcription).strip()
+                    if len(transcription)>0:
+                        transcription_fn = str(Path(self.logs_folder)/filename) + ".txt"
+                        with open(transcription_fn, "w", encoding="utf-8") as f:
+                            f.write(transcription)
 
-                    with self.transcribed_lock:
-                        self.transcribed_files.append((filename, transcription))
-                        self.transcribed_lock.notify()
-                    if transcription!="":
+                        with self.transcribed_lock:
+                            self.transcribed_files.append((filename, transcription))
+                            self.transcribed_lock.notify()
+
                         current_prompt = transcription
                         self.lc.new_block(client_id=self.client.client_id,sender=self.lc.config.user_name, content=current_prompt)
                         ASCIIColors.green("<<RESPONDING>>")
