@@ -8,7 +8,7 @@ from pathlib import Path
 from functools import partial
 
 # It is advised to import typing elements
-from typing import List, Optional
+from typing import List, Optional, Any
 
 # Import PackageManager if there are potential libraries that need to be installed 
 from lollms.utilities import PackageManager, find_first_available_file_index, discussion_path_to_url
