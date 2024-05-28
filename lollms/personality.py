@@ -3437,8 +3437,8 @@ The AI should respond in this format using data from actions_list:
             if hide_function_call:
                 self.full("") #Hide function call
             outputs = self.execute_function_calls(function_calls,function_definitions)
-            final_output = "\n".join([str(o) for o in outputs])
-            out += "\n!@>function calls results:\n" + "\n".join([str(o) for o in outputs])
+            final_output = "\n".join([str(o) if type(o)==str else str(o[0]) if (type(o)==tuple or type(0)==list) and len(o)>0 else "" for o in outputs])
+            out += "\n!@>function calls results:\n" + final_output
             if prompt_after_execution:
                 prompt += out +"\n"+ "!@>"+self.personality.name+":"
                 if len(self.personality.image_files)>0:
@@ -3448,8 +3448,8 @@ The AI should respond in this format using data from actions_list:
                 final_output += "\n" + out
                 if len(function_calls)>0:
                     outputs = self.execute_function_calls(function_calls,function_definitions)
-                    final_output += "\n" + "\n".join([str(o) for o in outputs]) 
-                    out += "\n!@>function calls results:\n" + "\n".join([str(o) for o in outputs])
+                    final_output = "\n".join([str(o) if type(o)==str else str(o[0]) if (type(o)==tuple or type(0)==list) and len(o)>0 else "" for o in outputs])
+                    out += "\n!@>function calls results:\n" + final_output
                     prompt += out +"\n"+ "!@>"+self.personality.name+":"
         else:
             final_output = out
