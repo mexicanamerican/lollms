@@ -27,7 +27,7 @@ if not PackageManager.check_package_installed("bs4"):
 from bs4 import BeautifulSoup
 
 # Core function to search for PDFs on arXiv and download them to a specified directory
-def arxiv_pdf_search(query: str, max_results: Optional[int] = 5, sort_by: Optional[str] = 'relevance', start_date: Optional[str] = None, end_date: Optional[str] = None, author: Optional[str] = None, client: Optional[Client] = None) -> str:
+def arxiv_pdf_search(query: str, max_results: Optional[int] = 5, sort_by: Optional[str] = 'relevance', start_date: Optional[str] = None, end_date: Optional[str] = None, author: Optional[str] = None, client: Optional[Any] = None) -> (str, Dict[str, Any]):
     try:
         if client is None:
             download_to = Path("./pdf_search")
@@ -56,6 +56,7 @@ def arxiv_pdf_search(query: str, max_results: Optional[int] = 5, sort_by: Option
         # Extract PDF URLs and additional information
         html_output = "<html><body>"
         report_content = ""
+        pdf_info = {}
         for entry in entries:
             pdf_url = entry.id.text.replace('abs', 'pdf') + '.pdf'
             pdf_name = pdf_url.split('/')[-1]
@@ -115,6 +116,17 @@ def arxiv_pdf_search(query: str, max_results: Optional[int] = 5, sort_by: Option
             Local PDF: {local_url}
             ------------------------
             """
+            # Append to pdf_info dict
+            pdf_info[pdf_name] = {
+                "title": title,
+                "authors": authors,
+                "affiliations": affiliations,
+                "abstract": abstract,
+                "published_date": published_date,
+                "journal_ref": journal_ref,
+                "pdf_url": pdf_url,
+                "local_url": local_url
+            }
         
         # Save the report to a text file
         report_path = download_to / "pdf_search_report.txt"
@@ -122,17 +134,17 @@ def arxiv_pdf_search(query: str, max_results: Optional[int] = 5, sort_by: Option
             report_file.write(report_content)
         
         html_output += "</body></html>"
-        return html_output
+        return html_output, pdf_info
 
     except Exception as e:
-        return trace_exception(e)
+        return trace_exception(e), {}
 
 # Metadata function
-def arxiv_pdf_search_function(client: Optional[Client] = None):
+def arxiv_pdf_search_function(client: Optional[Any] = None):
     return {
         "function_name": "arxiv_pdf_search",  # The function name in string
         "function": partial(arxiv_pdf_search, client=client),  # The function to be called with partial to preset client
-        "function_description": "Searches for PDFs on arXiv based on a query, downloads them to a specified directory, and returns a HTML string containing article details and links.",  # Description of the function
+        "function_description": "Searches for PDFs on arXiv based on a query, downloads them to a specified directory, and returns a HTML string containing article details and links, along with a dictionary containing detailed information about each PDF.",  # Description of the function
         "function_parameters": [  # The set of parameters
             {"name": "query", "type": "str", "description": "The search query for arXiv."},
             {"name": "max_results", "type": "int", "description": "The maximum number of results to return. (Optional)", "optional": True, "default": 5},
