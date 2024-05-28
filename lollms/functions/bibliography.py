@@ -106,15 +106,15 @@ def arxiv_pdf_search(query: str, max_results: Optional[int] = 5, sort_by: Option
             """
             # Append to report content
             report_content += f"""
-            Title: {title}
-            Authors: {authors}
-            Affiliations: {affiliations}
-            Abstract: {abstract}
-            Published Date: {published_date}
-            Journal/Conference: {journal_ref}
-            PDF Link: {pdf_url}
-            Local PDF: {local_url}
-            ------------------------
+Title: {title}
+Authors: {authors}
+Affiliations: {affiliations}
+Abstract: {abstract}
+Published Date: {published_date}
+Journal/Conference: {journal_ref}
+PDF Link: {pdf_url}
+Local PDF: {local_url}
+------------------------
             """
             # Append to pdf_info dict
             pdf_info[pdf_name] = {
