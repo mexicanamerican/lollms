@@ -143,6 +143,40 @@ def arxiv_pdf_search_function(client: Optional[Client] = None):
         ]
     }
 
+
+# Define the core function
+def rate_relevance(search_prompt: str, text_example: str, llm) -> Tuple[str, Dict[str, float]]:
+    try:
+        # Use the LLM to rate the relevance of the text example compared to the search prompt
+        relevance_score = llm.fast_gen(f"Rate the relevance of the following text compared to the prompt on a scale of 0 to 1. Only respond with a number between 0 and 1:\nPrompt: {search_prompt}\nText: {text_example}\nRelevance score:")
+
+        # Extract the relevance score from the generated text
+        try:
+            score = float(relevance_score.strip())
+        except ValueError:
+            score = 0.0  # Default score in case of parsing issues
+
+        # Create the output tuple
+        result = (f"Relevance Score: {score}", {"score": score})
+
+        return result
+    except Exception as e:
+        return trace_exception(e)
+
+# Define the metadata function
+def rate_relevance_function(llm):
+    return {
+        "function_name": "rate_relevance",  # The function name in string
+        "function": partial(rate_relevance, llm=llm),  # The function to be called with LLM as a preset parameter
+        "function_description": "Rates the relevance of a text example compared to a search prompt using an LLM.",  # Description
+        "function_parameters": [
+            {"name": "search_prompt", "type": "str"},
+            {"name": "text_example", "type": "str"}
+        ]  # The set of parameters
+    }
+
+
+
 # Example usage
 if __name__ == "__main__":
     # Example client initialization (if needed)
