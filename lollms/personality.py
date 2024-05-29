@@ -1630,7 +1630,7 @@ class AIPersonality:
         end_header_id_template      = self.config.end_header_id_template
         separator_template          = self.config.separator_template
 
-        anti_prompts = [start_header_id_template, self.app.config.discussion_prompt_separator, end_header_id_template]
+        anti_prompts = [start_header_id_template, self.app.config.discussion_prompt_separator]
         if self.app.config.separator_template!="\n":
             anti_prompts.append(self.app.config.separator_template)
 
