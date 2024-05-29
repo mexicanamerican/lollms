@@ -92,16 +92,16 @@ def arxiv_pdf_search(query: str, max_results: Optional[int] = 5, sort_by: Option
 
             # Append to HTML output
             html_output += f"""
-            <div>
-                <h2>{title}</h2>
-                <p><strong>Authors:</strong> {authors}</p>
-                <p><strong>Affiliations:</strong> {affiliations}</p>
-                <p><strong>Abstract:</strong> {abstract}</p>
-                <p><strong>Published Date:</strong> {published_date}</p>
-                <p><strong>Journal/Conference:</strong> {journal_ref}</p>
-                <p><a href="{pdf_url}" target="_blank">PDF Link</a></p>
-                <p><a href="{local_url}" target="_blank">Local PDF</a></p>
-            </div>
+<div>
+<h2>{title}</h2>
+<p><strong>Authors:</strong> {authors}</p>
+<p><strong>Affiliations:</strong> {affiliations}</p>
+<p><strong>Abstract:</strong> {abstract}</p>
+<p><strong>Published Date:</strong> {published_date}</p>
+<p><strong>Journal/Conference:</strong> {journal_ref}</p>
+<p><a href="{pdf_url}" target="_blank">PDF Link</a></p>
+<p><a href="{local_url}" target="_blank">Local PDF</a></p>
+</div>
             """
             # Append to report content
             report_content += f"""
