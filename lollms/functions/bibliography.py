@@ -8,7 +8,7 @@ from pathlib import Path
 from functools import partial
 
 # It is advised to import typing elements
-from typing import List, Optional, Any
+from typing import List, Optional, Any, Tuple, Dict
 
 # Import PackageManager if there are potential libraries that need to be installed 
 from lollms.utilities import PackageManager, find_first_available_file_index, discussion_path_to_url
@@ -102,7 +102,6 @@ def arxiv_pdf_search(query: str, max_results: Optional[int] = 5, sort_by: Option
                 <p><a href="{pdf_url}" target="_blank">PDF Link</a></p>
                 <p><a href="{local_url}" target="_blank">Local PDF</a></p>
             </div>
-            <hr />
             """
             # Append to report content
             report_content += f"""
