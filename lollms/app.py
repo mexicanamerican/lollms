@@ -1071,14 +1071,14 @@ class LollmsApplication(LoLLMsCom):
                     # Tokenize the message content
                     if self.config.use_model_name_in_discussions:
                         if message.model:
-                            msg = "\n" + self.config.discussion_prompt_separator + message.sender + f"({message.model}): " + message.content.strip()
+                            msg = f"{separator_template}{start_header_id_template}{message.sender}({message.model}){end_header_id_template}" + message.content.strip()
                         else:
-                            msg = "\n" + self.config.discussion_prompt_separator + message.sender + ": " + message.content.strip()
+                            msg = f"{separator_template}{start_header_id_template}{message.sender}{end_header_id_template}" + message.content.strip()
                         message_tokenized = self.model.tokenize(msg)
                     else:
                         message_tokenized = self.model.tokenize(
-                            "\n" + self.config.discussion_prompt_separator + message.sender + ": " + message.content.strip())
-
+                            f"{separator_template}{start_header_id_template}{message.sender}{end_header_id_template}" + message.content.strip()
+                        )
                     # Check if adding the message will exceed the available space
                     if tokens_accumulated + len(message_tokenized) > available_space-n_tokens:
                         # Update the cumulative number of tokens
