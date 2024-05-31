@@ -343,8 +343,8 @@ Local PDF: {local_url}
 # Metadata function
 def search_and_rank_function(llm, score_threshold:float, client: Optional[Any] = None):
     return {
-        "function_name": "arxiv_pdf_search",  # The function name in string
-        "function": partial(arxiv_pdf_search, llm=llm, client=client, score_threshold= score_threshold),  # The function to be called with partial to preset client
+        "function_name": "search_and_rank",  # The function name in string
+        "function": partial(search_and_rank, llm=llm, client=client, score_threshold= score_threshold),  # The function to be called with partial to preset client
         "function_description": "Searches for PDFs on arXiv based on a query, downloads them to a specified directory, rates them, sort them by rating and returns a HTML string containing article details and links, along with a dictionary containing detailed information about each PDF.",  # Description of the function
         "function_parameters": [  # The set of parameters
             {"name": "search_subject", "type": "str", "description": "The search subject."},
