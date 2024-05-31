@@ -14,7 +14,7 @@ from typing import List, Optional, Any, Tuple, Dict
 from lollms.utilities import PackageManager, find_first_available_file_index, discussion_path_to_url
 
 # ascii_colors offers advanced console coloring and bug tracing
-from ascii_colors import trace_exception
+from ascii_colors import trace_exception, ASCIIColors
 
 # Import Client from lollms.client_session
 from lollms.client_session import Client
@@ -43,6 +43,7 @@ def arxiv_pdf_search(query: str, max_results: Optional[int] = 5, sort_by: Option
         if author:
             url += f'&author={author}'
         
+        ASCIIColors.multicolor(["URL:",url],[ASCIIColors.red, ASCIIColors.yellow])
         response = requests.get(url)
         response.raise_for_status()
 
