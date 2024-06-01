@@ -63,7 +63,7 @@ def build_section_illustration(llm, prompt_ideas, current_section, content, clie
     code_blocks = llm.extract_code_blocks(image_generation_prompt)
     if len(code_blocks)>0:
         code = json.loads(code_blocks[0]["content"])        
-        return build_image(image_generation_prompt,width=code["width"],height=code["height"], client=client)    
+        return build_image(image_generation_prompt, "",width=code["width"],height=code["height"], processor=llm, client=client)    
 
 # Define the core functions
 def start_writing_story(prompt_ideas: str, llm: Any, story_file_path: str, build_latex:bool=False, client:Client = None) -> str:
@@ -74,6 +74,9 @@ def start_writing_story(prompt_ideas: str, llm: Any, story_file_path: str, build
     system_message_template     = llm.config.system_message_template        
 
     try:
+        story_path = Path(story_file_path)
+        if story_path.exists():
+            story_path.unlink()
         llm.step_start("Building the story architecture")
         # Step 1: Generate the story plan in JSON format
         plan_prompt = "\n".join([
@@ -109,7 +112,7 @@ def start_writing_story(prompt_ideas: str, llm: Any, story_file_path: str, build
         story_plan_with_details = copy.deepcopy(story_plan)
 
         # Step 2: Write the story section by section
-        story_path = Path(story_file_path)
+        
         final_story_content = ""
 
         for section, section_full in zip(story_plan["sections"], story_plan_with_details["sections"]):
@@ -240,7 +243,8 @@ def write_story_section(prompt_ideas: str, llm: Any, story_file_path: str, story
             ]
         )
         new_section = f"## {current_section}\n\n"
-        new_section += llm.fast_gen(prompt, callback=llm.sink).strip()
+        content = llm.fast_gen(prompt, callback=llm.sink).strip()
+        new_section += content
 
         if add_illustration and client:
             illustration = build_section_illustration(llm, prompt_ideas, current_section, content, client)
