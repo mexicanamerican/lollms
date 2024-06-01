@@ -92,7 +92,7 @@ def start_writing_story(prompt_ideas: str, llm: Any, story_file_path: str, build
             else:
                 pdflatex_command = 'pdflatex'
             # Set the execution path to the folder containing the tmp_file
-            execution_path = tex_file.parent
+            execution_path = Path(tex_file).parent
 
             # Execute the Python code in a temporary file.
             process = subprocess.Popen(
@@ -167,7 +167,7 @@ def write_story_section(prompt_ideas: str, llm: Any, story_file_path: str, story
         story_content = story_path.read_text()
 
         # Summarize the current content of the story
-        story_summary = llm.summerize_text(story_content)
+        story_summary = llm.summerize_text(story_content, callback=llm.sink)
 
         # Generate the current section using the LLM's fast_gen function
         prompt = "\n".join([
