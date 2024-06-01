@@ -10,7 +10,21 @@ def markdown_to_latex(file_path: str) -> str:
     try:
         # Load the markdown file
         markdown_text = Path(file_path).read_text()
-        
+
+        # Extract title, author, and prompted by information
+        title_match = re.search(r'^# (.*)', markdown_text, re.MULTILINE)
+        author_match = re.search(r'^Author: (.*)', markdown_text, re.MULTILINE)
+        prompted_by_match = re.search(r'^Prompted by: (.*)', markdown_text, re.MULTILINE)
+
+        title = title_match.group(1) if title_match else "Untitled"
+        author = author_match.group(1) if author_match else ""
+        prompted_by = prompted_by_match.group(1) if prompted_by_match else ""
+
+        # Remove the extracted parts from the markdown text
+        markdown_text = re.sub(r'^# .*\n', '', markdown_text, flags=re.MULTILINE)
+        markdown_text = re.sub(r'^Author: .*\n', '', markdown_text, flags=re.MULTILINE)
+        markdown_text = re.sub(r'^Prompted by: .*\n', '', markdown_text, flags=re.MULTILINE)
+
         # Define conversion rules from markdown to LaTeX
         conversion_rules = [
             (r'\\', r'\\textbackslash{}'),  # Escape backslashes
@@ -31,11 +45,35 @@ def markdown_to_latex(file_path: str) -> str:
         for pattern, replacement in conversion_rules:
             latex_text = re.sub(pattern, replacement, latex_text, flags=re.MULTILINE)
 
+        # Create the LaTeX document structure
+        latex_document = f"""
+        \\documentclass{{book}}
+        \\usepackage{{hyperref}}
+        \\usepackage{{graphicx}}
+        \\usepackage{{verbatim}}
+
+        \\begin{{document}}
+
+        \\title{{{title}}}
+        \\author{{{author}}}
+        \\date{{}}
+
+        \\maketitle
+
+        \\begin{{flushleft}}
+        \\textbf{{Prompted by:}} {prompted_by}
+        \\end{{flushleft}}
+
+        {latex_text}
+
+        \\end{{document}}
+        """
+
         # Define output file path
         output_path = Path(file_path).with_suffix('.tex')
         
         # Save the LaTeX text to a file
-        output_path.write_text(latex_text)
+        output_path.write_text(latex_document)
         
         # Finally we return the path to the LaTeX file
         return str(output_path)
@@ -50,3 +88,9 @@ def markdown_to_latex_function():
         "function_description": "Converts a markdown file to a LaTeX file.",  # Description
         "function_parameters": [{"name": "file_path", "type": "str"}]  # The set of parameters
     }
+
+if __name__ == "__main__":
+    # Test the function with a sample file
+    test_file_path = "story.md"
+    result = markdown_to_latex(test_file_path)
+    print(f"Generated LaTeX file: {result}")

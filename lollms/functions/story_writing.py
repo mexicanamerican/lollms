@@ -70,13 +70,12 @@ def start_writing_story(prompt_ideas: str, llm: Any, story_file_path: str, build
             llm.step_start(f'Building section: {section["section_name"]}')
 
             section_name = section["section_name"]
-            section_description = section["section_description"]
             
             new_section = write_story_section(
                 llm=llm,
                 story_file_path=story_file_path,
                 story_plan=story_plan,
-                current_section=section_description,
+                current_section=section_name,
                 prompt_ideas=prompt_ideas
             )
             
@@ -139,6 +138,9 @@ def write_story_section(prompt_ideas: str, llm: Any, story_file_path: str, story
 
             # Initialize the story with the title and the first section
             new_section = f"# {story_title}\n\n"
+            new_section += f"Author: {llm.personality.name}\n"
+            new_section += f"Prompter: {llm.config.user_name}\n\n"
+
             new_section += f"## {current_section}\n\n"
 
             prompt = "\n".join([
