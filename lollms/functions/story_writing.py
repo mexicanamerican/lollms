@@ -132,7 +132,7 @@ def write_story_section(prompt_ideas: str, llm: Any, story_file_path: str, story
         story_content = story_path.read_text()
 
         # Summarize the current content of the story
-        story_summary = llm.summarize(story_content)
+        story_summary = llm.summerize_text(story_content)
 
         # Generate the current section using the LLM's fast_gen function
         prompt = "\n".join([
