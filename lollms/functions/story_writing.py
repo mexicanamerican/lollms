@@ -18,7 +18,7 @@ from pathlib import Path
 import json
 
 # Import  markdown2latex
-from lollms.functions.markdown2latex import markdown_file_to_latex
+from lollms.functions.markdown2latex import markdown_to_latex
 from lollms.functions.file_manipulation import change_file_extension
 
 # Define the core functions
@@ -86,9 +86,7 @@ def start_writing_story(prompt_ideas: str, llm: Any, story_file_path: str, build
         if build_latex:
             llm.step_start("Building latex file")
             import subprocess
-            latex = markdown_file_to_latex(story_file_path)
-            tex_file = Path(change_file_extension(story_file_path,".tex"))
-            tex_file.write_text(latex)
+            tex_file = markdown_to_latex(story_file_path)
             # Determine the pdflatex command based on the provided or default path
             if llm.config.pdf_latex_path:
                 pdflatex_command = llm.config.pdf_latex_path
@@ -156,7 +154,7 @@ def write_story_section(prompt_ideas: str, llm: Any, story_file_path: str, story
                 f"{start_header_id_template}story_section_writer{end_header_id_template}"
                 ]
             )
-            new_section += llm.fast_gen(prompt)
+            new_section += llm.fast_gen(prompt, callback=llm.sink)
 
             # Write the new section to the story file
             story_path.write_text(new_section)
@@ -186,7 +184,7 @@ def write_story_section(prompt_ideas: str, llm: Any, story_file_path: str, story
             ]
         )
         new_section = f"## {current_section}\n\n"
-        new_section += llm.fast_gen(prompt).strip()
+        new_section += llm.fast_gen(prompt, callback=llm.sink).strip()
 
         # Append the new section to the story file
         story_path.write_text(story_content + "\n" + new_section)
