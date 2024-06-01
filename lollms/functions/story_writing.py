@@ -21,6 +21,8 @@ import json
 from lollms.functions.markdown2latex import markdown_to_latex
 from lollms.functions.file_manipulation import change_file_extension
 
+import copy
+
 # Define the core functions
 def start_writing_story(prompt_ideas: str, llm: Any, story_file_path: str, build_latex:bool=False) -> str:
     discussion_prompt_separator = llm.config.discussion_prompt_separator
@@ -61,12 +63,13 @@ def start_writing_story(prompt_ideas: str, llm: Any, story_file_path: str, build
 
         plan_json_str = code_blocks[0]['content']
         story_plan = json.loads(plan_json_str)
+        story_plan_with_details = copy.deepcopy(story_plan)
 
         # Step 2: Write the story section by section
         story_path = Path(story_file_path)
         final_story_content = ""
 
-        for section in story_plan["sections"]:
+        for section, section_full in zip(story_plan["sections"], story_plan_with_details["sections"]):
             llm.step_start(f'Building section: {section["section_name"]}')
 
             section_name = section["section_name"]
@@ -78,9 +81,12 @@ def start_writing_story(prompt_ideas: str, llm: Any, story_file_path: str, build
                 current_section=section_name,
                 prompt_ideas=prompt_ideas
             )
-            
+            section_full["content"]=new_section
             final_story_content += f"\n## {section_name}\n\n{new_section}\n"
             llm.step_end(f'Building section: {section["section_name"]}')
+
+        details = story_path.with_suffix(".json")
+        details.write_text(json.dumps(story_plan_with_details, indent=4))
 
         if build_latex:
             llm.step_start("Building latex file")
