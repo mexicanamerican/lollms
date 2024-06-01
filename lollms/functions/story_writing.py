@@ -20,11 +20,53 @@ import json
 # Import  markdown2latex
 from lollms.functions.markdown2latex import markdown_to_latex
 from lollms.functions.file_manipulation import change_file_extension
+from lollms.functions.generate_image import build_image
+from lollms.client_session import Client
 
 import copy
 
+def needs_illustration(section_name, mydict):
+    for section in mydict['sections']:
+        if section['section_name'] == section_name:
+            return section['build_illustration']
+    return False  # Return None if the section is not found
+
+
+def build_section_illustration(llm, prompt_ideas, current_section, content, client:Client):
+    discussion_prompt_separator = llm.config.discussion_prompt_separator
+    start_header_id_template    = llm.config.start_header_id_template
+    end_header_id_template      = llm.config.end_header_id_template
+    separator_template          = llm.config.separator_template
+    system_message_template     = llm.config.system_message_template        
+
+    prompt = "\n".join([
+        f"{start_header_id_template}{system_message_template}{end_header_id_template}",
+        f"You are illustration builder for a book section. Your task is to build a prompt to generate an illustration from a book section of a story.",
+        "Your output must strictly contain only a json formatted output like this:",
+        "```json",
+        "{",
+        '"prompt":"image generation prompt",'
+        '"width":the width of the image,'
+        '"height":the height of the image'
+        "}"
+        "```",
+        f"{start_header_id_template}General idea{end_header_id_template}",
+        f"{prompt_ideas}\n\n"
+        f"{start_header_id_template}Section title{end_header_id_template}",
+        f"{current_section}",
+        f"{start_header_id_template}Section content{end_header_id_template}",
+        f"{content}",
+        f"{start_header_id_template}story_section_illustrator{end_header_id_template}"
+        ]
+    )
+    image_generation_prompt = llm.fast_gen(prompt, callback=llm.sink)
+    code_blocks = llm.extract_code_blocks(image_generation_prompt)
+    if len(code_blocks)>0:
+        code = json.loads(code_blocks[0]["content"])        
+        return build_image(image_generation_prompt,width=code["width"],height=code["height"], client=client)    
+
 # Define the core functions
-def start_writing_story(prompt_ideas: str, llm: Any, story_file_path: str, build_latex:bool=False) -> str:
+def start_writing_story(prompt_ideas: str, llm: Any, story_file_path: str, build_latex:bool=False, client:Client = None) -> str:
     discussion_prompt_separator = llm.config.discussion_prompt_separator
     start_header_id_template    = llm.config.start_header_id_template
     end_header_id_template      = llm.config.end_header_id_template
@@ -44,6 +86,7 @@ def start_writing_story(prompt_ideas: str, llm: Any, story_file_path: str, build
             "{\n"
             "\"section_name\": \"The name of the section\",\n"
             "\"section_description\": \"A short description of the section\"\n"
+            "\"build_illustration\": A boolean indicating if an illustration is needed for this section\n"
             "}, ...\n"
             "]\n"
             "}\n"
@@ -79,7 +122,9 @@ def start_writing_story(prompt_ideas: str, llm: Any, story_file_path: str, build
                 story_file_path=story_file_path,
                 story_plan=story_plan,
                 current_section=section_name,
-                prompt_ideas=prompt_ideas
+                prompt_ideas=prompt_ideas,
+                add_illustration=needs_illustration(section_name, story_plan),
+                client=client
             )
             section_full["content"]=new_section
             final_story_content += f"\n## {section_name}\n\n{new_section}\n"
@@ -116,10 +161,10 @@ def start_writing_story(prompt_ideas: str, llm: Any, story_file_path: str, build
         return trace_exception(e)
 
 # Define the metadata functions
-def start_writing_story_function(llm, story_file_path, build_latex:bool=False):
+def start_writing_story_function(llm, story_file_path, build_latex:bool=False, client:Client=None):
     return {
         "function_name": "start_writing_story",
-        "function": partial(start_writing_story, llm=llm, story_file_path=story_file_path, build_latex=build_latex),
+        "function": partial(start_writing_story, llm=llm, story_file_path=story_file_path, build_latex=build_latex, client=client),
         "function_description": "Starts writing a story based on the provided prompt ideas, generating a plan in JSON format, and writing the story section by section.",
         "function_parameters": [
             {"name": "prompt_ideas", "type": "str"}
@@ -128,7 +173,7 @@ def start_writing_story_function(llm, story_file_path, build_latex:bool=False):
 
 
 # Define the core function
-def write_story_section(prompt_ideas: str, llm: Any, story_file_path: str, story_plan: dict, current_section: str) -> str:
+def write_story_section(prompt_ideas: str, llm: Any, story_file_path: str, story_plan: dict, current_section: str, add_illustration:bool=False, client:Client=None) -> str:
     discussion_prompt_separator = llm.config.discussion_prompt_separator
     start_header_id_template    = llm.config.start_header_id_template
     end_header_id_template      = llm.config.end_header_id_template
@@ -162,8 +207,11 @@ def write_story_section(prompt_ideas: str, llm: Any, story_file_path: str, story
                 f"{start_header_id_template}story_section_writer{end_header_id_template}"
                 ]
             )
-            new_section += llm.fast_gen(prompt, callback=llm.sink)
-
+            content = llm.fast_gen(prompt, callback=llm.sink)
+            new_section += content
+            if add_illustration and client:
+                illustration = build_section_illustration(llm, prompt_ideas, current_section, content, client)
+                new_section += "\n" + illustration
             # Write the new section to the story file
             story_path.write_text(new_section)
 
@@ -193,6 +241,10 @@ def write_story_section(prompt_ideas: str, llm: Any, story_file_path: str, story
         )
         new_section = f"## {current_section}\n\n"
         new_section += llm.fast_gen(prompt, callback=llm.sink).strip()
+
+        if add_illustration and client:
+            illustration = build_section_illustration(llm, prompt_ideas, current_section, content, client)
+            new_section += "\n" + illustration
 
         # Append the new section to the story file
         story_path.write_text(story_content + "\n" + new_section)

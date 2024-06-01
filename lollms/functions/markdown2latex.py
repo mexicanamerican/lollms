@@ -28,7 +28,8 @@ def markdown_to_latex(file_path: str) -> str:
         # Define conversion rules from markdown to LaTeX
         conversion_rules = [
             (r'\\', r'\\textbackslash{}'),  # Escape backslashes
-            (r'([#]+) (.*)', lambda m: '\\' + 'sub'*(len(m.group(1))-1) + 'section{' + m.group(2) + '}'),  # Convert headings
+            (r'^## (Chapter\s*\d+:\s*)?(.*)', lambda match: f"\\chapter{{{match.group(2)}}}"),  # Convert chapters
+            (r'^### (.*)', r'\\section*{\1}'),  # Convert subsections without numbering
             (r'\*\*(.*?)\*\*', r'\\textbf{\1}'),  # Bold text
             (r'\*(.*?)\*', r'\\textit{\1}'),  # Italic text
             (r'\!\[(.*?)\]\((.*?)\)', r'\\begin{figure}[h!]\n\\centering\n\\includegraphics[width=\\textwidth]{\2}\n\\caption{\1}\n\\end{figure}'),  # Images
@@ -43,14 +44,26 @@ def markdown_to_latex(file_path: str) -> str:
         # Apply conversion rules
         latex_text = markdown_text
         for pattern, replacement in conversion_rules:
-            latex_text = re.sub(pattern, replacement, latex_text, flags=re.MULTILINE)
+            if callable(replacement):
+                latex_text = re.sub(pattern, replacement, latex_text, flags=re.MULTILINE)
+            else:
+                latex_text = re.sub(pattern, replacement, latex_text, flags=re.MULTILINE)
 
-        # Create the LaTeX document structure
+        # Add lettrine to the first letter of the first paragraph of each chapter
+        latex_text = re.sub(r'(\\chapter{[^}]*}\n\n?)(\w)', r'\1\\lettrine[lines=2]{\2}{}', latex_text)
+
+        # Create the LaTeX document structure with fancyhdr for headers
         latex_document = f"""
         \\documentclass{{book}}
         \\usepackage{{hyperref}}
         \\usepackage{{graphicx}}
         \\usepackage{{verbatim}}
+        \\usepackage{{fancyhdr}}
+        \\usepackage{{lettrine}}
+        \\pagestyle{{fancy}}
+        \\fancyhf{{}}
+        \\fancyhead[LE,RO]{{\\thepage}}
+        \\fancyhead[RE,LO]{{\\leftmark}}
 
         \\begin{{document}}
 
