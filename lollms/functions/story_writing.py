@@ -67,7 +67,7 @@ def start_writing_story(prompt_ideas: str, llm: Any, story_file_path: str, build
         final_story_content = ""
 
         for section in story_plan["sections"]:
-            llm.step_start(f"Building section: {section["section_name"]}")
+            llm.step_start(f'Building section: {section["section_name"]}')
 
             section_name = section["section_name"]
             section_description = section["section_description"]
@@ -81,7 +81,7 @@ def start_writing_story(prompt_ideas: str, llm: Any, story_file_path: str, build
             )
             
             final_story_content += f"\n## {section_name}\n\n{new_section}\n"
-            llm.step_end(f"Building section: {section["section_name"]}")
+            llm.step_end(f'Building section: {section["section_name"]}')
 
         if build_latex:
             llm.step_start("Building latex file")
