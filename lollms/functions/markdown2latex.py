@@ -54,32 +54,32 @@ def markdown_to_latex(file_path: str) -> str:
 
         # Create the LaTeX document structure with fancyhdr for headers
         latex_document = f"""
-        \\documentclass{{book}}
-        \\usepackage{{hyperref}}
-        \\usepackage{{graphicx}}
-        \\usepackage{{verbatim}}
-        \\usepackage{{fancyhdr}}
-        \\usepackage{{lettrine}}
-        \\pagestyle{{fancy}}
-        \\fancyhf{{}}
-        \\fancyhead[LE,RO]{{\\thepage}}
-        \\fancyhead[RE,LO]{{\\leftmark}}
+\\documentclass{{book}}
+\\usepackage{{hyperref}}
+\\usepackage{{graphicx}}
+\\usepackage{{verbatim}}
+\\usepackage{{fancyhdr}}
+\\usepackage{{lettrine}}
+\\pagestyle{{fancy}}
+\\fancyhf{{}}
+\\fancyhead[LE,RO]{{\\thepage}}
+\\fancyhead[RE,LO]{{\\leftmark}}
 
-        \\begin{{document}}
+\\begin{{document}}
 
-        \\title{{{title}}}
-        \\author{{{author}}}
-        \\date{{}}
+\\title{{{title}}}
+\\author{{{author}}}
+\\date{{}}
 
-        \\maketitle
+\\maketitle
 
-        \\begin{{flushleft}}
-        \\textbf{{Prompted by:}} {prompted_by}
-        \\end{{flushleft}}
+\\begin{{flushleft}}
+\\textbf{{Prompted by:}} {prompted_by}
+\\end{{flushleft}}
 
-        {latex_text}
+{latex_text}
 
-        \\end{{document}}
+\\end{{document}}
         """
 
         # Define output file path

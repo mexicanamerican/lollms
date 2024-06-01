@@ -155,7 +155,7 @@ def start_writing_story(prompt_ideas: str, llm: Any, story_file_path: str, build
                 stderr=subprocess.PIPE,
                 cwd=execution_path
             )
-            process.wait()
+            output, error = process.communicate()
             llm.step_end("Building latex file")
 
 
