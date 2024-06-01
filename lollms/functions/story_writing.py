@@ -67,7 +67,7 @@ def start_writing_story(prompt_ideas: str, llm: Any, story_file_path: str) -> st
             new_section = write_story_section(
                 llm=llm,
                 story_file_path=story_file_path,
-                story_plan=plan_json_str,
+                story_plan=story_plan,
                 current_section=section_description,
                 prompt_ideas=prompt_ideas
             )
