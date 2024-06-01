@@ -121,7 +121,7 @@ def write_story_section(prompt_ideas: str, llm: Any, story_file_path: str, story
                 f"{start_header_id_template}story_section_writer{end_header_id_template}"
                 ]
             )
-            new_section += llm.fast_gen()
+            new_section += llm.fast_gen(prompt)
 
             # Write the new section to the story file
             story_path.write_text(new_section)
