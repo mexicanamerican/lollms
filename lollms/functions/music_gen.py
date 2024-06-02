@@ -47,6 +47,7 @@ def open_and_fill_udio(song_description: str, lyrics: str) -> str:
         # Start generation
         pyautogui.click(x=1660, y=120)
 
+        pyautogui.click(x=500, y=120)
         return "Successfully filled the song description and lyrics."
     except Exception as e:
         return trace_exception(e)
@@ -57,8 +58,8 @@ def open_and_fill_udio_function():
         "function": open_and_fill_udio,
         "function_description": "Opens udio.com page and fills in the song description and lyrics fields to start generating the music.",
         "function_parameters": [
-            {"name": "song_description", "type": "str"},
-            {"name": "lyrics", "type": "str"}
+            {"name": "song_description", "type": "str", "description":"a list of tags describing the song style and vibes. Make it short"},
+            {"name": "lyrics", "type": "str","description":"The lyrics of the song"}
         ]
     }
 
