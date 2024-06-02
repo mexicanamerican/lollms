@@ -74,6 +74,9 @@ def install_diffusers(lollms_app:LollmsApplication):
     shared_folder = root_dir/"shared"
     diffusers_folder = shared_folder / "diffusers"
     diffusers_folder.mkdir(exist_ok=True, parents=True)
+    models_dir = diffusers_folder / "models"
+    models_dir.mkdir(parents=True, exist_ok=True)
+
     PackageManager.reinstall("diffusers")
     PackageManager.reinstall("xformers")
         
