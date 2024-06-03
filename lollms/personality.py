@@ -3383,7 +3383,21 @@ The AI should respond in this format using data from actions_list:
 
         return results
 
+    def transform_functions_to_text(self, functions):
+        function_texts = []
 
+        for func in functions:
+            function_text = f'Function: {func["function_name"]}\nDescription: {func["function_description"]}\nParameters:\n'
+            
+            for param in func["function_parameters"]:
+                param_type = "string" if param["type"] == "str" else param["type"]
+                param_description = param.get("description", "")
+                function_text += f'  - {param["name"]} ({param_type}): {param_description}\n'
+            
+            function_texts.append(function_text.strip())
+        
+        return "\n\n".join(function_texts)
+    
     def transform_functions(self, functions):
         tools = []
 
@@ -3429,7 +3443,7 @@ The AI should respond in this format using data from actions_list:
         separator_template          = self.config.separator_template
 
 
-        tools = self.transform_functions(functions)
+        tools = self.transform_functions_to_text(functions)
         import copy
         cd = copy.deepcopy(context_details)
         function_descriptions = [
