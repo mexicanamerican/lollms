@@ -1058,7 +1058,7 @@ class LollmsApplication(LoLLMsCom):
         # If this is not a continue request, we add the AI prompt
         if not is_continue:
             message_tokenized = self.model.tokenize(
-                "\n" +self.personality.ai_message_prefix.strip()
+                self.personality.ai_message_prefix.strip()
             )
             full_message_list.append(message_tokenized)
             # Update the cumulative number of tokens
@@ -1172,7 +1172,8 @@ class LollmsApplication(LoLLMsCom):
             "negative_boost":negative_boost,
             "current_language":self.config.current_language,
             "fun_mode":fun_mode,
-            "ai_prefix":ai_prefix
+            "ai_prefix":ai_prefix,
+            "extra":""
         }    
 
         # Return the prepared query, original message content, and tokenized query
