@@ -52,7 +52,7 @@ class LollmsXTTS(LollmsTTS):
                     use_deep_speed=False,
                     use_streaming_mode = True
                 ):
-        super().__init__(app)
+        super().__init__("xtts",app)
         self.generation_threads = {}
         self.voices_folder = voices_folder
         self.ready = False
