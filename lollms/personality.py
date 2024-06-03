@@ -3448,7 +3448,7 @@ The AI should respond in this format using data from actions_list:
         cd = copy.deepcopy(context_details)
         function_descriptions = [
                                  f"{start_header_id_template}Available functions{end_header_id_template}\n",
-                                 f"{json.dumps(tools,indent=4).strip()}",
+                                 tools,
                                  cd["conditionning"],
                                  "Your objective is interact with the user and if you need to call a function, then use the available functions above and call them using the following json format inside a markdown tag:"
                                  "```function",
