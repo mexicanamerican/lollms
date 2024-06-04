@@ -71,7 +71,7 @@ def build_section_illustration(llm, prompt_ideas, current_section, content, clie
                 nevative_prompt = llm.config.default_negative_prompt
         else:
             nevative_prompt = ""
-        return build_image(image_generation_prompt, nevative_prompt, width=code["width"],height=code["height"], processor=llm, client=client)    
+        return build_image(image_generation_prompt, nevative_prompt, width=code["width"], height=code["height"], processor=llm, client=client)    
 
 # Define the core functions
 def start_writing_story(
