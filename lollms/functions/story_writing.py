@@ -165,7 +165,7 @@ def start_writing_story(
             llm.step_end(f'Building section: {section["section_name"]}')
 
         details = story_path.with_suffix(".json")
-        details.write_text(json.dumps(story_plan_with_details, indent=4), encoding="utf-8")
+        details.write_text(json.dumps(story_plan_with_details, indent=4), encoding="utf8")
 
         if build_latex:
             llm.step_start("Building latex file")
@@ -274,7 +274,7 @@ def write_story_section(
                 illustration = build_section_illustration(llm, prompt_ideas, current_section, content, client)
                 new_section += "\n" + illustration
             # Write the new section to the story file
-            story_path.write_text(new_section, encoding="utf-8")
+            story_path.write_text(new_section, encoding="utf8")
 
             return new_section
 
@@ -327,7 +327,7 @@ def write_story_section(
             new_section += "\n" + illustration
 
         # Append the new section to the story file
-        story_path.write_text(story_content + "\n" + new_section, encoding="utf-8")
+        story_path.write_text(story_content + "\n" + new_section, encoding="utf8")
 
         return new_section
     except Exception as e:
