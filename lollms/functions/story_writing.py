@@ -145,7 +145,8 @@ def start_writing_story(
                     prompt_ideas=prompt_ideas,
                     add_illustration=needs_illustration(section_name, story_plan),
                     include_summary_between_chapters=include_summary_between_chapters,
-                    client=client
+                    client=client,
+                    language=language
                 )
             else:
                 new_section = write_story_section(
@@ -205,7 +206,15 @@ def start_writing_story_function(
                                     ):
     return {
         "function_name": "start_writing_story",
-        "function": partial(start_writing_story, llm=llm, story_file_path=story_file_path, build_latex=build_latex, include_summary_between_chapters=include_summary_between_chapters, allow_illustrations=allow_illustrations, client=client, language=language),
+        "function": partial(
+                                start_writing_story, 
+                                llm=llm, 
+                                story_file_path=story_file_path, 
+                                build_latex=build_latex, 
+                                include_summary_between_chapters=include_summary_between_chapters, 
+                                allow_illustrations=allow_illustrations, 
+                                client=client, 
+                                language=language),
         "function_description": "Starts writing a story based on the provided prompt ideas, generating a plan in JSON format, and writing the story section by section.",
         "function_parameters": [
             {"name": "prompt_ideas", "type": "str"}
