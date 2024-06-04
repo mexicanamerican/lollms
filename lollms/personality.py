@@ -2407,6 +2407,7 @@ class APScript(StateMachine):
                     f"{start_header_id_template}fun_mode{end_header_id_template}\n"+context_details["fun_mode"] if context_details["fun_mode"] else "",
                     f"{start_header_id_template}discussion_window{end_header_id_template}\n"+context_details["discussion_messages"] if context_details["discussion_messages"].strip()!="" else "",
                     custom_entries,
+                    context_details["extra"],
                     f'{start_header_id_template}{context_details["ai_prefix"]}{end_header_id_template}'
                 ], 
                 8)
