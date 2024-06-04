@@ -3373,7 +3373,7 @@ The AI should respond in this format using data from actions_list:
                 try:
                     # Assuming parameters is a dictionary that maps directly to the function's arguments.
                     if type(parameters)==list:
-                        f_parameters ={k['name']:v for k,v in zip([p['name'] for p in fn['function_parameters']],parameters)}
+                        f_parameters ={k:v for k,v in zip([p['name'] for p in fn['function_parameters']],parameters)}
                         result = function(**f_parameters)
                     elif type(parameters)==dict:
                         result = function(**parameters)

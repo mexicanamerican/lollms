@@ -81,6 +81,7 @@ def start_writing_story(
                         build_latex:bool=False, 
                         include_summary_between_chapters:bool=False,
                         allow_illustrations:bool=False,
+                        language=None,
                         client:Client = None) -> str:
     discussion_prompt_separator = llm.config.discussion_prompt_separator
     start_header_id_template    = llm.config.start_header_id_template
@@ -110,7 +111,8 @@ def start_writing_story(
             "}\n"
             "```",
             f"{start_header_id_template}{prompt_ideas}{end_header_id_template}",
-            f"{prompt_ideas}\n\n"
+            f"{prompt_ideas}\n\n",
+            f"{start_header_id_template}current_language{end_header_id_template}\n"+language if language else "",
             f"{start_header_id_template}story_architect{end_header_id_template}"
             ]
         )
@@ -154,7 +156,8 @@ def start_writing_story(
                     prompt_ideas=prompt_ideas,
                     add_illustration=False,
                     include_summary_between_chapters=include_summary_between_chapters,
-                    client=client
+                    client=client,
+                    language=language
                 )
             section_full["content"]=new_section
             final_story_content += f"\n## {section_name}\n\n{new_section}\n"
@@ -191,10 +194,18 @@ def start_writing_story(
         return trace_exception(e)
 
 # Define the metadata functions
-def start_writing_story_function(llm, story_file_path, build_latex:bool=False, include_summary_between_chapters:bool=False, allow_illustrations:bool=False,  client:Client=None):
+def start_writing_story_function(
+                                    llm, 
+                                    story_file_path, 
+                                    build_latex:bool=False, 
+                                    include_summary_between_chapters:bool=False, 
+                                    allow_illustrations:bool=False,  
+                                    client:Client=None,
+                                    language:str=None
+                                    ):
     return {
         "function_name": "start_writing_story",
-        "function": partial(start_writing_story, llm=llm, story_file_path=story_file_path, build_latex=build_latex, include_summary_between_chapters=include_summary_between_chapters, allow_illustrations=allow_illustrations, client=client),
+        "function": partial(start_writing_story, llm=llm, story_file_path=story_file_path, build_latex=build_latex, include_summary_between_chapters=include_summary_between_chapters, allow_illustrations=allow_illustrations, client=client, language=language),
         "function_description": "Starts writing a story based on the provided prompt ideas, generating a plan in JSON format, and writing the story section by section.",
         "function_parameters": [
             {"name": "prompt_ideas", "type": "str"}
@@ -202,12 +213,23 @@ def start_writing_story_function(llm, story_file_path, build_latex:bool=False, i
     }
 
 # Define the core function
-def write_story_section(prompt_ideas: str, llm: Any, story_file_path: str, story_plan: dict, current_section: str, add_illustration:bool=False, include_summary_between_chapters:bool=False,  client:Client=None) -> str:
+def write_story_section(
+                            prompt_ideas: str, 
+                            llm: Any, 
+                            story_file_path: str, 
+                            story_plan: dict, 
+                            current_section: str, 
+                            add_illustration:bool=False, 
+                            include_summary_between_chapters:bool=False,  
+                            client:Client=None,
+                            language:str=None
+                        ) -> str:
     discussion_prompt_separator = llm.config.discussion_prompt_separator
     start_header_id_template    = llm.config.start_header_id_template
     end_header_id_template      = llm.config.end_header_id_template
     separator_template          = llm.config.separator_template
-    system_message_template     = llm.config.system_message_template        
+    system_message_template     = llm.config.system_message_template 
+    
     try:
         story_path = Path(story_file_path)
         
@@ -233,6 +255,7 @@ def write_story_section(prompt_ideas: str, llm: Any, story_file_path: str, story
                 f"{story_plan}",
                 f"{start_header_id_template}Section to be written{end_header_id_template}",
                 f"{current_section}",
+                f"{start_header_id_template}current_language{end_header_id_template}\n"+language if language else "",
                 f"{start_header_id_template}story_section_writer{end_header_id_template}"
                 ]
             )

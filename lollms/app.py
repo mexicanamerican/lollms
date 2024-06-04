@@ -1055,6 +1055,7 @@ class LollmsApplication(LoLLMsCom):
 
         # Initialize a list to store the full messages
         full_message_list = []
+        full_message = ""
         # If this is not a continue request, we add the AI prompt
         if not is_continue:
             message_tokenized = self.model.tokenize(
@@ -1063,6 +1064,7 @@ class LollmsApplication(LoLLMsCom):
             full_message_list.append(message_tokenized)
             # Update the cumulative number of tokens
             tokens_accumulated += len(message_tokenized)
+            full_message += self.personality.ai_message_prefix.strip()
 
 
         if generation_type != "simple_question":
@@ -1082,8 +1084,9 @@ class LollmsApplication(LoLLMsCom):
                             msg = f"{separator_template}{start_ai_header_id_template if message.sender_type == SENDER_TYPES.SENDER_TYPES_AI else start_user_header_id_template}{message.sender}{end_ai_header_id_template  if message.sender_type == SENDER_TYPES.SENDER_TYPES_AI else end_user_header_id_template}" + message.content.strip()
                         message_tokenized = self.model.tokenize(msg)
                     else:
+                        msg_value= f"{separator_template}{start_ai_header_id_template if message.sender_type == SENDER_TYPES.SENDER_TYPES_AI else start_user_header_id_template}{message.sender}{end_ai_header_id_template  if message.sender_type == SENDER_TYPES.SENDER_TYPES_AI else end_user_header_id_template}" + message.content.strip()
                         message_tokenized = self.model.tokenize(
-                            f"{separator_template}{start_ai_header_id_template if message.sender_type == SENDER_TYPES.SENDER_TYPES_AI else start_user_header_id_template}{message.sender}{end_ai_header_id_template  if message.sender_type == SENDER_TYPES.SENDER_TYPES_AI else end_user_header_id_template}" + message.content.strip()
+                            msg_value
                         )
                     # Check if adding the message will exceed the available space
                     if tokens_accumulated + len(message_tokenized) > available_space-n_tokens:
@@ -1091,6 +1094,7 @@ class LollmsApplication(LoLLMsCom):
                         msg = message_tokenized[-(available_space-tokens_accumulated-n_tokens):]
                         tokens_accumulated += available_space-tokens_accumulated-n_tokens
                         full_message_list.insert(0, msg)
+                        full_message = self.personality.ai_message_prefix.strip()+full_message
                         break
 
                     # Add the tokenized message to the full_message_list
@@ -1129,11 +1133,11 @@ class LollmsApplication(LoLLMsCom):
             discussion_messages += self.model.detokenize(message_tokens)
         
         if len(full_message_list)>0:
-            ai_prefix = self.model.detokenize(full_message_list[-1])
+            ai_prefix = self.personality.ai_message_prefix
         else:
             ai_prefix = ""
         # Build the final prompt by concatenating the conditionning and discussion messages
-        prompt_data = conditionning + internet_search_results + documentation + knowledge + user_description + discussion_messages + positive_boost + negative_boost + fun_mode + ai_prefix
+        prompt_data = conditionning + internet_search_results + documentation + knowledge + user_description + discussion_messages + positive_boost + negative_boost + fun_mode + start_ai_header_id_template + ai_prefix + end_ai_header_id_template
 
         # Tokenize the prompt data
         tokens = self.model.tokenize(prompt_data)
