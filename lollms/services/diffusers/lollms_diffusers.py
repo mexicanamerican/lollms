@@ -121,6 +121,8 @@ class LollmsDiffusers(LollmsTTI):
         ASCIIColors.red("                             |______|                                      ")
 
         import torch 
+        if not PackageManager.check_package_installed("diffusers"):
+            PackageManager.install_or_update("diffusers")
         from diffusers import AutoPipelineForText2Image, AutoPipelineForImage2Image#PixArtSigmaPipeline
         self.model = AutoPipelineForText2Image.from_pretrained(
             app.config.diffusers_model, torch_dtype=torch.float16, cache_dir=self.models_dir,
