@@ -6,10 +6,6 @@ if not PackageManager.check_package_installed("pyautogui"):
 if not PackageManager.check_package_installed("PyQt5"):
     PackageManager.install_package("PyQt5")
 from ascii_colors import trace_exception
-import cv2
-import time
-from PyQt5 import QtWidgets, QtGui, QtCore
-import sys
 from functools import partial
 
 def build_negative_prompt(image_generation_prompt, llm):
