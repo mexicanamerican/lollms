@@ -3366,8 +3366,15 @@ The AI should respond in this format using data from actions_list:
         functions_dict = {func['function_name']: func for func in function_definitions}
 
         for call in function_calls:
-            function_name = call.get("function_name", None) or call.get("function", None)
-            parameters = call.get("function_parameters", [])
+            keys = [k for k in call.keys()]
+            if not "function_name" in keys:
+                key = keys[0] if len(keys)>0 else None
+                d = call[key] if key else None
+                function_name = key
+                parameters = d
+            else:
+                function_name = call.get("function_name", None) or call.get("function", None)
+                parameters = call.get("function_parameters", None)
             fn =  functions_dict.get(function_name)
             if fn:
                 function = fn['function']
