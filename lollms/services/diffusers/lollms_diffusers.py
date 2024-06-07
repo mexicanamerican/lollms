@@ -8,7 +8,7 @@ import sys
 from lollms.app import LollmsApplication
 from lollms.paths import LollmsPaths
 from lollms.config import TypedConfig, ConfigTemplate, BaseConfig
-from lollms.utilities import PackageManager, check_and_install_torch, find_next_available_filename
+from lollms.utilities import PackageManager, check_and_install_torch, find_next_available_filename, install_cuda, check_torch_version
 import time
 import io
 import sys
@@ -122,7 +122,11 @@ class LollmsDiffusers(LollmsTTI):
 
         import torch 
         if not PackageManager.check_package_installed("diffusers"):
+            check_and_install_torch("nvidia" in self.app.config.hardware_mode)            
             PackageManager.install_or_update("diffusers")
+            PackageManager.install_or_update("sentencepiece")
+            PackageManager.install_or_update("accelerate")
+             
         from diffusers import AutoPipelineForText2Image, AutoPipelineForImage2Image#PixArtSigmaPipeline
         self.model = AutoPipelineForText2Image.from_pretrained(
             app.config.diffusers_model, torch_dtype=torch.float16, cache_dir=self.models_dir,
