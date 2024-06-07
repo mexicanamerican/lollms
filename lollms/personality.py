@@ -3367,7 +3367,7 @@ The AI should respond in this format using data from actions_list:
 
         for call in function_calls:
             keys = [k for k in call.keys()]
-            if not "function_name" in keys:
+            if not ("function_name" in keys):
                 key = keys[0] if len(keys)>0 else None
                 d = call[key] if key else None
                 function_name = key
