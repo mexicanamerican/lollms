@@ -3383,9 +3383,10 @@ The AI should respond in this format using data from actions_list:
                     if type(parameters)==list:
                         f_parameters ={k:v for k,v in zip([p['name'] for p in fn['function_parameters']],parameters)}
                         result = function(**f_parameters)
+                        results.append(result)
                     elif type(parameters)==dict:
                         result = function(**parameters)
-                    results.append(result)
+                        results.append(result)
                 except TypeError as e:
                     # Handle cases where the function call fails due to incorrect parameters, etc.
                     results.append(f"Error calling {function_name}: {e}")
