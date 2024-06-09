@@ -30,9 +30,10 @@ def read_text(text: str, tts_module:LollmsTTS, llm:APScript) -> str:
         llm.new_message("")
         
         # Return the path to the generated audio file
-        return str(audio_file_path)
+        return "Reading text:\n"+text
     except Exception as e:
-        return trace_exception(e)
+        trace_exception(e)
+        return str(e)
     
 
 # Metadata function

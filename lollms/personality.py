@@ -107,6 +107,7 @@ class AIPersonality:
                     app:LoLLMsCom=None,
                     run_scripts=True,
                     selected_language=None,
+                    ignore_discussion_documents_rag=False,
                     is_relative_path=True,
                     installation_option:InstallOption=InstallOption.INSTALL_IF_NECESSARY,
                     callback: Callable[[str, MSG_TYPE, dict, list], bool]=None
@@ -158,6 +159,7 @@ class AIPersonality:
         self._language: str = "english"
         self._supported_languages: str = []
         self._selected_language: str = selected_language
+        self._ignore_discussion_documents_rag:bool = ignore_discussion_documents_rag
 
         self._languages: List[dict]=[]
 
@@ -828,6 +830,8 @@ class AIPersonality:
         self._category_desc = config.get("category", self._category)
         self._language = config.get("language", self._language)
 
+        self._ignore_discussion_documents_rag = config.get("ignore_discussion_documents_rag", self._ignore_discussion_documents_rag)
+
 
         self._personality_description = config.get("personality_description", self._personality_description)
         self._personality_conditioning = config.get("personality_conditioning", self._personality_conditioning)
@@ -1112,6 +1116,7 @@ class AIPersonality:
             "language": self._language,
             "supported_languages": self._supported_languages,
             "selected_language": self._selected_language,
+            "ignore_discussion_documents_rag": self._ignore_discussion_documents_rag,
             "personality_description": self._personality_description,
             "personality_conditioning": self._personality_conditioning,
             "welcome_message": self._welcome_message,
@@ -1152,6 +1157,7 @@ class AIPersonality:
             "language": self._language,
             "supported_languages": self._supported_languages,
             "selected_language": self._selected_language,
+            "ignore_discussion_documents_rag": self._ignore_discussion_documents_rag,
             "personality_description": self._personality_description,
             "personality_conditioning": self._personality_conditioning,
             "welcome_message": self._welcome_message,
@@ -1284,6 +1290,17 @@ class AIPersonality:
     def selected_language(self, value: str):
         """Set the selected_language."""
         self._selected_language = value
+
+    @property
+    def ignore_discussion_documents_rag(self) -> str:
+        """Get the ignore_discussion_documents_rag."""
+        return self._ignore_discussion_documents_rag
+
+    @ignore_discussion_documents_rag.setter
+    def ignore_discussion_documents_rag(self, value: str):
+        """Set the ignore_discussion_documents_rag."""
+        self._ignore_discussion_documents_rag = value
+
 
     @property
     def personality_description(self) -> str:
