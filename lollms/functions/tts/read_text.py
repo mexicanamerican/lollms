@@ -37,10 +37,12 @@ def read_text(text: str, tts_module:LollmsTTS, llm:APScript) -> str:
     
 
 # Metadata function
-def read_text_function(file_path:str,tts_module:LollmsTTS):
+def read_text_function(tts_module:LollmsTTS):
     return {
         "function_name": "read_text_from_file", # The function name in string
-        "function": partial(read_text, file_path=file_path, tts_module=tts_module), # The function to be called
+        "function": partial(read_text, tts_module=tts_module), # The function to be called
         "function_description": "Reads text from a file and uses a TTS module to generate audio from the text.", # Description of the function
-        "function_parameters": [] # The set of parameters          
+        "function_parameters": [
+            {"name":"text","type":"str","description":"Th text to generate the audio from"}
+        ] # The set of parameters          
     }
