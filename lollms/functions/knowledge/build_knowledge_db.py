@@ -34,18 +34,20 @@ def find_available_file(folder_path):
         i += 1
 
 
-def buildKnowledgeDB(llm:APScript, data_store:TextVectorizer):
-    output_folder = llm.personality.lollms_paths.personal_outputs_path/llm.personality.name
+def buildKnowledgeDB(llm:APScript, data_store:TextVectorizer, data_folder_path:str, output_folder:str, questions_gen_size:int, answer_gen_size:int):
+    output_folder = Path(output_folder)
     output_folder.mkdir(parents=True, exist_ok=True)
     # Verify if the data_folder_path exists
-    data_folder_path = Path(llm.personality_config.data_folder_path)
+    data_folder_path=Path(data_folder_path)
     if not Path(data_folder_path).exists():
         llm.warning("The specified data_folder_path does not exist.")
     document_files = [v for v in data_folder_path.iterdir()]
     llm.step_start(f"Loading files")
     for file_path in document_files:
-        document_text = GenericDataLoader.read_file(file_path)
-        data_store.add_document(file_path, document_text, chunk_size=512, overlap_size=128)
+        if file_path.suffix in ['.pdf',".txt",".c",".cpp",".h",".py",".msg",".docx",".pptx",".md"]:
+            print(file_path)
+            document_text = GenericDataLoader.read_file(file_path)
+            data_store.add_document(file_path, document_text, chunk_size=512, overlap_size=128)
     llm.step_end(f"Loading files")
     # Index the vector store
     llm.step_start(f"Indexing files")
@@ -67,7 +69,7 @@ def buildKnowledgeDB(llm:APScript, data_store:TextVectorizer):
         # Build the prompt text with placeholders
         prompt_text = f"{llm.config.start_header_id_template}instruction: Generate questions or tasks that delve into the specific details and information presented in the text chunks. Please do not ask questions about the form of the text, and do not mention the text itllm in your questions. Make sure you format the output using Markdown with each question or task placed in a separate paragraph starting with __P__.\n{llm.config.separator_template}{llm.config.start_header_id_template}chunk {{chunk_name}}: {{chunk}}{llm.config.separator_template}{llm.config.start_header_id_template}Here are some questions and tasks to further explore the contents of the given text chunks:\n__P__"
         # Ask AI to generate questions
-        generated_text = "__P__"+llm.fast_gen(prompt_text, max_generation_size=llm.personality_config.questions_gen_size, placeholders={"chunk": chunk_text, "chunk_name":chunk_name}, debug=True)
+        generated_text = "__P__"+llm.fast_gen(prompt_text, max_generation_size=questions_gen_size, placeholders={"chunk": chunk_text, "chunk_name":chunk_name}, debug=True)
         # Split the generated text into lines and accumulate into questions_vector
         generated_lines = generated_text.strip().split("__P__")
         generated_lines = [q.replace("__P__","") for q in generated_lines]
@@ -115,7 +117,7 @@ Be precise and helpful.
 {llm.config.start_header_id_template}answer: """
         # {llm.config.start_header_id_template}chunk: {{chunk}}{llm.config.separator_template}{llm.config.start_header_id_template}instruction: Please use the text chunks to answer the following question:\n{llm.config.separator_template}{llm.config.start_header_id_template}question: {{question}}\n{llm.config.separator_template}{llm.config.start_header_id_template}answer: "
         # Ask AI to generate an answer
-        answer = llm.fast_gen(prompt_text, max_generation_size=llm.personality_config.answer_gen_size, placeholders={"chunk": "\nchunk: ".join(docs), "question": question})
+        answer = llm.fast_gen(prompt_text, max_generation_size=answer_gen_size, placeholders={"chunk": "\nchunk: ".join(docs), "question": question})
         if "UNSUFFICIENT_INFORMATION" in answer:
             continue
         qna_list.append({
