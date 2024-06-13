@@ -32,6 +32,8 @@ def download_channel_transcripts(channel_url: str, output_folder: str) -> str:
     str: A message indicating the status of the download process.
     """
     try:
+        if output_folder=="":
+            return "Please set the transcription output path in lollmz personality sdettings"
         # Create output folder if it doesn't exist
         output_folder_path = pathlib.Path(output_folder)
         output_folder_path.mkdir(parents=True, exist_ok=True)
