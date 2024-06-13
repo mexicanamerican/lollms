@@ -10,7 +10,7 @@ from lollms.utilities import PackageManager
 from ascii_colors import trace_exception
 
 # Installing necessary packages
-if not PackageManager.check_package_installed("youtube-transcript-api"):
+if not PackageManager.check_package_installed("youtube_transcript_api"):
     PackageManager.install_package("youtube-transcript-api")
 
 # Importing the package after installation

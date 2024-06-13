@@ -127,11 +127,20 @@ class LollmsDiffusers(LollmsTTI):
             PackageManager.install_or_update("sentencepiece")
             PackageManager.install_or_update("accelerate")
         try:
-            from diffusers import AutoPipelineForText2Image, AutoPipelineForImage2Image#PixArtSigmaPipeline
-            self.model = AutoPipelineForText2Image.from_pretrained(
-                app.config.diffusers_model, torch_dtype=torch.float16, cache_dir=self.models_dir,
-                use_safetensors=True,
-            )
+            if "stable-diffusion-3" in app.config.diffusers_model:
+                from diffusers import StableDiffusion3Pipeline # AutoPipelineForImage2Image#PixArtSigmaPipeline
+                self.model = StableDiffusion3Pipeline.from_pretrained(
+                    app.config.diffusers_model, torch_dtype=torch.float16, cache_dir=self.models_dir,
+                    use_safetensors=True,
+                )
+            else:
+                from diffusers import AutoPipelineForText2Image # AutoPipelineForImage2Image#PixArtSigmaPipeline
+                self.model = AutoPipelineForText2Image.from_pretrained(
+                    app.config.diffusers_model, torch_dtype=torch.float16, cache_dir=self.models_dir,
+                    use_safetensors=True,
+                )
+            
+            # AutoPipelineForText2Image
             # self.model = StableDiffusionPipeline.from_pretrained(
             #     "CompVis/stable-diffusion-v1-4", torch_dtype=torch.float16, cache_dir=self.models_dir,
             #     use_safetensors=True,
