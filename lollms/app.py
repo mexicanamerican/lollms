@@ -896,7 +896,7 @@ class LollmsApplication(LoLLMsCom):
 
                     internet_search_results=f"{start_header_id_template}{system_message_template}{end_header_id_template}Use the web search results data to answer {self.config.user_name}. Try to extract information from the web search and use it to perform the requested task or answer the question. Do not come up with information that is not in the websearch results. Try to stick to the websearch results and clarify if your answer was based on the resuts or on your own culture. If you don't know how to perform the task, then tell the user politely that you need more data inputs.{separator_template}{start_header_id_template}Web search results{end_header_id_template}\n"
 
-                    docs, sorted_similarities, document_ids = self.personality.internet_search_with_vectorization(query, self.config.internet_quick_search, asses_using_llm=True)
+                    docs, sorted_similarities, document_ids = self.personality.internet_search_with_vectorization(query, self.config.internet_quick_search, asses_using_llm=self.config.activate_internet_pages_judgement)
                     
                     if len(docs)>0:
                         for doc, infos,document_id in zip(docs, sorted_similarities, document_ids):
