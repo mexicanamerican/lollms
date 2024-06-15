@@ -395,9 +395,9 @@ class LollmsComfyUI(LollmsTTI):
             
             # Save each image to the folder
             for i, img_data in images.items():
-                img_path = folder / f'image_{int(i)+1}.png'
+                img_path = folder / f'image_{i}.png'
                 with open(img_path, 'wb') as img_file:
-                    img_file.write(base64.b64decode(img_data))
+                    img_file.write(base64.b64decode(img_data[0]))
             
             # Return the path to the first image
             return str(folder / 'image_1.png')
