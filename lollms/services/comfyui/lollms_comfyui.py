@@ -272,6 +272,8 @@ class LollmsComfyUI(LollmsTTI):
                 restore_faces=True,
                 output_path=None
                 ):
+        if output_path is None:
+            output_path = self.output_dir
         client_id = str(uuid.uuid4())
         url = self.comfyui_base_url[7:-1]
 
@@ -335,7 +337,7 @@ class LollmsComfyUI(LollmsTTI):
             "weight_interpretation": "comfy",
             "empty_latent_width": 1024,
             "empty_latent_height": 1024,
-            "batch_size": 3
+            "batch_size": 1
             },
             "class_type": "Eff. Loader SDXL",
             "_meta": {
@@ -386,7 +388,19 @@ class LollmsComfyUI(LollmsTTI):
         }
         }
         """
-
+        def save_images(images, folder_path):
+            # Create the folder if it doesn't exist
+            folder = Path(folder_path)
+            folder.mkdir(parents=True, exist_ok=True)
+            
+            # Save each image to the folder
+            for i, img_data in enumerate(images):
+                img_path = folder / f'image_{i+1}.png'
+                with open(img_path, 'wb') as img_file:
+                    img_file.write(base64.b64decode(img_data))
+            
+            # Return the path to the first image
+            return str(folder / 'image_1.png')
         prompt = json.loads(prompt_text)
         #set the text prompt for our positive CLIPTextEncode
         prompt["1"]["inputs"]["positive"] = prompt_text
@@ -396,7 +410,9 @@ class LollmsComfyUI(LollmsTTI):
         ws = websocket.WebSocket()
         ws.connect("ws://{}/ws?clientId={}".format(url, client_id))
         images = get_images(ws, prompt)
-        return images
+        
+        return save_images(images, output_path), {"prompt":prompt,"negative_prompt":negative_prompt}
+        
     
     def paint_from_images(self, positive_prompt: str, 
                             images: List[str], 
