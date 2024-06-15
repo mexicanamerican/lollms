@@ -393,9 +393,9 @@ class LollmsComfyUI(LollmsTTI):
         prompt["1"]["inputs"]["base_ckpt_name"] = self.app.config.comfyui_model
         
         ws = websocket.WebSocket()
-        ws.connect("ws://{}/ws?clientId={}".format(self.comfyui_base_url, client_id))
+        ws.connect("ws://{}/ws?clientId={}".format(self.comfyui_base_url[7:-1], client_id))
         images = get_images(ws, prompt)
-        return None
+        return images
     
     def paint_from_images(self, positive_prompt: str, 
                             images: List[str], 
