@@ -87,7 +87,7 @@ def build_image(prompt, negative_prompt, width, height, processor:APScript, clie
         return f'\n![]({escaped_url})'
     except Exception as ex:
         trace_exception(ex)
-        return "Couldn't generate image. Make sure Auto1111's stable diffusion service is installed"
+        return f"Couldn't generate image. Make sure {processor.personality.config.active_tti_service} service is installed"
 
 
 def build_image_function(processor, client):
