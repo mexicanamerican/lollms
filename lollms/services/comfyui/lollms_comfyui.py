@@ -388,13 +388,13 @@ class LollmsComfyUI(LollmsTTI):
         }
         }
         """
-        def save_images(images, folder_path):
+        def save_images(images:dict, folder_path:str|Path):
             # Create the folder if it doesn't exist
             folder = Path(folder_path)
             folder.mkdir(parents=True, exist_ok=True)
             
             # Save each image to the folder
-            for i, img_data in enumerate(images):
+            for i, img_data in images.items():
                 img_path = folder / f'image_{i+1}.png'
                 with open(img_path, 'wb') as img_file:
                     img_file.write(base64.b64decode(img_data))
