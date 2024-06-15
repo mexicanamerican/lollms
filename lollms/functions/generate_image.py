@@ -78,7 +78,8 @@ def build_image(prompt, negative_prompt, width, height, processor:APScript, clie
                 processor.step_end("Loading comfyui service")
             processor.step_start("Painting")
             file = processor.personality.app.tti.paint(
-                            prompt, 
+                            prompt,
+                            negative_prompt,
                             width = width,
                             height = height,
                             output_path=client.discussion.discussion_folder
