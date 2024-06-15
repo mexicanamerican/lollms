@@ -273,21 +273,22 @@ class LollmsComfyUI(LollmsTTI):
                 output_path=None
                 ):
         client_id = str(uuid.uuid4())
+        url = self.comfyui_base_url[7:-1]
 
         def queue_prompt(prompt):
             p = {"prompt": prompt, "client_id": client_id}
             data = json.dumps(p).encode('utf-8')
-            req =  request.Request("http://{}/prompt".format(self.comfyui_base_url), data=data)
+            req =  request.Request("http://{}/prompt".format(url), data=data)
             return json.loads(request.urlopen(req).read())
 
         def get_image(filename, subfolder, folder_type):
             data = {"filename": filename, "subfolder": subfolder, "type": folder_type}
             url_values = parse.urlencode(data)
-            with request.urlopen("http://{}/view?{}".format(self.comfyui_base_url, url_values)) as response:
+            with request.urlopen("http://{}/view?{}".format(url, url_values)) as response:
                 return response.read()
 
         def get_history(prompt_id):
-            with request.urlopen("http://{}/history/{}".format(self.comfyui_base_url, prompt_id)) as response:
+            with request.urlopen("http://{}/history/{}".format(url, prompt_id)) as response:
                 return json.loads(response.read())
 
         def get_images(ws, prompt):
@@ -393,7 +394,7 @@ class LollmsComfyUI(LollmsTTI):
         prompt["1"]["inputs"]["base_ckpt_name"] = self.app.config.comfyui_model
         
         ws = websocket.WebSocket()
-        ws.connect("ws://{}/ws?clientId={}".format(self.comfyui_base_url[7:-1], client_id))
+        ws.connect("ws://{}/ws?clientId={}".format(url, client_id))
         images = get_images(ws, prompt)
         return images
     
