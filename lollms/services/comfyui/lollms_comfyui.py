@@ -319,104 +319,79 @@ class LollmsComfyUI(LollmsTTI):
 
         prompt_text = """
         {
-            "3": {
-                "class_type": "KSampler",
-                "inputs": {
-                    "cfg": 8,
-                    "denoise": 1,
-                    "latent_image": [
-                        "5",
-                        0
-                    ],
-                    "model": [
-                        "4",
-                        0
-                    ],
-                    "negative": [
-                        "7",
-                        0
-                    ],
-                    "positive": [
-                        "6",
-                        0
-                    ],
-                    "sampler_name": "euler",
-                    "scheduler": "normal",
-                    "seed": 8566257,
-                    "steps": 20
-                }
+        "1": {
+            "inputs": {
+            "base_ckpt_name": "juggernaut.safetensors",
+            "base_clip_skip": -2,
+            "refiner_ckpt_name": "None",
+            "refiner_clip_skip": -2,
+            "positive_ascore": 6,
+            "negative_ascore": 2,
+            "vae_name": "Baked VAE",
+            "positive": "smart robot icon, slick, flat design, high res, W in the center, black background",
+            "negative": "ugly, deformed, badly rendered, fuzzy",
+            "token_normalization": "none",
+            "weight_interpretation": "comfy",
+            "empty_latent_width": 1024,
+            "empty_latent_height": 1024,
+            "batch_size": 3
             },
-            "4": {
-                "class_type": "CheckpointLoaderSimple",
-                "inputs": {
-                    """+f"""
-                    "ckpt_name": "{self.app.config.comfyui_model}"
-                    """+"""
-                }
-            },
-            "5": {
-                "class_type": "EmptyLatentImage",
-                "inputs": {
-                    "batch_size": 1,
-                    "height": 512,
-                    "width": 512
-                }
-            },
-            "6": {
-                "class_type": "CLIPTextEncode",
-                "inputs": {
-                    "clip": [
-                        "4",
-                        1
-                    ],"""+f"""
-                    "text": "{positive_prompt}"
-                    """+"""
-                }
-            },
-            "7": {
-                "class_type": "CLIPTextEncode",
-                "inputs": {
-                    "clip": [
-                        "4",
-                        1
-                    ],"""+f"""
-                    "text": "{negative_prompt}"
-                    """+"""
-                }
-            },
-            "8": {
-                "class_type": "VAEDecode",
-                "inputs": {
-                    "samples": [
-                        "3",
-                        0
-                    ],
-                    "vae": [
-                        "4",
-                        2
-                    ]
-                }
-            },
-            "9": {
-                "class_type": "SaveImage",
-                "inputs": {
-                    "filename_prefix": "ComfyUI",
-                    "images": [
-                        "8",
-                        0
-                    ]
-                }
+            "class_type": "Eff. Loader SDXL",
+            "_meta": {
+            "title": "Eff. Loader SDXL"
             }
+        },
+        "2": {
+            "inputs": {
+            "noise_seed": 74738751167752,
+            "steps": 20,
+            "cfg": 7,
+            "sampler_name": "euler",
+            "scheduler": "normal",
+            "start_at_step": 0,
+            "refine_at_step": -1,
+            "preview_method": "auto",
+            "vae_decode": "true",
+            "sdxl_tuple": [
+                "1",
+                0
+            ],
+            "latent_image": [
+                "1",
+                1
+            ],
+            "optional_vae": [
+                "1",
+                2
+            ]
+            },
+            "class_type": "KSampler SDXL (Eff.)",
+            "_meta": {
+            "title": "KSampler SDXL (Eff.)"
+            }
+        },
+        "3": {
+            "inputs": {
+            "filename_prefix": "ComfyUI",
+            "images": [
+                "2",
+                3
+            ]
+            },
+            "class_type": "SaveImage",
+            "_meta": {
+            "title": "Save Image"
+            }
+        }
         }
         """
 
         prompt = json.loads(prompt_text)
         #set the text prompt for our positive CLIPTextEncode
-        prompt["6"]["inputs"]["text"] = "masterpiece best quality man"
-
-        #set the seed for our KSampler node
-        prompt["3"]["inputs"]["seed"] = 5
-
+        prompt["1"]["inputs"]["positive"] = prompt_text
+        prompt["1"]["inputs"]["negative"] = negative_prompt
+        prompt["1"]["inputs"]["base_ckpt_name"] = self.app.config.comfyui_model
+        
         ws = websocket.WebSocket()
         ws.connect("ws://{}/ws?clientId={}".format(self.comfyui_base_url, client_id))
         images = get_images(ws, prompt)
