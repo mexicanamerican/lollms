@@ -69,10 +69,13 @@ def build_image(prompt, negative_prompt, width, height, processor:APScript, clie
         elif processor.personality.config.active_tti_service=="comfyui":
             if not processor.personality.app.tti:
                 from lollms.services.comfyui.lollms_comfyui import LollmsComfyUI
-                processor.step_start("Loading dalle service")
-                processor.personality.app.tti = LollmsComfyUI(processor.personality.app, comfyui_base_url=processor.personality)
+                processor.step_start("Loading comfyui service")
+                processor.personality.app.tti = LollmsComfyUI(
+                                                                    processor.personality.app,
+                                                                    comfyui_base_url=processor.config.comfyui_base_url
+                                                            )
                 processor.personality.app.dalle = processor.personality.app.tti
-                processor.step_end("Loading dalle service")
+                processor.step_end("Loading comfyui service")
             processor.step_start("Painting")
             file = processor.personality.app.tti.paint(
                             prompt, 
