@@ -148,6 +148,7 @@ def select_rag_database() -> Optional[Dict[str, Path]]:
                             print(f"Added document: {title}")
                         except Exception as e:
                             print(f"Failed to add document {fn}: {e}")
+                    lollmsElfServer.HideBlockingMessage()
                     return {"database_name": db_name, "database_path": Path(folder_path)}
                 except:
                     lollmsElfServer.HideBlockingMessage()
@@ -207,5 +208,7 @@ def mount_rag_database(database_infos: MountDatabase):
     """
     Selects and names a database 
     """ 
-    check_access(lollmsElfServer, database_infos.client_id)
+    client = check_access(lollmsElfServer, database_infos.client_id)
+    client.rag_databases.append(database_infos.database_name)
     return select_rag_database()
+
