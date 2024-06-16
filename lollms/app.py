@@ -409,7 +409,7 @@ class LollmsApplication(LoLLMsCom):
                     from lollms.services.comfyui.lollms_comfyui import LollmsComfyUI
                     self.comfyui = LollmsComfyUI(self, comfyui_base_url=self.config.comfyui_base_url)
                 except:
-                    self.warning(f"Couldn't load SD")
+                    self.warning(f"Couldn't load Comfyui")
 
             if self.config.enable_motion_ctrl_service and self.motion_ctrl is None:
                 try:
