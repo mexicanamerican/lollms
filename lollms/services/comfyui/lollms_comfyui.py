@@ -293,7 +293,8 @@ class LollmsComfyUI(LollmsTTI):
                 return response.read()
 
         def get_history(prompt_id):
-            with request.urlopen("http://{}/history/{}".format(url, prompt_id)) as response:
+            url_values = "http://{}/history/{}".format(url, prompt_id)
+            with request.urlopen(url_values) as response:
                 return json.loads(response.read())
 
         def get_images(ws, prompt):
@@ -410,6 +411,9 @@ class LollmsComfyUI(LollmsTTI):
         #set the text prompt for our positive CLIPTextEncode
         prompt["1"]["inputs"]["positive"] = prompt_text
         prompt["1"]["inputs"]["negative"] = negative_prompt
+        prompt["1"]["inputs"]["empty_latent_width"] = width
+        prompt["1"]["inputs"]["empty_latent_height"] = height
+        
         prompt["1"]["inputs"]["base_ckpt_name"] = self.app.config.comfyui_model
         
         ws = websocket.WebSocket()
