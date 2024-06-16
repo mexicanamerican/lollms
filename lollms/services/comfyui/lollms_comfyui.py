@@ -163,6 +163,7 @@ class LollmsComfyUI(LollmsTTI):
                     share=False,
                     wait_for_service=True
                     ):
+        super().__init__("comfyui", app)
         if comfyui_base_url=="" or comfyui_base_url=="http://127.0.0.1:8188/":
             comfyui_base_url = None
         # Get the current directory
@@ -280,13 +281,15 @@ class LollmsComfyUI(LollmsTTI):
         def queue_prompt(prompt):
             p = {"prompt": prompt, "client_id": client_id}
             data = json.dumps(p).encode('utf-8')
-            req =  request.Request("http://{}/prompt".format(url), data=data)
+            full_url = "http://{}/prompt".format(url)
+            req =  request.Request(full_url, data=data)
             return json.loads(request.urlopen(req).read())
 
-        def get_image(filename, subfolder, folder_type):
-            data = {"filename": filename, "subfolder": subfolder, "type": folder_type}
+        def get_image(filename, subfolder):
+            data = {"filename": filename, "subfolder": subfolder}
             url_values = parse.urlencode(data)
-            with request.urlopen("http://{}/view?{}".format(url, url_values)) as response:
+            full_url = "http://{}/view?{}".format(url, url_values)
+            with request.urlopen(full_url) as response:
                 return response.read()
 
         def get_history(prompt_id):
@@ -314,12 +317,25 @@ class LollmsComfyUI(LollmsTTI):
                     if 'images' in node_output:
                         images_output = []
                         for image in node_output['images']:
-                            image_data = get_image(image['filename'], image['subfolder'], image['type'])
-                            images_output.append(image_data)
-                    output_images[node_id] = images_output
+                            if image["type"]=="output":
+                                image_data = get_image(image['filename'], image['subfolder'])
+                                images_output.append(image_data)
 
-            return output_images
-
+            return images_output
+        
+        def save_images(images:dict, folder_path:str|Path):
+            # Create the folder if it doesn't exist
+            folder = Path(folder_path)
+            folder.mkdir(parents=True, exist_ok=True)
+            
+            # Save each image to the folder
+            for i, img_data in enumerate(images):
+                img_path = folder / f'image_{i+1}.png'
+                with open(img_path, 'wb') as img_file:
+                    img_file.write(img_data)
+        
+            # Return the path to the first image
+            return str(folder / 'image_1.png')
         prompt_text = """
         {
         "1": {
@@ -388,19 +404,8 @@ class LollmsComfyUI(LollmsTTI):
         }
         }
         """
-        def save_images(images:dict, folder_path:str|Path):
-            # Create the folder if it doesn't exist
-            folder = Path(folder_path)
-            folder.mkdir(parents=True, exist_ok=True)
             
-            # Save each image to the folder
-            for i, img_data in images.items():
-                img_path = folder / f'image_{i}.png'
-                with open(img_path, 'wb') as img_file:
-                    img_file.write(base64.b64decode(img_data[0]))
-            
-            # Return the path to the first image
-            return str(folder / 'image_1.png')
+
         prompt = json.loads(prompt_text)
         #set the text prompt for our positive CLIPTextEncode
         prompt["1"]["inputs"]["positive"] = prompt_text
