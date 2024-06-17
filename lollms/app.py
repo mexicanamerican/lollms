@@ -104,7 +104,8 @@ class LollmsApplication(LoLLMsCom):
                 from lollmsvectordb import VectorDatabase
                 from lollmsvectordb.text_document_loader import TextDocumentsLoader
                 v = BERTVectorizer()
-                vdb = VectorDatabase(Path(parts[1])/"db_name.sqlite", v)                 
+                vdb = VectorDatabase(Path(parts[1])/"db_name.sqlite", v)
+                vdb.build_index()                 
                 self.active_rag_dbs.append({"name":parts[0],"path":parts[1],"vectorizer":vdb})
 
         self.rt_com = None
