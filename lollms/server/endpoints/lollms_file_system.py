@@ -236,6 +236,7 @@ def mount_rag_database(database_infos: MountDatabase):
         from lollmsvectordb import VectorDatabase
         from lollmsvectordb.text_document_loader import TextDocumentsLoader
         v = BERTVectorizer()
-        vdb = VectorDatabase(Path(path)/"db_name.sqlite", v)        
+        vdb = VectorDatabase(Path(path)/"db_name.sqlite", v)       
+        vdb.build_index() 
         lollmsElfServer.active_rag_dbs.append({"name":database_infos.database_name,"path":path,"vectorizer":vdb})
 

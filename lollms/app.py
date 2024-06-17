@@ -993,6 +993,9 @@ class LollmsApplication(LoLLMsCom):
             if not self.personality.ignore_discussion_documents_rag:
                 query = None
                 if len(self.active_rag_dbs) > 0 :
+                    if discussion is None:
+                        discussion = self.recover_discussion(client_id)
+
                     if self.config.data_vectorization_build_keys_words:
                         self.personality.step_start("Building vector store query")
                         query = self.personality.fast_gen(f"{separator_template}{start_header_id_template}instruction: Read the discussion and rewrite the last prompt for someone who didn't read the entire discussion.\nDo not answer the prompt. Do not add explanations.{separator_template}{start_header_id_template}discussion:\n{discussion[-2048:]}{separator_template}{start_header_id_template}enhanced query: ", max_generation_size=256, show_progress=True, callback=self.personality.sink)
