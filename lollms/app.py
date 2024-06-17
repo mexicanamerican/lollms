@@ -253,7 +253,7 @@ class LollmsApplication(LoLLMsCom):
 
         ASCIIColors.yellow("* - * - * - Starting services - * - * - *")
 
-        ASCIIColors.blue("Loading TTT services")
+        ASCIIColors.blue("Loading local TTT services")
         if self.config.enable_ollama_service:
             try:
                 from lollms.services.ollama.lollms_ollama import Service
@@ -270,6 +270,7 @@ class LollmsApplication(LoLLMsCom):
                 trace_exception(ex)
                 self.warning(f"Couldn't load vllm")
 
+        ASCIIColors.blue("Loading loacal STT services")
         if self.config.whisper_activate or self.config.active_stt_service == "whisper":
             try:
                 from lollms.services.whisper.lollms_whisper import LollmsWhisper
@@ -277,9 +278,7 @@ class LollmsApplication(LoLLMsCom):
             except Exception as ex:
                 trace_exception(ex)
 
-        ASCIIColors.blue("Loading TTS services")
-        ASCIIColors.yellow(f" -> self.config.xtts_enable: {self.config.xtts_enable}")
-        ASCIIColors.yellow(f" -> self.config.active_stt_service: {self.config.active_stt_service}")
+        ASCIIColors.blue("Loading local TTS services")
         if self.config.xtts_enable or self.config.active_tts_service == "xtts":
             ASCIIColors.yellow("Loading XTTS")
             try:
@@ -302,7 +301,7 @@ class LollmsApplication(LoLLMsCom):
             except:
                 self.warning(f"Couldn't load XTTS")
 
-        ASCIIColors.blue("Loading TTI services")
+        ASCIIColors.blue("Loading local TTI services")
         if self.config.enable_sd_service:
             try:
                 from lollms.services.sd.lollms_sd import LollmsSD
@@ -325,21 +324,30 @@ class LollmsApplication(LoLLMsCom):
                 trace_exception(ex)
                 self.warning(f"Couldn't load Motion control")
 
-        
+        ASCIIColors.blue("Activating TTI service")
         if self.config.active_tti_service == "diffusers":
             from lollms.services.diffusers.lollms_diffusers import LollmsDiffusers
             self.tti = LollmsDiffusers(self)
         elif self.config.active_tti_service == "autosd":
-            from lollms.services.sd.lollms_sd import LollmsSD
-            self.tti = LollmsSD(self)
+            if self.sd:
+                self.tti = self.sd
+            else:
+                from lollms.services.sd.lollms_sd import LollmsSD
+                self.tti = LollmsSD(self)
         elif self.config.active_tti_service == "dall-e":
             from lollms.services.dalle.lollms_dalle import LollmsDalle
             self.tti = LollmsDalle(self, self.config.dall_e_key)
         elif self.config.active_tti_service == "midjourney":
             from lollms.services.midjourney.lollms_midjourney import LollmsMidjourney
             self.tti = LollmsMidjourney(self, self.config.midjourney_key)
+        elif self.config.active_tti_service == "comfyui" and (self.tti is None or self.tti.name!="comfyui"):
+            if self.comfyui:
+                self.tti = self.comfyui
+            else:
+                from lollms.services.comfyui.lollms_comfyui import LollmsComfyUI
+                self.tti = LollmsComfyUI(self, comfyui_base_url=self.config.comfyui_base_url)
 
-        ASCIIColors.blue("Loading TTS services")
+        ASCIIColors.blue("Activating TTS services")
 
         if self.config.active_tts_service == "openai_tts":
             from lollms.services.open_ai_tts.lollms_openai_tts import LollmsOpenAITTS
@@ -360,6 +368,8 @@ class LollmsApplication(LoLLMsCom):
         ASCIIColors.yellow("* - * - * - Verifying services - * - * - *")
 
         try:
+            ASCIIColors.blue("Loading active local TTT services")
+            
             if self.config.enable_ollama_service and self.ollama is None:
                 try:
                     from lollms.services.ollama.lollms_ollama import Service
@@ -376,12 +386,16 @@ class LollmsApplication(LoLLMsCom):
                     trace_exception(ex)
                     self.warning(f"Couldn't load vllm")
 
+            ASCIIColors.blue("Loading local STT services")
+
             if self.config.whisper_activate and self.whisper is None:
                 try:
                     from lollms.services.whisper.lollms_whisper import LollmsWhisper
                     self.whisper = LollmsWhisper(self, self.config.whisper_model, self.lollms_paths.personal_outputs_path)
                 except Exception as ex:
                     trace_exception(ex)
+                    
+            ASCIIColors.blue("Loading loacal TTS services")
             if (self.config.xtts_enable or self.config.active_tts_service == "xtts") and self.xtts is None:
                 ASCIIColors.yellow("Loading XTTS")
                 try:
@@ -404,6 +418,7 @@ class LollmsApplication(LoLLMsCom):
                 except:
                     self.warning(f"Couldn't load XTTS")
 
+            ASCIIColors.blue("Loading local TTI services")
             if self.config.enable_sd_service and self.sd is None:
                 try:
                     from lollms.services.sd.lollms_sd import LollmsSD
@@ -426,25 +441,38 @@ class LollmsApplication(LoLLMsCom):
                     trace_exception(ex)
                     self.warning(f"Couldn't load Motion control")
 
+
+            ASCIIColors.blue("Activating TTI service")
             if self.config.active_tti_service == "diffusers" and (self.tti is None or self.tti.name!="diffusers"):
                 from lollms.services.diffusers.lollms_diffusers import LollmsDiffusers
                 self.tti = LollmsDiffusers(self)
             elif self.config.active_tti_service == "autosd" and (self.tti is None or self.tti.name!="stable_diffusion"):
-                from lollms.services.sd.lollms_sd import LollmsSD
-                self.tti = LollmsSD(self)
+                if self.sd:
+                    self.tti = self.sd
+                else:
+                    from lollms.services.sd.lollms_sd import LollmsSD
+                    self.tti = LollmsSD(self)
             elif self.config.active_tti_service == "dall-e" and (self.tti is None or self.tti.name!="dall-e-2" or type(self.tti.name)!="dall-e-3"):
                 from lollms.services.dalle.lollms_dalle import LollmsDalle
                 self.tti = LollmsDalle(self, self.config.dall_e_key)
             elif self.config.active_tti_service == "midjourney" and (self.tti is None or self.tti.name!="midjourney"):
                 from lollms.services.midjourney.lollms_midjourney import LollmsMidjourney
                 self.tti = LollmsMidjourney(self, self.config.midjourney_key)
+            elif self.config.active_tti_service == "comfyui" and (self.tti is None or self.tti.name!="comfyui"):
+                if self.comfyui:
+                    self.tti = self.comfyui
+                else:
+                    from lollms.services.comfyui.lollms_comfyui import LollmsComfyUI
+                    self.tti = LollmsComfyUI(self, comfyui_base_url=self.config.comfyui_base_url)
 
+            ASCIIColors.blue("Activating TTS service")
             if self.config.active_tts_service == "openai_tts" and (self.tts is None or self.tts.name!="openai_tts"):
                 from lollms.services.open_ai_tts.lollms_openai_tts import LollmsOpenAITTS
                 self.tts = LollmsOpenAITTS(self, self.config.openai_tts_model, self.config.openai_tts_voice,  self.config.openai_tts_key)
             elif self.config.active_tts_service == "xtts" and self.xtts:
                 self.tts = self.xtts
 
+            ASCIIColors.blue("Activating STT service")
             if self.config.active_stt_service == "openai_whisper" and (self.tts is None or self.tts.name!="openai_whisper"):
                 from lollms.services.openai_whisper.lollms_openai_whisper import LollmsOpenAIWhisper
                 self.stt = LollmsOpenAIWhisper(self, self.config.openai_whisper_model, self.config.openai_whisper_key)
