@@ -27,6 +27,8 @@ import platform
 import gc
 import yaml
 import time
+from lollms.utilities import PackageManager
+
 class LollmsApplication(LoLLMsCom):
     def __init__(
                     self, 
@@ -86,6 +88,20 @@ class LollmsApplication(LoLLMsCom):
         self.stt = None
         self.ttm = None
         self.ttv = None
+
+        self.active_rag_dbs = []
+        for entry in self.config.rag_databases:
+            if "mounted" in entry:
+                parts = entry.split("::")
+                if not PackageManager.check_package_installed("lollmsvectordb"):
+                    PackageManager.install_package("lollmsvectordb")
+                
+                from lollmsvectordb.vectorizers.bert_vectorizer import BERTVectorizer
+                from lollmsvectordb import VectorDatabase
+                from lollmsvectordb.text_document_loader import TextDocumentsLoader
+                v = BERTVectorizer()
+                vdb = VectorDatabase(Path(parts[1])/"db_name.sqlite", v)                 
+                self.active_rag_dbs.append({"name":parts[0],"path":parts[1],"vectorizer":vdb})
 
         self.rt_com = None
         if not free_mode:
@@ -790,6 +806,14 @@ class LollmsApplication(LoLLMsCom):
                 self.config.save_config()
         return True
 
+    def recover_discussion(self,client_id, message_index=-1):
+        messages = self.session.get_client(client_id).discussion.get_messages()
+        discussion=""
+        for msg in messages:
+            if message_index!=-1 and msg>message_index:
+                break
+            discussion += "\n" + self.config.discussion_prompt_separator + msg.sender + ": " + msg.content.strip()
+        return discussion
     # -------------------------------------- Prompt preparing
     def prepare_query(self, client_id: str, message_id: int = -1, is_continue: bool = False, n_tokens: int = 0, generation_type = None, force_using_internet=False) -> Tuple[str, str, List[str]]:
         """
@@ -966,74 +990,96 @@ class LollmsApplication(LoLLMsCom):
                 except Exception as ex:
                     trace_exception(ex)
                     self.warning("Couldn't add documentation to the context. Please verify the vector database")
-            
-            if not self.personality.ignore_discussion_documents_rag and (len(client.discussion.text_files) > 0) and client.discussion.vectorizer is not None:
-                if discussion is None:
-                    discussion = self.recover_discussion(client_id)
+            if not self.personality.ignore_discussion_documents_rag:
+                query = None
+                if len(self.active_rag_dbs) > 0 :
+                    if self.config.data_vectorization_build_keys_words:
+                        self.personality.step_start("Building vector store query")
+                        query = self.personality.fast_gen(f"{separator_template}{start_header_id_template}instruction: Read the discussion and rewrite the last prompt for someone who didn't read the entire discussion.\nDo not answer the prompt. Do not add explanations.{separator_template}{start_header_id_template}discussion:\n{discussion[-2048:]}{separator_template}{start_header_id_template}enhanced query: ", max_generation_size=256, show_progress=True, callback=self.personality.sink)
+                        self.personality.step_end("Building vector store query")
+                        ASCIIColors.cyan(f"Query: {query}")
+                    else:
+                        query = current_message.content
+                    if documentation=="":
+                        documentation=f"{separator_template}{start_header_id_template}important information: Use the documentation data to answer the user questions. If the data is not present in the documentation, please tell the user that the information he is asking for does not exist in the documentation section. It is strictly forbidden to give the user an answer without having actual proof from the documentation.{separator_template}{start_header_id_template}Documentation:\n"
+                    results = []
+                    for db in self.active_rag_dbs:
+                        v = db["vectorizer"]
+                        r=v.search(query)
+                        results+=r
+                    n_neighbors = self.active_rag_dbs[0]["vectorizer"].n_neighbors
+                    sorted_results = sorted(results, key=lambda x: x[3])[:n_neighbors]
+                    for vector, text, title, distance in sorted_results:
+                        documentation += f"{start_header_id_template}document chunk{end_header_id_template}\nsource_document_title:{title}\ncontent:{text}\n"
 
-                if documentation=="":
-                    documentation=f"{separator_template}{start_header_id_template}important information: Use the documentation data to answer the user questions. If the data is not present in the documentation, please tell the user that the information he is asking for does not exist in the documentation section. It is strictly forbidden to give the user an answer without having actual proof from the documentation.{separator_template}{start_header_id_template}Documentation:\n"
-
-                if self.config.data_vectorization_build_keys_words:
-                    self.personality.step_start("Building vector store query")
-                    query = self.personality.fast_gen(f"{separator_template}{start_header_id_template}instruction: Read the discussion and rewrite the last prompt for someone who didn't read the entire discussion.\nDo not answer the prompt. Do not add explanations.{separator_template}{start_header_id_template}discussion:\n{discussion[-2048:]}{separator_template}{start_header_id_template}enhanced query: ", max_generation_size=256, show_progress=True, callback=self.personality.sink)
-                    self.personality.step_end("Building vector store query")
-                    ASCIIColors.cyan(f"Query: {query}")
-                else:
-                    query = current_message.content
-
-                try:
-                    if self.config.data_vectorization_force_first_chunk and len(client.discussion.vectorizer.chunks)>0:
-                        doc_index = list(client.discussion.vectorizer.chunks.keys())[0]
-
-                        doc_id = client.discussion.vectorizer.chunks[doc_index]['document_id']
-                        content = client.discussion.vectorizer.chunks[doc_index]['chunk_text']
-                        
-                        if self.config.data_vectorization_put_chunk_informations_into_context:
-                            documentation += f"{start_header_id_template}document chunk{end_header_id_template}\nchunk_infos:{doc_id}\ncontent:{content}\n"
-                        else:
-                            documentation += f"{start_header_id_template}chunk{end_header_id_template}\n{content}\n"
-
-                    docs, sorted_similarities, document_ids = client.discussion.vectorizer.recover_text(query, top_k=int(self.config.data_vectorization_nb_chunks))
-                    for doc, infos in zip(docs, sorted_similarities):
-                        if self.config.data_vectorization_force_first_chunk and len(client.discussion.vectorizer.chunks)>0 and infos[0]==doc_id:
-                            continue
-                        if self.config.data_vectorization_put_chunk_informations_into_context:
-                            documentation += f"{start_header_id_template}document chunk{end_header_id_template}\nchunk path: {infos[0]}\nchunk content:\n{doc}\n"
-                        else:
-                            documentation += f"{start_header_id_template}chunk{end_header_id_template}\n{doc}\n"
-
-                    documentation += f"{separator_template}{start_header_id_template}important information: Use the documentation data to answer the user questions. If the data is not present in the documentation, please tell the user that the information he is asking for does not exist in the documentation section. It is strictly forbidden to give the user an answer without having actual proof from the documentation.\n"
-                except Exception as ex:
-                    trace_exception(ex)
-                    self.warning("Couldn't add documentation to the context. Please verify the vector database")
-            # Check if there is discussion knowledge to add to the prompt
-            if self.config.activate_skills_lib:
-                try:
-                    self.personality.step_start("Querying skills library")
+                if (len(client.discussion.text_files) > 0) and client.discussion.vectorizer is not None:
                     if discussion is None:
                         discussion = self.recover_discussion(client_id)
-                    self.personality.step_start("Building query")
-                    query = self.personality.fast_gen(f"{start_header_id_template}{system_message_template}{end_header_id_template}Your task is to carefully read the provided discussion and reformulate {self.config.user_name}'s request concisely. Return only the reformulated request without any additional explanations, commentary, or output.{separator_template}{start_header_id_template}discussion:\n{discussion[-2048:]}{separator_template}{start_header_id_template}search query: ", max_generation_size=256, show_progress=True, callback=self.personality.sink)
-                    self.personality.step_end("Building query")
-                    # skills = self.skills_library.query_entry(query)
-                    self.personality.step_start("Adding skills")
-                    if self.config.debug:
-                        ASCIIColors.info(f"Query : {query}")
-                    skill_titles, skills = self.skills_library.query_vector_db(query, top_k=3, max_dist=1000)#query_entry_fts(query)
-                    knowledge_infos={"titles":skill_titles,"contents":skills}
-                    if len(skills)>0:
-                        if knowledge=="":
-                            knowledge=f"{start_header_id_template}knowledge{end_header_id_template}\n"
-                        for i,(title, content) in enumerate(zip(skill_titles,skills)):
-                            knowledge += f"{start_header_id_template}knowledge {i}{end_header_id_template}\ntitle:\n{title}\ncontent:\n{content}\n"
-                    self.personality.step_end("Adding skills")
-                    self.personality.step_end("Querying skills library")
-                except Exception as ex:
-                    ASCIIColors.error(ex)
-                    self.warning("Couldn't add long term memory information to the context. Please verify the vector database")        # Add information about the user
-                    self.personality.step_end("Adding skills")
-                    self.personality.step_end("Querying skills library",False)
+
+                    if documentation=="":
+                        documentation=f"{separator_template}{start_header_id_template}important information: Use the documentation data to answer the user questions. If the data is not present in the documentation, please tell the user that the information he is asking for does not exist in the documentation section. It is strictly forbidden to give the user an answer without having actual proof from the documentation.{separator_template}{start_header_id_template}Documentation:\n"
+
+                    if query is None:
+                        if self.config.data_vectorization_build_keys_words:
+                            self.personality.step_start("Building vector store query")
+                            query = self.personality.fast_gen(f"{separator_template}{start_header_id_template}instruction: Read the discussion and rewrite the last prompt for someone who didn't read the entire discussion.\nDo not answer the prompt. Do not add explanations.{separator_template}{start_header_id_template}discussion:\n{discussion[-2048:]}{separator_template}{start_header_id_template}enhanced query: ", max_generation_size=256, show_progress=True, callback=self.personality.sink)
+                            self.personality.step_end("Building vector store query")
+                            ASCIIColors.cyan(f"Query: {query}")
+                        else:
+                            query = current_message.content
+
+                    try:
+                        if self.config.data_vectorization_force_first_chunk and len(client.discussion.vectorizer.chunks)>0:
+                            doc_index = list(client.discussion.vectorizer.chunks.keys())[0]
+
+                            doc_id = client.discussion.vectorizer.chunks[doc_index]['document_id']
+                            content = client.discussion.vectorizer.chunks[doc_index]['chunk_text']
+                            
+                            if self.config.data_vectorization_put_chunk_informations_into_context:
+                                documentation += f"{start_header_id_template}document chunk{end_header_id_template}\nchunk_infos:{doc_id}\ncontent:{content}\n"
+                            else:
+                                documentation += f"{start_header_id_template}chunk{end_header_id_template}\n{content}\n"
+
+                        docs, sorted_similarities, document_ids = client.discussion.vectorizer.recover_text(query, top_k=int(self.config.data_vectorization_nb_chunks))
+                        for doc, infos in zip(docs, sorted_similarities):
+                            if self.config.data_vectorization_force_first_chunk and len(client.discussion.vectorizer.chunks)>0 and infos[0]==doc_id:
+                                continue
+                            if self.config.data_vectorization_put_chunk_informations_into_context:
+                                documentation += f"{start_header_id_template}document chunk{end_header_id_template}\nchunk path: {infos[0]}\nchunk content:\n{doc}\n"
+                            else:
+                                documentation += f"{start_header_id_template}chunk{end_header_id_template}\n{doc}\n"
+
+                        documentation += f"{separator_template}{start_header_id_template}important information: Use the documentation data to answer the user questions. If the data is not present in the documentation, please tell the user that the information he is asking for does not exist in the documentation section. It is strictly forbidden to give the user an answer without having actual proof from the documentation.\n"
+                    except Exception as ex:
+                        trace_exception(ex)
+                        self.warning("Couldn't add documentation to the context. Please verify the vector database")
+                # Check if there is discussion knowledge to add to the prompt
+                if self.config.activate_skills_lib:
+                    try:
+                        self.personality.step_start("Querying skills library")
+                        if discussion is None:
+                            discussion = self.recover_discussion(client_id)
+                        self.personality.step_start("Building query")
+                        query = self.personality.fast_gen(f"{start_header_id_template}{system_message_template}{end_header_id_template}Your task is to carefully read the provided discussion and reformulate {self.config.user_name}'s request concisely. Return only the reformulated request without any additional explanations, commentary, or output.{separator_template}{start_header_id_template}discussion:\n{discussion[-2048:]}{separator_template}{start_header_id_template}search query: ", max_generation_size=256, show_progress=True, callback=self.personality.sink)
+                        self.personality.step_end("Building query")
+                        # skills = self.skills_library.query_entry(query)
+                        self.personality.step_start("Adding skills")
+                        if self.config.debug:
+                            ASCIIColors.info(f"Query : {query}")
+                        skill_titles, skills = self.skills_library.query_vector_db(query, top_k=3, max_dist=1000)#query_entry_fts(query)
+                        knowledge_infos={"titles":skill_titles,"contents":skills}
+                        if len(skills)>0:
+                            if knowledge=="":
+                                knowledge=f"{start_header_id_template}knowledge{end_header_id_template}\n"
+                            for i,(title, content) in enumerate(zip(skill_titles,skills)):
+                                knowledge += f"{start_header_id_template}knowledge {i}{end_header_id_template}\ntitle:\n{title}\ncontent:\n{content}\n"
+                        self.personality.step_end("Adding skills")
+                        self.personality.step_end("Querying skills library")
+                    except Exception as ex:
+                        ASCIIColors.error(ex)
+                        self.warning("Couldn't add long term memory information to the context. Please verify the vector database")        # Add information about the user
+                        self.personality.step_end("Adding skills")
+                        self.personality.step_end("Querying skills library",False)
         user_description=""
         if self.config.use_user_informations_in_discussion:
             user_description=f"{start_header_id_template}User description{end_header_id_template}\n"+self.config.user_description+"\n"
