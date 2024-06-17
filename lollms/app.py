@@ -89,7 +89,11 @@ class LollmsApplication(LoLLMsCom):
         self.ttm = None
         self.ttv = None
 
-        self.active_rag_dbs = []
+        try:
+            self.load_rag_dbs()
+        except Exception as ex:
+            trace_exception(ex)
+
         for entry in self.config.rag_databases:
             if "mounted" in entry:
                 parts = entry.split("::")
@@ -264,6 +268,23 @@ class LollmsApplication(LoLLMsCom):
 
     def get_uploads_path(self, client_id):
         return self.lollms_paths.personal_uploads_path
+    
+    def load_rag_dbs(self):
+        self.active_rag_dbs = []
+        for rag_db in self.config.rag_databases:
+            parts = rag_db.split("::")
+            if parts[-1]=="mounted":
+                if not PackageManager.check_package_installed("lollmsvectordb"):
+                    PackageManager.install_package("lollmsvectordb")
+                
+                from lollmsvectordb.vectorizers.bert_vectorizer import BERTVectorizer
+                from lollmsvectordb import VectorDatabase
+                from lollmsvectordb.text_document_loader import TextDocumentsLoader
+                v = BERTVectorizer()
+                vdb = VectorDatabase(Path(parts[1])/"db_name.sqlite", v)       
+                vdb.build_index() 
+                self.active_rag_dbs.append({"name":parts[0],"path":parts[1],"vectorizer":vdb})
+
 
     def start_servers(self):
 
