@@ -134,7 +134,7 @@ def select_rag_database() -> Optional[Dict[str, Path]]:
                     vdb = VectorDatabase(Path(folder_path)/"db_name.sqlite", v)
                     # Get all files in the folder
                     folder = Path(folder_path)
-                    file_types = ['*.txt', '*.pdf', '*.docx', '*.pptx', '*.msg']
+                    file_types = [f"*{f}" for f in TextDocumentsLoader.get_supported_file_types]
                     files = []
                     for file_type in file_types:
                         files.extend(folder.glob(file_type))
