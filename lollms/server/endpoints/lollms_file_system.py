@@ -174,7 +174,8 @@ def find_rag_database_by_name(entries: List[str], name: str) -> Optional[str]:
         Optional[str]: The entry if found, otherwise None.
     """
     for i, entry in enumerate(entries):
-        entry_name, entry_path = entry.split('::')
+        parts = entry.split('::')
+        entry_name, entry_path = parts[0], parts[1]
         if entry_name == name:
             return i, entry_path
     return None
@@ -220,8 +221,8 @@ async def add_rag_database(database_infos: SelectDatabase):
     check_access(lollmsElfServer, database_infos.client_id)
     return select_rag_database()
 
-@router.post("/mount_rag_database")
-def mount_rag_database(database_infos: MountDatabase):
+@router.post("/toggle_mount_rag_database")
+def toggle_mount_rag_database(database_infos: MountDatabase):
     """
     Selects and names a database 
     """ 
@@ -235,8 +236,15 @@ def mount_rag_database(database_infos: MountDatabase):
         from lollmsvectordb.vectorizers.bert_vectorizer import BERTVectorizer
         from lollmsvectordb import VectorDatabase
         from lollmsvectordb.text_document_loader import TextDocumentsLoader
+        
         v = BERTVectorizer()
         vdb = VectorDatabase(Path(path)/"db_name.sqlite", v)       
         vdb.build_index() 
         lollmsElfServer.active_rag_dbs.append({"name":database_infos.database_name,"path":path,"vectorizer":vdb})
+        lollmsElfServer.config.save_config()
+    else:
+        # Unmount the database faster than a cat jumps off a hot stove!
+        lollmsElfServer.config.rag_databases[index] = lollmsElfServer.config.rag_databases[index].replace("::mounted", "")
+        lollmsElfServer.active_rag_dbs = [db for db in lollmsElfServer.active_rag_dbs if db["name"] != database_infos.database_name]
+        lollmsElfServer.config.save_config()
 
