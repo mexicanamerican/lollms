@@ -35,7 +35,7 @@ def luma_ai_dream_machine_video_creator(prompt: str) -> str:
     try:
         # Open the Luma AI Dream Machine webpage
         webbrowser.open("https://lumalabs.ai/dream-machine/creations")
-        time.sleep(5)  # Wait for the page to load
+        time.sleep(2)  # Wait for the page to load
 
         # Locate the input section and type the prompt
         input_image_path = Path(__file__).parent/"input_section_image.png"  # Replace with the actual path to your image
