@@ -163,7 +163,8 @@ def select_rag_database(client) -> Optional[Dict[str, Path]]:
                         vdb.build_index()
                         ASCIIColors.success("OK")
                     lollmsElfServer.HideBlockingMessage()
-                    run_async(partial(lollmsElfServer.sio.emit,'rag_db_added    ', {"database_name": db_name, "database_path": Path(folder_path)}, to=client.client_id))
+                    run_async(partial(lollmsElfServer.sio.emit,'rag_db_added', {"database_name": db_name, "database_path": str(folder_path)}, to=client.client_id))
+
                 except Exception as ex:
                     trace_exception(ex)
                     lollmsElfServer.HideBlockingMessage()
