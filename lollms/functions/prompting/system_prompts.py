@@ -5,10 +5,26 @@
 
 # Import necessary libraries
 import random
-from typing import Tuple, List, Dict, Any
+from typing import Tuple, List, Dict, Any, Optional
 
 # ascii_colors offers advanced console coloring and bug tracing
 from ascii_colors import trace_exception
+
+def find_entry(entries: List[Tuple[str, str]], key: str) -> Optional[Tuple[str, str]]:
+    """
+    Finds and returns the entry in the list where the first value matches the specified key.
+
+    Args:
+        entries (List[Tuple[str, str]]): The list of tuples to search.
+        key (str): The key to search for in the first value of the tuples.
+
+    Returns:
+        Optional[Tuple[str, str]]: The matching tuple if found, otherwise None.
+    """
+    for entry in entries:
+        if entry[0] == key:
+            return entry
+    return None
 
 def get_random_system_prompt() -> Tuple[str, str]:
     """
@@ -189,8 +205,8 @@ def get_system_prompt(agent_name, number_of_entries=5) -> Tuple[str, str]:
             db.add_document(entry[0], entry[0])
         db.build_index()
         results = db.search(agent_name, number_of_entries)
-
-        return results
+        
+        return [find_entry(system_prompts, r[2]) for r in results]
     except Exception as e:
         return trace_exception(e)
 
