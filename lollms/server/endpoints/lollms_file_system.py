@@ -147,7 +147,7 @@ def select_rag_database(client) -> Optional[Dict[str, Path]]:
                     vdb = VectorDatabase(Path(folder_path)/"db_name.sqlite", v, lollmsElfServer.model if lollmsElfServer.model else TikTokenTokenizer())
                     # Get all files in the folder
                     folder = Path(folder_path)
-                    file_types = [f"*{f}" for f in TextDocumentsLoader.get_supported_file_types()]
+                    file_types = [f"**/*{f}" for f in TextDocumentsLoader.get_supported_file_types()]
                     files = []
                     for file_type in file_types:
                         files.extend(folder.glob(file_type))
@@ -274,6 +274,7 @@ def toggle_mount_rag_database(database_infos: MountDatabase):
         vdb.build_index() 
         lollmsElfServer.active_rag_dbs.append({"name":database_infos.database_name,"path":path,"vectorizer":vdb})
         lollmsElfServer.config.save_config()
+        lollmsElfServer.info(f"Database {database_infos.database_name} mounted succcessfully")
     else:
         # Unmount the database faster than a cat jumps off a hot stove!
         lollmsElfServer.config.rag_databases[index] = lollmsElfServer.config.rag_databases[index].replace("::mounted", "")
