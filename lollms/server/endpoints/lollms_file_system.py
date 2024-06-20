@@ -125,7 +125,7 @@ def select_rag_database(client) -> Optional[Dict[str, Path]]:
             if db_name:
                 try:
                     lollmsElfServer.ShowBlockingMessage("Adding a new database.\nVectorizing the database")
-                    if not PackageManager.check_package_installed_with_version("lollmsvectordb","0.3.0"):
+                    if not PackageManager.check_package_installed_with_version("lollmsvectordb","0.4.6"):
                         PackageManager.install_or_update("lollmsvectordb")
                     
                     from lollmsvectordb.vectorizers.bert_vectorizer import BERTVectorizer
@@ -157,11 +157,14 @@ def select_rag_database(client) -> Optional[Dict[str, Path]]:
                         try:
                             text = TextDocumentsLoader.read_file(fn)
                             title = fn.stem  # Use the file name without extension as the title
+                            lollmsElfServer.ShowBlockingMessage(f"Adding a new database.\nAdding {title}")
                             vdb.add_document(title, text, fn)
                             print(f"Added document: {title}")
                         except Exception as e:
+                            lollmsElfServer.error(f"Failed to add document {fn}: {e}")
                             print(f"Failed to add document {fn}: {e}")
                     if vdb.new_data: #New files are added, need reindexing
+                        lollmsElfServer.ShowBlockingMessage(f"Adding a new database.\nIndexing the database...")
                         ASCIIColors.blue("Indexing database ...", end="", flush=True)
                         vdb.build_index()
                         ASCIIColors.success("OK")
