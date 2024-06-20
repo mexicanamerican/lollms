@@ -1067,8 +1067,8 @@ class LollmsApplication(LoLLMsCom):
                         results+=r
                     n_neighbors = self.active_rag_dbs[0]["vectorizer"].n_neighbors
                     sorted_results = sorted(results, key=lambda x: x[3])[:n_neighbors]
-                    for vector, text, title, distance in sorted_results:
-                        documentation += f"{start_header_id_template}document chunk{end_header_id_template}\nsource_document_title:{title}\ncontent:{text}\n"
+                    for vector, text, title, path, distance in sorted_results:
+                        documentation += f"{start_header_id_template}document chunk{end_header_id_template}\nsource_document_title:{title}\nsource_document_path:{path}\ncontent:{text}\n"
 
                 if (len(client.discussion.text_files) > 0) and client.discussion.vectorizer is not None:
                     if discussion is None:
