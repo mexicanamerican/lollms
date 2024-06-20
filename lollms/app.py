@@ -73,7 +73,9 @@ class LollmsApplication(LoLLMsCom):
         self.generate_msg_with_internet: Callable[[str, Dict], None]        = None
         self.handle_continue_generate_msg_from: Callable[[str, Dict], None] = None
         
-
+        # Trust store 
+        self.bk_store = None
+        
         # services
         self.ollama         = None
         self.vllm           = None
@@ -108,8 +110,11 @@ class LollmsApplication(LoLLMsCom):
                     from lollmsvectordb.tokenizers.tiktoken_tokenizer import TikTokenTokenizer
 
                     if self.config.rag_vectorizer == "bert":
+                        self.backup_trust_store()
                         from lollmsvectordb.vectorizers.bert_vectorizer import BERTVectorizer
                         v = BERTVectorizer()
+                        self.restore_trust_store()
+                        
                     elif self.config.rag_vectorizer == "tfidf":
                         from lollmsvectordb.vectorizers.tfidf_vectorizer import TFIDFVectorizer
                         v = TFIDFVectorizer()
@@ -187,7 +192,16 @@ class LollmsApplication(LoLLMsCom):
             self.mount_personalities()
             self.mount_extensions()
 
+    def backup_trust_store(self):
+        self.bk_store = None
+        if 'REQUESTS_CA_BUNDLE' in os.environ:
+            self.bk_store = os.environ['REQUESTS_CA_BUNDLE']
+            del os.environ['REQUESTS_CA_BUNDLE']
 
+    def restore_trust_store(self):
+        if self.bk_store is not None:
+            os.environ['REQUESTS_CA_BUNDLE'] = self.bk_store
+            
     def select_model(self, binding_name, model_name):
         self.config["binding_name"] = binding_name
         self.config["model_name"] = model_name
@@ -290,13 +304,14 @@ class LollmsApplication(LoLLMsCom):
                 if not PackageManager.check_package_installed("lollmsvectordb"):
                     PackageManager.install_package("lollmsvectordb")
                 
-                from lollmsvectordb.vectorizers.bert_vectorizer import BERTVectorizer
                 from lollmsvectordb import VectorDatabase
                 from lollmsvectordb.text_document_loader import TextDocumentsLoader
                 from lollmsvectordb.tokenizers.tiktoken_tokenizer import TikTokenTokenizer
                 if self.config.rag_vectorizer == "bert":
+                    self.backup_trust_store()
                     from lollmsvectordb.vectorizers.bert_vectorizer import BERTVectorizer
                     v = BERTVectorizer()
+                    self.restore_trust_store()
                 elif self.config.rag_vectorizer == "tfidf":
                     from lollmsvectordb.vectorizers.tfidf_vectorizer import TFIDFVectorizer
                     v = TFIDFVectorizer()
