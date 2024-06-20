@@ -125,23 +125,23 @@ def select_rag_database(client) -> Optional[Dict[str, Path]]:
             if db_name:
                 try:
                     lollmsElfServer.ShowBlockingMessage("Adding a new database.\nVectorizing the database")
-                    if not PackageManager.check_package_installed_with_version("lollmsvectordb","0.4.6"):
+                    if not PackageManager.check_package_installed_with_version("lollmsvectordb","0.5.1"):
                         PackageManager.install_or_update("lollmsvectordb")
                     
-                    from lollmsvectordb.vectorizers.bert_vectorizer import BERTVectorizer
+                    from lollmsvectordb.lollms_vectorizers.bert_vectorizer import BERTVectorizer
                     from lollmsvectordb import VectorDatabase
                     from lollmsvectordb.text_document_loader import TextDocumentsLoader
-                    from lollmsvectordb.tokenizers.tiktoken_tokenizer import TikTokenTokenizer
+                    from lollmsvectordb.lollms_tokenizers.tiktoken_tokenizer import TikTokenTokenizer
 
 
                     if lollmsElfServer.config.rag_vectorizer == "bert":
                         lollmsElfServer.backup_trust_store()
-                        from lollmsvectordb.vectorizers.bert_vectorizer import BERTVectorizer
+                        from lollmsvectordb.lollms_vectorizers.bert_vectorizer import BERTVectorizer
                         v = BERTVectorizer()
                         lollmsElfServer.restore_trust_store()
                         
                     elif lollmsElfServer.config.rag_vectorizer == "tfidf":
-                        from lollmsvectordb.vectorizers.tfidf_vectorizer import TFIDFVectorizer
+                        from lollmsvectordb.lollms_vectorizers.tfidf_vectorizer import TFIDFVectorizer
                         v = TFIDFVectorizer()
 
                     vdb = VectorDatabase(Path(folder_path)/"db_name.sqlite", v, lollmsElfServer.model if lollmsElfServer.model else TikTokenTokenizer())
@@ -254,20 +254,20 @@ def toggle_mount_rag_database(database_infos: MountDatabase):
     index, path = find_rag_database_by_name(lollmsElfServer.config.rag_databases,database_infos.database_name)
     if not lollmsElfServer.config.rag_databases[index].split("::")[-1]=="mounted":
         lollmsElfServer.config.rag_databases[index] = lollmsElfServer.config.rag_databases[index] + "::mounted"
-        if not PackageManager.check_package_installed("lollmsvectordb"):
-            PackageManager.install_package("lollmsvectordb")
+        if not PackageManager.check_package_installed_with_version("lollmsvectordb","0.5.1"):
+            PackageManager.install_or_update("lollmsvectordb")
         
         from lollmsvectordb import VectorDatabase
         from lollmsvectordb.text_document_loader import TextDocumentsLoader
-        from lollmsvectordb.tokenizers.tiktoken_tokenizer import TikTokenTokenizer
+        from lollmsvectordb.lollms_tokenizers.tiktoken_tokenizer import TikTokenTokenizer
 
         if lollmsElfServer.config.rag_vectorizer == "bert":
             lollmsElfServer.backup_trust_store()
-            from lollmsvectordb.vectorizers.bert_vectorizer import BERTVectorizer
+            from lollmsvectordb.lollms_vectorizers.bert_vectorizer import BERTVectorizer
             v = BERTVectorizer()
             lollmsElfServer.restore_trust_store()
         elif lollmsElfServer.config.rag_vectorizer == "tfidf":
-            from lollmsvectordb.vectorizers.tfidf_vectorizer import TFIDFVectorizer
+            from lollmsvectordb.lollms_vectorizers.tfidf_vectorizer import TFIDFVectorizer
             v = TFIDFVectorizer()
 
         vdb = VectorDatabase(Path(path)/"db_name.sqlite", v, lollmsElfServer.model if lollmsElfServer.model else TikTokenTokenizer(), n_neighbors=lollmsElfServer.config.rag_n_chunks)       

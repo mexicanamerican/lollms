@@ -102,21 +102,20 @@ class LollmsApplication(LoLLMsCom):
                     database_name = parts[0]
                     database_path = parts[1]            
 
-                    if not PackageManager.check_package_installed_with_version("lollmsvectordb","0.3.0"):
+                    if not PackageManager.check_package_installed_with_version("lollmsvectordb","0.5.1"):
                         PackageManager.install_or_update("lollmsvectordb")
-                    
                     from lollmsvectordb import VectorDatabase
                     from lollmsvectordb.text_document_loader import TextDocumentsLoader
-                    from lollmsvectordb.tokenizers.tiktoken_tokenizer import TikTokenTokenizer
+                    from lollmsvectordb.lollms_tokenizers.tiktoken_tokenizer import TikTokenTokenizer
 
                     if self.config.rag_vectorizer == "bert":
                         self.backup_trust_store()
-                        from lollmsvectordb.vectorizers.bert_vectorizer import BERTVectorizer
+                        from lollmsvectordb.lollms_vectorizers.bert_vectorizer import BERTVectorizer
                         v = BERTVectorizer()
                         self.restore_trust_store()
                         
                     elif self.config.rag_vectorizer == "tfidf":
-                        from lollmsvectordb.vectorizers.tfidf_vectorizer import TFIDFVectorizer
+                        from lollmsvectordb.lollms_vectorizers.tfidf_vectorizer import TFIDFVectorizer
                         v = TFIDFVectorizer()
 
                     vdb = VectorDatabase(Path(database_path)/"db_name.sqlite", v, self.model if self.model else TikTokenTokenizer(), n_neighbors=self.config.rag_n_chunks)       
@@ -306,14 +305,14 @@ class LollmsApplication(LoLLMsCom):
                 
                 from lollmsvectordb import VectorDatabase
                 from lollmsvectordb.text_document_loader import TextDocumentsLoader
-                from lollmsvectordb.tokenizers.tiktoken_tokenizer import TikTokenTokenizer
+                from lollmsvectordb.lollms_tokenizers.tiktoken_tokenizer import TikTokenTokenizer
                 if self.config.rag_vectorizer == "bert":
                     self.backup_trust_store()
-                    from lollmsvectordb.vectorizers.bert_vectorizer import BERTVectorizer
+                    from lollmsvectordb.lollms_vectorizers.bert_vectorizer import BERTVectorizer
                     v = BERTVectorizer()
                     self.restore_trust_store()
                 elif self.config.rag_vectorizer == "tfidf":
-                    from lollmsvectordb.vectorizers.tfidf_vectorizer import TFIDFVectorizer
+                    from lollmsvectordb.lollms_vectorizers.tfidf_vectorizer import TFIDFVectorizer
                     v = TFIDFVectorizer()
 
                 vdb = VectorDatabase(Path(parts[1])/"db_name.sqlite", v, self.model if self.model else TikTokenTokenizer(), n_neighbors=self.config.rag_n_chunks)       
