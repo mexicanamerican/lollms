@@ -1083,16 +1083,26 @@ class LollmsApplication(LoLLMsCom):
                         results+=r
                     n_neighbors = self.active_rag_dbs[0]["vectorizer"].n_neighbors
                     sorted_results = sorted(results, key=lambda x: x[3])[:n_neighbors]
-                    for vector, text, title, path, distance in sorted_results:
-                        document_infos = f"{separator_template}".join([
-                            f"{start_header_id_template}document chunk{end_header_id_template}",
-                            f"\nsource_document_title:{title}",
-                            f"source_document_path:{path}",
-                            f"content:{text}\n"
-                        ])
+                    try:
+                        for vector, text, title, path, distance in sorted_results:
+                            document_infos = f"{separator_template}".join([
+                                f"{start_header_id_template}document chunk{end_header_id_template}",
+                                f"\nsource_document_title:{title}",
+                                f"source_document_path:{path}",
+                                f"content:{text}\n"
+                            ])
 
-                        documentation += document_infos
+                            documentation += document_infos
+                    except:
+                        for vector, text, title, distance in sorted_results:
+                            document_infos = f"{separator_template}".join([
+                                f"{start_header_id_template}document chunk{end_header_id_template}",
+                                f"\nsource_document_title:{title}",
+                                f"content:{text}\n"
+                            ])
 
+                            documentation += document_infos
+                        
                 if (len(client.discussion.text_files) > 0) and client.discussion.vectorizer is not None:
                     if discussion is None:
                         discussion = self.recover_discussion(client_id)
