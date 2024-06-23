@@ -2515,8 +2515,8 @@ class APScript(StateMachine):
             self.ai_custom_header(context_details["ai_prefix"])
         ]))
 
-        return self.build_prompt(full_context, 
-                sacrifice_id)
+        return self.build_prompt(full_context, sacrifice_id)
+    
     def build_prompt(self, prompt_parts:List[str], sacrifice_id:int=-1, context_size:int=None, minimum_spare_context_size:int=None):
         """
         Builds the prompt for code generation.
