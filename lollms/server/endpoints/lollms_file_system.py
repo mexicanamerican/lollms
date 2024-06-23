@@ -125,7 +125,7 @@ def select_rag_database(client) -> Optional[Dict[str, Path]]:
             if db_name:
                 try:
                     lollmsElfServer.ShowBlockingMessage("Adding a new database.")
-                    if not PackageManager.check_package_installed_with_version("lollmsvectordb","0.5.5"):
+                    if not PackageManager.check_package_installed_with_version("lollmsvectordb","0.6.0"):
                         PackageManager.install_or_update("lollmsvectordb")
                     
                     from lollmsvectordb.lollms_vectorizers.bert_vectorizer import BERTVectorizer
@@ -263,7 +263,7 @@ def toggle_mount_rag_database(database_infos: MountDatabase):
             try:
                 lollmsElfServer.ShowBlockingMessage(f"Mounting database {parts[0]}")
                 lollmsElfServer.config.rag_databases[index] = lollmsElfServer.config.rag_databases[index] + "::mounted"
-                if not PackageManager.check_package_installed_with_version("lollmsvectordb","0.5.5"):
+                if not PackageManager.check_package_installed_with_version("lollmsvectordb","0.6.0"):
                     PackageManager.install_or_update("lollmsvectordb")
                 
                 from lollmsvectordb import VectorDatabase
@@ -326,7 +326,7 @@ async def vectorize_folder(database_infos: FolderInfos):
         if db_name:
             try:
                 lollmsElfServer.ShowBlockingMessage("Revectorizing the database.")
-                if not PackageManager.check_package_installed_with_version("lollmsvectordb","0.5.5"):
+                if not PackageManager.check_package_installed_with_version("lollmsvectordb","0.6.0"):
                     PackageManager.install_or_update("lollmsvectordb")
                 
                 from lollmsvectordb.lollms_vectorizers.bert_vectorizer import BERTVectorizer
