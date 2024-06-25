@@ -38,9 +38,10 @@ def load_image_from_url(url: str) -> Image.Image:
     response.raise_for_status()  # Ensure we notice bad responses
     image = Image.open(BytesIO(response.content))
     return image
+
 def draw_text_with_outline(draw: ImageDraw.Draw, text: str, position: tuple, font: ImageFont.FreeTypeFont, outline_width: int = 2, fill: str = "white", outline_fill: str = "black"):
     """
-    Draw text with an outline.
+    Draw text with an outline, perfect for meme-worthy captions.
 
     Args:
         draw (ImageDraw.Draw): The drawing context.
@@ -48,8 +49,8 @@ def draw_text_with_outline(draw: ImageDraw.Draw, text: str, position: tuple, fon
         position (tuple): The position to draw the text (x, y).
         font (ImageFont.FreeTypeFont): The font to use.
         outline_width (int): The width of the outline.
-        fill (str): Color to fill the text with.
-        outline_fill (str): Color to fill the outline with.
+        fill (str): Color to fill the text with (default is white).
+        outline_fill (str): Color to fill the outline with (default is black).
     """
     x, y = position
     # Draw outline
@@ -59,6 +60,7 @@ def draw_text_with_outline(draw: ImageDraw.Draw, text: str, position: tuple, fon
                 draw.text((x + dx, y + dy), text, font=font, fill=outline_fill)
     # Draw text
     draw.text(position, text, font=font, fill=fill)
+
 
 def draw_text_within_box(draw: ImageDraw.Draw, text: str, box_coords: tuple, font_path: Path, initial_font_size: int, fill: str = "white", outline_fill: str = "black"):
     """
@@ -125,8 +127,8 @@ def drake_meme_generator(positive_text: str, negative_text: str, client:Client) 
         font_path = Path("arial.ttf")  # Ensure you have a suitable font file
 
         # Add text to the image
-        draw_text_within_box(draw, negative_text, first_box_coords, font_path, initial_font_size=40, fill="black")
-        draw_text_within_box(draw, positive_text, second_box_coords, font_path, initial_font_size=40, fill="black")
+        draw_text_within_box(draw, negative_text, first_box_coords, font_path, initial_font_size=40, fill="white")
+        draw_text_within_box(draw, positive_text, second_box_coords, font_path, initial_font_size=40, fill="white")
 
         # Save the modified image
         output_path = client.discussion_path/"drake_meme_output.jpg"
@@ -145,5 +147,57 @@ def drake_meme_generator_function(client:Client) -> Dict:
         "function_parameters": [
             {"name": "positive_text", "type": "str"},
             {"name": "negative_text", "type": "str"}
+        ]
+    }
+
+def two_paths_meme_generator(good_text: str, bad_text: str, person_text: str, client: Client) -> str:
+    """
+    Generates a Two Paths meme using the provided text for the good path, bad path, and the person.
+
+    Args:
+        good_text (str): Text to be placed on the path towards the good castle.
+        bad_text (str): Text to be placed on the path towards the bad castle.
+        person_text (str): Text to be placed on the person.
+
+    Returns:
+        str: HTML string containing the path to the generated meme image.
+    """
+    try:
+        # Load the Two Paths meme template image
+        template_url = "https://i.imgflip.com/54d9lj.png?a477528"
+        image = load_image_from_url(template_url)
+
+        # Define positions for text boxes
+        good_path_coords = (0, 0, 196, 148)
+        bad_path_coords = (197, 0, 414, 148)
+        person_coords = (130, 306, 282, 416)
+
+        # Initialize drawing context
+        draw = ImageDraw.Draw(image)
+        font_path = Path("arial.ttf")  # Ensure you have a suitable font file
+
+        # Add text to the image
+        draw_text_within_box(draw, good_text, good_path_coords, font_path, initial_font_size=20)
+        draw_text_within_box(draw, bad_text, bad_path_coords, font_path, initial_font_size=20)
+        draw_text_within_box(draw, person_text, person_coords, font_path, initial_font_size=20)
+
+        # Save the modified image
+        output_path = client.discussion_path / "two_paths_meme_output.jpg"
+        image.save(output_path)
+
+        # Return HTML string with the image path
+        return f'<img src="{discussion_path_to_url(output_path)}" alt="Two Paths Meme">'
+    except Exception as e:
+        return trace_exception(e)
+
+def two_paths_meme_generator_function(client: Client) -> Dict:
+    return {
+        "function_name": "two_paths_meme_generator",
+        "function": partial(two_paths_meme_generator, client=client),
+        "function_description": "Generates a Two Paths meme using the provided text for the good path, bad path, and the person.",
+        "function_parameters": [
+            {"name": "good_text", "type": "str"},
+            {"name": "bad_text", "type": "str"},
+            {"name": "person_text", "type": "str"}
         ]
     }
