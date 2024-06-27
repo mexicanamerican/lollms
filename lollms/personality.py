@@ -3798,10 +3798,14 @@ fetch('/open_file', {
     def compress_html(self, code):
         return compress_html(code)
 
+
+
+
 # ===========================================================
     def select_model(self, binding_name, model_name):
         self.personality.app.select_model(binding_name, model_name)
-
+    def verify_rag_entry(self, query, rag_entry):
+        return self.yes_no("Does the text entry contain the answer to the query?", self.system_custom_header("Query")+query+"\n"+self.system_custom_header("text entry")+":\n"+rag_entry)
     # Properties ===============================================
     @property
     def start_header_id_template(self) -> str:

@@ -1053,10 +1053,21 @@ class LollmsApplication(LoLLMsCom):
                             f"{start_header_id_template}Documentation{end_header_id_template}"])
                         documentation += f"{separator_template}"
                     results = []
-                    for db in self.active_rag_dbs:
-                        v = db["vectorizer"]
-                        r=v.search(query)
-                        results+=r
+                    recovered_ids=[[]*len(self.active_rag_dbs)]
+                    i=0
+                    hop_id = 0
+                    while( len(results)<self.config.rag_n_chunks and hop_id<self.config.rag_max_n_hops):
+                        hop_id +=1
+                        for db in self.active_rag_dbs:
+                            v = db["vectorizer"]
+                            r=v.search(query, self.config.rag_n_chunks, recovered_ids[i])
+                            recovered_ids[i].append([rg.chunk_id for rg in r])
+                            if self.config.rag_activate_multi_hops:
+                                r = [rg for rg in r if self.personality.verify_rag_entry(query, rg.content)]
+                            results+=r
+                            i+=1
+                        if len(results)>=self.config.rag_n_chunks:
+                            break
                     n_neighbors = self.active_rag_dbs[0]["vectorizer"].n_neighbors
                     sorted_results = sorted(results, key=lambda x: x.distance)[:n_neighbors]
 
@@ -1321,7 +1332,7 @@ class LollmsApplication(LoLLMsCom):
             "extra":""
         }    
         if self.config.debug:
-            ASCIIColors.hilight(documentation,"source_document_title", ASCIIColors.color_yellow, ASCIIColors.color_red, False)
+            ASCIIColors.highlight(documentation,"source_document_title", ASCIIColors.color_yellow, ASCIIColors.color_red, False)
         # Return the prepared query, original message content, and tokenized query
         return prompt_data, current_message.content, tokens, context_details, internet_search_infos                
 
