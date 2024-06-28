@@ -14,6 +14,8 @@ from lollms.client_session import Client, Session
 from lollms.databases.skills_database import SkillsLibrary
 from lollms.tasks import TasksLibrary
 from safe_store import TextVectorizer, VectorizationMethod, VisualizationMethod
+
+from lollmsvectordb.database_elements.chunk import Chunk
 from typing import Callable
 from pathlib import Path
 from datetime import datetime
@@ -905,7 +907,7 @@ class LollmsApplication(LoLLMsCom):
 
         if len(conditionning)>0:
             conditionning =  self.start_header_id_template + system_message_template + self.end_header_id_template + self.personality.replace_keys(conditionning, self.personality.conditionning_commands) + ("" if conditionning[-1]==self.separator_template else self.separator_template)
-            
+
         # Check if there are document files to add to the prompt
         internet_search_results = ""
         internet_search_infos = []
@@ -1093,25 +1095,12 @@ class LollmsApplication(LoLLMsCom):
                             query = current_message.content
 
                     try:
-                        if self.config.data_vectorization_force_first_chunk and len(client.discussion.vectorizer.chunks)>0:
-                            doc_index = list(client.discussion.vectorizer.chunks.keys())[0]
-
-                            doc_id = client.discussion.vectorizer.chunks[doc_index]['document_id']
-                            content = client.discussion.vectorizer.chunks[doc_index]['chunk_text']
-                            
+                        chunks:List[Chunk] = client.discussion.vectorizer.search(query, int(self.config.rag_n_chunks))
+                        for chunk in chunks:
                             if self.config.data_vectorization_put_chunk_informations_into_context:
-                                documentation += f"{self.start_header_id_template}document chunk{self.end_header_id_template}\nchunk_infos:{doc_id}\ncontent:{content}\n"
+                                documentation += f"{self.start_header_id_template}document chunk{self.end_header_id_template}\ndocument title: {chunk.doc.title}\nchunk content:\n{chunk.text}\n"
                             else:
-                                documentation += f"{self.start_header_id_template}chunk{self.end_header_id_template}\n{content}\n"
-
-                        docs, sorted_similarities, document_ids = client.discussion.vectorizer.recover_text(query, top_k=int(self.config.data_vectorization_nb_chunks))
-                        for doc, infos in zip(docs, sorted_similarities):
-                            if self.config.data_vectorization_force_first_chunk and len(client.discussion.vectorizer.chunks)>0 and infos[0]==doc_id:
-                                continue
-                            if self.config.data_vectorization_put_chunk_informations_into_context:
-                                documentation += f"{self.start_header_id_template}document chunk{self.end_header_id_template}\nchunk path: {infos[0]}\nchunk content:\n{doc}\n"
-                            else:
-                                documentation += f"{self.start_header_id_template}chunk{self.end_header_id_template}\n{doc}\n"
+                                documentation += f"{self.start_header_id_template}chunk{self.end_header_id_template}\n{chunk.text}\n"
 
                         documentation += f"{self.separator_template}{self.start_header_id_template}important information: Use the documentation data to answer the user questions. If the data is not present in the documentation, please tell the user that the information he is asking for does not exist in the documentation section. It is strictly forbidden to give the user an answer without having actual proof from the documentation.\n"
                     except Exception as ex:
