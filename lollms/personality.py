@@ -699,7 +699,7 @@ class AIPersonality:
         prompt = pr.build(placeholders,
                         self.model.tokenize,
                         self.model.detokenize,
-                        self.model.config.ctx_size - max_generation_size,
+                        max_generation_size,
                         sacrifice
                         )
         ntk = len(self.model.tokenize(prompt))
