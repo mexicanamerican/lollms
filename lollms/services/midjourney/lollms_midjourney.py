@@ -232,6 +232,7 @@ class LollmsMidjourney(LollmsTTI):
         except Exception as e:
             trace_exception(e)
             ASCIIColors.error(f"An error occurred: {e}")
+            return "", {"prompt":positive_prompt, "negative_prompt":negative_prompt}
     
     @staticmethod
     def get(app:LollmsApplication):
