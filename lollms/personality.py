@@ -618,7 +618,7 @@ class AIPersonality:
         system_message_template     = self.config.system_message_template
 
         prompt = "\n".join([
-            f"{start_header_id_template}{system_message_template}{end_header_id_template}I am an AI assistant that can converse and analyze images. When asked to locate something in an image you send, I will reply with:",
+            self.system_full_header+f"I am an AI assistant that can converse and analyze images. When asked to locate something in an image you send, I will reply with:",
             "boundingbox(image_index, label, left, top, width, height)",
             "Where:",
             "image_index: 0-based index of the image",
