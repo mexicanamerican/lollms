@@ -2813,8 +2813,16 @@ class APScript(StateMachine):
             full_context.append( self.separator_template.join([
                 self.ai_custom_header(context_details["ai_prefix"])
             ]))
+        
+        prompt = self.build_prompt(full_context, sacrifice_id)
+        
+        if self.config.debug:
+            nb_prompt_tokens = self.personality.model.tokenize(prompt)
+            nb_tokens = min(self.config.ctx_size - nb_prompt_tokens, self.config.max_n_predict)
+            ASCIIColors.info(f"Prompt size : {nb_prompt_tokens}")
+            ASCIIColors.info(f"Requested generation max size : {nb_tokens}")
 
-        return self.build_prompt(full_context, sacrifice_id)
+        return prompt
     
     def build_prompt(self, prompt_parts:List[str], sacrifice_id:int=-1, context_size:int=None, minimum_spare_context_size:int=None):
         """
@@ -3873,17 +3881,12 @@ class APScript(StateMachine):
         Returns:
             str: The upgraded prompt that includes information about the function calls.
         """
-        start_header_id_template    = self.config.start_header_id_template
-        end_header_id_template      = self.config.end_header_id_template
-        system_message_template     = self.config.system_message_template
-        separator_template          = self.config.separator_template
-
-
         tools = self.transform_functions_to_text(functions)
         import copy
         cd = copy.deepcopy(context_details)
+        
         function_descriptions = [
-                                 f"{start_header_id_template}Available functions{end_header_id_template}\n",
+                                 self.system_custom_header("Available functions"),
                                  tools,
                                  "",
                                  cd["conditionning"],
