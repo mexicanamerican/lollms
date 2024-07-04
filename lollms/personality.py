@@ -3962,11 +3962,6 @@ class APScript(StateMachine):
                                         hide_function_call=False,
                                         separate_output=False,
                                         max_nested_function_calls=10):
-        
-        start_header_id_template    = self.config.start_header_id_template
-        end_header_id_template      = self.config.end_header_id_template
-        system_message_template     = self.config.system_message_template
-        separator_template          = self.config.separator_template
 
         final_output = ""
         if len(self.personality.image_files)>0:
@@ -3985,7 +3980,7 @@ class APScript(StateMachine):
 
             outputs = self.execute_function_calls(function_calls,function_definitions)
             final_output = "\n".join([str(o) if type(o)==str else str(o[0]) if (type(o)==tuple or type(0)==list) and len(o)>0 else "" for o in outputs])
-            out += f"{separator_template}{start_header_id_template}function calls results{end_header_id_template}\n" + final_output + "\n"
+            out +=  f"{self.separator_template}"+ self.system_custom_header('function calls results') + final_output + "\n"
             if prompt_after_execution:
                 if separate_output:
                     self.full(final_output)
