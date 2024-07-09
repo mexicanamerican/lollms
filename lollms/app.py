@@ -253,7 +253,7 @@ class LollmsApplication(LoLLMsCom):
             text = message.content
             message_content += f"Rank {rank} - {sender}: {text}\n"
 
-        return self.tasks_library.summerize_text(
+        return self.tasks_library.summarize_text(
             message_content, 
             "\n".join([
                 "Extract useful information from this discussion."
@@ -1053,7 +1053,7 @@ class LollmsApplication(LoLLMsCom):
                             for doc in docs:
                                 document=v.get_document(document_path = doc["path"])
                                 self.personality.step_start(f"Summeryzing document {doc['path']}")
-                                summary = self.personality.summerize_text(document, f"Extract information from the following text chunk to answer this request. If there is no information about the query, just return an empty string.\n{self.system_custom_header('query')}{query}", callback=self.personality.sink)
+                                summary = self.personality.summarize_text(document, f"Extract information from the following text chunk to answer this request. If there is no information about the query, just return an empty string.\n{self.system_custom_header('query')}{query}", callback=self.personality.sink)
                                 self.personality.step_end(f"Summeryzing document {doc['path']}")
                                 document_infos = f"{self.separator_template}".join([
                                     self.system_custom_header('document contextual summary'),
@@ -1071,7 +1071,7 @@ class LollmsApplication(LoLLMsCom):
                                 if summary!="":
                                     v.add_summaries(doc['path'],[{"context":query, "summary":summary}])
                                 full_documentation += document_infos
-                        documentation += self.personality.summerize_text(full_documentation, f"Extract information from the current text chunk and previous text chunks to answer the query. If there is no information about the query, just return an empty string.\n{self.system_custom_header('query')}{query}", callback=self.personality.sink)
+                        documentation += self.personality.summarize_text(full_documentation, f"Extract information from the current text chunk and previous text chunks to answer the query. If there is no information about the query, just return an empty string.\n{self.system_custom_header('query')}{query}", callback=self.personality.sink)
 
                     else:
                         results = []
@@ -1139,7 +1139,7 @@ class LollmsApplication(LoLLMsCom):
                         for doc in docs:
                             document=v.get_document(document_path = doc["path"])
                             self.personality.step_start(f"Summeryzing document {doc['path']}")
-                            summary = self.personality.summerize_text(document, f"Extract information from the following text chunk to answer this request. If there is no information about the query, just return an empty string.\n{self.system_custom_header('query')}{query}", callback=self.personality.sink)
+                            summary = self.personality.summarize_text(document, f"Extract information from the following text chunk to answer this request. If there is no information about the query, just return an empty string.\n{self.system_custom_header('query')}{query}", callback=self.personality.sink)
                             self.personality.step_end(f"Summeryzing document {doc['path']}")
                             document_infos = f"{self.separator_template}".join([
                                 self.system_custom_header('document contextual summary'),
@@ -1157,7 +1157,7 @@ class LollmsApplication(LoLLMsCom):
                             if summary!="":
                                 v.add_summaries(doc['path'],[{"context":query, "summary":summary}])
                             full_documentation += document_infos
-                        documentation += self.personality.summerize_text(full_documentation, f"Extract information from the current text chunk and previous text chunks to answer the query. If there is no information about the query, just return an empty string.\n{self.system_custom_header('query')}{query}", callback=self.personality.sink)
+                        documentation += self.personality.summarize_text(full_documentation, f"Extract information from the current text chunk and previous text chunks to answer the query. If there is no information about the query, just return an empty string.\n{self.system_custom_header('query')}{query}", callback=self.personality.sink)
                     else:
                         try:
                             chunks:List[Chunk] = client.discussion.vectorizer.search(query, int(self.config.rag_n_chunks))
