@@ -3021,6 +3021,30 @@ class APScript(StateMachine):
         if callback:
             callback(html_ui, MSG_TYPE.MSG_TYPE_UI)
 
+
+    def ui_in_iframe(self, html_ui:str, callback: Callable[[str, MSG_TYPE, dict, list], bool]=None):
+        """This sends ui elements to front end inside an iframe
+
+        Args:
+            html_ui (str): The HTML content to be displayed inside the iframe
+            callback (callable, optional): A callable with this signature (str, MSG_TYPE, dict, list) to send the step to. Defaults to None.
+            The callback has these fields:
+            - chunk
+            - Message Type : the type of message
+            - Parameters (optional) : a dictionary of parameters
+            - Metadata (optional) : a list of metadata
+        """
+        if not callback and self.callback:
+            callback = self.callback
+
+        if callback:
+            iframe_html = f'<iframe srcdoc="{html_ui}" style="width:100%; height:100%; border:none;"></iframe>'
+            callback(iframe_html, MSG_TYPE.MSG_TYPE_UI)
+
+
+
+
+
     def code(self, code:str, callback: Callable[[str, MSG_TYPE, dict, list], bool]=None):
         """This sends code to front end
 
@@ -3703,7 +3727,7 @@ class APScript(StateMachine):
 
     def fast_gen(self, prompt: str, max_generation_size: int= None, placeholders: dict = {}, sacrifice: list = ["previous_discussion"], debug: bool = False, callback=None, show_progress=False) -> str:
         """
-        Fast way to generate code
+        Fast way to generate text
 
         This method takes in a prompt, maximum generation size, optional placeholders, sacrifice list, and debug flag.
         It reshapes the context before performing text generation by adjusting and cropping the number of tokens.
@@ -3719,6 +3743,53 @@ class APScript(StateMachine):
         - str: The generated text after removing special tokens ("<s>" and "</s>") and stripping any leading/trailing whitespace.
         """
         return self.personality.fast_gen(prompt=prompt,max_generation_size=max_generation_size,placeholders=placeholders, sacrifice=sacrifice, debug=debug, callback=callback, show_progress=show_progress)
+
+    def mix_it_up(self, prompt: str, models, master_model, max_generation_size: int= None, placeholders: dict = {}, sacrifice: list = ["previous_discussion"], debug: bool = False, callback=None, show_progress=False) -> dict:
+        """
+        Fast generates text using multiple LLMs with round tracking. Each LLM sees the initial prompt plus the concatenated outputs of the previous round.
+        The master model then completes the job by creating a unique answer inspired by the last round outputs. 
+
+        Parameters:
+        - prompt (str): The input prompt for text generation.
+        - models (list of str): The list of model identifiers in the format "binding_name::model_name".
+        - master_model (str): The model identifier for the master model, also in the format "binding_name::model_name".
+        - max_generation_size (int): The maximum number of tokens to generate.
+        - placeholders (dict, optional): A dictionary of placeholders to be replaced in the prompt. Defaults to an empty dictionary.
+        - sacrifice (list, optional): A list of placeholders to sacrifice if the window is bigger than the context size minus the number of tokens to generate. Defaults to ["previous_discussion"].
+        - debug (bool, optional): Flag to enable/disable debug mode. Defaults to False.
+
+        Returns:
+        - dict: A dictionary with the round information and the final generated text, keys: 'rounds' and 'final_output'.
+        """
+        context = prompt
+        previous_output = ''
+
+        # Dictionary to store rounds information
+        rounds_info = {
+            'initial_prompt': prompt,
+            'rounds': []
+        }
+
+        for idx, model_id in enumerate(models):
+            binding_name, model_name = model_id.split("::")
+            self.select_model(binding_name, model_name)
+            round_prompt = context + "\n" + previous_output
+            output = self.fast_gen(prompt=round_prompt, max_generation_size=max_generation_size, placeholders=placeholders, sacrifice=sacrifice, debug=debug, callback=callback, show_progress=show_progress)
+            rounds_info['rounds'].append({
+                'model': model_id,
+                'round_prompt': round_prompt,
+                'output': output
+            })
+            previous_output = output  # Update for the next round
+
+        # Final round with the master model
+        self.select_model(*master_model.split("::"))
+        final_prompt = context + "\n" + previous_output
+        final_output = self.fast_gen(prompt=final_prompt, max_generation_size=max_generation_size, placeholders=placeholders, sacrifice=sacrifice, debug=debug, callback=callback, show_progress=show_progress)
+
+        rounds_info['final_output'] = final_output
+
+        return rounds_info
 
 
 
