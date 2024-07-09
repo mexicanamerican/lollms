@@ -263,7 +263,7 @@ class LollmsApplication(LoLLMsCom):
         
 
     def _generate_text(self, prompt):
-        max_tokens = self.config.ctx_size - self.model.get_nb_tokens(prompt)
+        max_tokens = min(self.config.ctx_size - self.model.get_nb_tokens(prompt),self.config.max_n_predict)
         generated_text = self.model.generate(prompt, max_tokens)
         return generated_text.strip()
 
