@@ -237,7 +237,7 @@ class LollmsApplication(LoLLMsCom):
         title = self._generate_text(title_prompt)
 
         # Determine category
-        category_prompt = f"{self.start_header_id_template}{system_message_template}{end_header_id_template}Analyze the following title, and determine the most appropriate generic category that encompasses the main subject or theme. The category should be broad enough to include multiple related skill entries. Provide only the category name without any additional explanations or context:\n\nTitle:\n{title}\n{separator_template}{self.start_header_id_template}Category:\n"
+        category_prompt = f"{self.system_full_header}Analyze the following title, and determine the most appropriate generic category that encompasses the main subject or theme. The category should be broad enough to include multiple related skill entries. Provide only the category name without any additional explanations or context:\n\nTitle:\n{title}\n{separator_template}{self.start_header_id_template}Category:\n"
         category = self._generate_text(category_prompt)
 
         # Add entry to skills library
@@ -862,6 +862,7 @@ class LollmsApplication(LoLLMsCom):
         Returns:
             Tuple[str, str, List[str]]: The prepared query, original message content, and tokenized query.
         """
+        skills = []
         documentation_entries = []
         start_ai_header_id_template     = self.config.start_ai_header_id_template
         end_ai_header_id_template       = self.config.end_ai_header_id_template
@@ -1043,7 +1044,7 @@ class LollmsApplication(LoLLMsCom):
                             "Absence of Information: If the required information is not available in the documentation, inform the user that the requested information is not present in the documentation section.",
                             "Strict Adherence to Documentation: It is strictly prohibited to provide answers without concrete evidence from the documentation.",
                             "Cite Your Sources: After providing an answer, include the full path to the document where the information was found.",
-                            f"{self.start_header_id_template}Documentation{self.end_header_id_template}"])
+                            self.system_custom_header("Documentation")])
                         documentation += f"{self.separator_template}"
                     full_documentation=""
                     if self.config.contextual_summary:
@@ -1180,6 +1181,7 @@ class LollmsApplication(LoLLMsCom):
                         self.personality.step_start("Building query")
                         query = self.personality.fast_gen(f"{self.start_header_id_template}{system_message_template}{self.end_header_id_template}Your task is to carefully read the provided discussion and reformulate {self.config.user_name}'s request concisely. Return only the reformulated request without any additional explanations, commentary, or output.{self.separator_template}{self.start_header_id_template}discussion:\n{discussion[-2048:]}{self.separator_template}{self.start_header_id_template}search query: ", max_generation_size=256, show_progress=True, callback=self.personality.sink)
                         self.personality.step_end("Building query")
+                        self.personality.step(f"query: {query}")
                         # skills = self.skills_library.query_entry(query)
                         self.personality.step_start("Adding skills")
                         if self.config.debug:
@@ -1188,9 +1190,9 @@ class LollmsApplication(LoLLMsCom):
                         knowledge_infos={"titles":skill_titles,"contents":skills}
                         if len(skills)>0:
                             if knowledge=="":
-                                knowledge=f"{self.start_header_id_template}knowledge{self.end_header_id_template}\n"
+                                knowledge=f"{self.system_custom_header(knowledge)}\n"
                             for i,(title, content) in enumerate(zip(skill_titles,skills)):
-                                knowledge += f"{self.start_header_id_template}knowledge {i}{self.end_header_id_template}\ntitle:\n{title}\ncontent:\n{content}\n"
+                                knowledge += self.system_custom_header(f"knowledge {i}") +f"\ntitle:\n{title}\ncontent:\n{content}\n"
                         self.personality.step_end("Adding skills")
                         self.personality.step_end("Querying skills library")
                     except Exception as ex:
@@ -1373,7 +1375,8 @@ class LollmsApplication(LoLLMsCom):
             "fun_mode":fun_mode,
             "ai_prefix":ai_prefix,
             "extra":"",
-            "available_space":available_space
+            "available_space":available_space,
+            "skills":skills
         }    
         if self.config.debug:
             ASCIIColors.highlight(documentation,"source_document_title", ASCIIColors.color_yellow, ASCIIColors.color_red, False)
