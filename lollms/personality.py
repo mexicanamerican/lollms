@@ -3769,8 +3769,10 @@ class APScript(StateMachine):
             'initial_prompt': prompt,
             'rounds': []
         }
-        for rounds in range(nb_rounds):
+        for round in range(nb_rounds):
+            self.step_start(f"Round {round + 1}")
             for idx, model_id in enumerate(models):
+                self.step_start(f"Using model {model_id}")
                 binding_name, model_name = model_id.split("::")
                 self.select_model(binding_name, model_name)
                 
@@ -3785,6 +3787,8 @@ class APScript(StateMachine):
                     'output': output
                 })
                 previous_outputs.append((model_id, output))  # Update for the next round
+                self.step_end(f"Using model {model_id}")
+            self.step_end(f"Round {round + 1}")
 
         # Final round with the master model
         self.select_model(*master_model.split("::"))
