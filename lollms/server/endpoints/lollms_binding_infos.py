@@ -244,7 +244,7 @@ def get_active_binding_settings():
 @router.post("/set_active_binding_settings")
 async def set_active_binding_settings(request: Request):
     data = await request.json()
-    check_access(data["client_id"])
+    check_access(lollmsElfServer,data["client_id"])
     settings = data["settings"]
     """
     Sets the active binding settings.
