@@ -337,12 +337,12 @@ def internet_search_with_vectorization(query, chromedriver_path=None, internet_n
         from lollmsvectordb.lollms_vectorizers.word2vec_vectorizer import Word2VecVectorizer
         v = Word2VecVectorizer()
 
-    vectorizer = VectorDatabase("", v, TikTokenTokenizer())
+    vectorizer = VectorDatabase("", v, TikTokenTokenizer(), internet_vectorization_chunk_size, internet_vectorization_overlap_size)
 
     formatted_text = ""
     nb_non_empty = 0
     ise = InternetSearchEnhancer()
-    results = ise.search(query)
+    results = ise.search(query, num_results=internet_nb_search_pages)
     
     if len(results)>0:
         for i, result in enumerate(results):
@@ -351,7 +351,7 @@ def internet_search_with_vectorization(query, chromedriver_path=None, internet_n
             brief = result["snippet"]
             href = result["url"]
             if quick_search:
-                vectorizer.add_document({'url':href, 'title':title, 'brief': brief}, brief)
+                vectorizer.add_document(title, brief, href)
             else:
                 get_relevant_text_block(href, vectorizer, title)
             nb_non_empty += 1

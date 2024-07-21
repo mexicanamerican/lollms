@@ -974,7 +974,11 @@ class LollmsApplication(LoLLMsCom):
                     
                     if len(chunks)>0:
                         for chunk in chunks:
-                            internet_search_infos.append(chunk.doc.title)
+                            internet_search_infos.append({
+                                "title":chunk.doc.title,
+                                "url":chunk.doc.path,
+                                "brief":chunk.text
+                            })
                             internet_search_results += f"{self.start_header_id_template}search result chunk{self.end_header_id_template}\nchunk_infos:{chunk.doc.path}\nchunk_title:{chunk.doc.title}\ncontent:{chunk.text}\n"
                     else:
                         internet_search_results += "The search response was empty!\nFailed to recover useful information from the search engine.\n"
