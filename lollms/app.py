@@ -979,9 +979,10 @@ class LollmsApplication(LoLLMsCom):
                                 "url":chunk.doc.path,
                                 "brief":chunk.text
                             })
-                            internet_search_results += f"{self.start_header_id_template}search result chunk{self.end_header_id_template}\nchunk_infos:{chunk.doc.path}\nchunk_title:{chunk.doc.title}\ncontent:{chunk.text}\n"
+                            internet_search_results += self.system_custom_header("search result chunk")+f"\nchunk_infos:{chunk.doc.path}\nchunk_title:{chunk.doc.title}\ncontent:{chunk.text}\n"
                     else:
                         internet_search_results += "The search response was empty!\nFailed to recover useful information from the search engine.\n"
+                    internet_search_results += self.system_custom_header("information") + "Use the search results to answer the user question."
                     if self.config.internet_quick_search:
                         self.personality.step_end("Performing Internet search (quick mode)")
                     else:
