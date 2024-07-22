@@ -148,7 +148,7 @@ def scrape_and_save(url, file_path:str|Path=None, use_selenium=False, follow_lin
     if follow_links:
         results = scraper.scrape_website(max_depth=max_depth, output_dir=file_path.parent, prefix=file_path.stem+'_')
     else:
-        results = scraper.scrape_all(output_dir = images_folder, use_selenium=use_selenium)
+        results = scraper.scrape_all("p","img",output_dir = images_folder, use_selenium=use_selenium)
 
     # Save scraped texts to the markdown file
     if file_path:
