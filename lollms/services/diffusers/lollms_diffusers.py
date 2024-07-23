@@ -21,11 +21,13 @@ import threading
 
 import pipmaster as pm
 if not pm.is_installed("torch"):
-    pm.install_or_update("torch torchvision torchaudio", "https://download.pytorch.org/whl/cu121")
+    ASCIIColors.yellow("Diffusers: Torch not found. Installing it")
+    pm.install_multiple(["torch","torchvision","torchaudio"], "https://download.pytorch.org/whl/cu121", force_reinstall=True)
 
 import torch
 if not torch.cuda.is_available():
-    pm.install_or_update("torch torchvision torchaudio", "https://download.pytorch.org/whl/cu121")
+    ASCIIColors.yellow("Diffusers: Torch not using cuda. Reinstalling it")
+    pm.install_multiple(["torch","torchvision","torchaudio"], "https://download.pytorch.org/whl/cu121", force_reinstall=True)
 
 
 
