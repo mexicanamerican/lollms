@@ -777,7 +777,7 @@ class AIPersonality:
         self.bot_says = ""
         if debug:
             self.print_prompt("gen",prompt)
-        ntokens = self.model.tokenize(prompt)
+        ntokens = len(self.model.tokenize(prompt))
         
         self.model.generate(
                                 prompt,
