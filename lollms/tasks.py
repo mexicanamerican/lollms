@@ -154,7 +154,7 @@ class TasksLibrary:
         prompt = pr.build(placeholders,
                         self.lollms.model.tokenize,
                         self.lollms.model.detokenize,
-                        self.lollms.model.config.ctx_size - max_generation_size,
+                        (self.lollms.model.config.ctx_size - max_generation_size) if max_generation_size else (self.lollms.model.config.ctx_size - 1024),
                         sacrifice
                         )
         # TODO : add show progress
