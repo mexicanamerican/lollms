@@ -700,7 +700,7 @@ class AIPersonality:
         prompt = pr.build(placeholders,
                         self.model.tokenize,
                         self.model.detokenize,
-                        (self.lollms.model.config.ctx_size - max_generation_size) if max_generation_size is not None else (self.lollms.model.config.ctx_size - 1024),
+                        (self.lollms.model.config.ctx_size - max_generation_size) if max_generation_size is not None else (self.model.config.ctx_size - 1024),
                         sacrifice
                         )
         # TODO : add show progress
