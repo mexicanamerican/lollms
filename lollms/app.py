@@ -282,27 +282,29 @@ class LollmsApplication(LoLLMsCom):
             parts = rag_db.split("::")
             db_name = parts[0]
             if parts[-1]=="mounted":
-                if not PackageManager.check_package_installed("lollmsvectordb"):
-                    PackageManager.install_package("lollmsvectordb")
-                
-                from lollmsvectordb import VectorDatabase
-                from lollmsvectordb.text_document_loader import TextDocumentsLoader
-                from lollmsvectordb.lollms_tokenizers.tiktoken_tokenizer import TikTokenTokenizer
-                if self.config.rag_vectorizer == "bert":
-                    self.backup_trust_store()
-                    from lollmsvectordb.lollms_vectorizers.bert_vectorizer import BERTVectorizer
-                    v = BERTVectorizer()
-                    self.restore_trust_store()
-                elif self.config.rag_vectorizer == "tfidf":
-                    from lollmsvectordb.lollms_vectorizers.tfidf_vectorizer import TFIDFVectorizer
-                    v = TFIDFVectorizer()
-                elif self.config.rag_vectorizer == "word2vec":
-                    from lollmsvectordb.lollms_vectorizers.word2vec_vectorizer import Word2VecVectorizer
-                    v = Word2VecVectorizer()
+                try:
+                    if not PackageManager.check_package_installed("lollmsvectordb"):
+                        PackageManager.install_package("lollmsvectordb")
+                    
+                    from lollmsvectordb import VectorDatabase
+                    from lollmsvectordb.text_document_loader import TextDocumentsLoader
+                    from lollmsvectordb.lollms_tokenizers.tiktoken_tokenizer import TikTokenTokenizer
+                    if self.config.rag_vectorizer == "bert":
+                        self.backup_trust_store()
+                        from lollmsvectordb.lollms_vectorizers.bert_vectorizer import BERTVectorizer
+                        v = BERTVectorizer()
+                        self.restore_trust_store()
+                    elif self.config.rag_vectorizer == "tfidf":
+                        from lollmsvectordb.lollms_vectorizers.tfidf_vectorizer import TFIDFVectorizer
+                        v = TFIDFVectorizer()
+                    elif self.config.rag_vectorizer == "word2vec":
+                        from lollmsvectordb.lollms_vectorizers.word2vec_vectorizer import Word2VecVectorizer
+                        v = Word2VecVectorizer()
 
-                vdb = VectorDatabase(Path(parts[1])/f"{db_name}.sqlite", v, self.model if self.model else TikTokenTokenizer(), n_neighbors=self.config.rag_n_chunks)       
-                self.active_rag_dbs.append({"name":parts[0],"path":parts[1],"vectorizer":vdb})
-
+                    vdb = VectorDatabase(Path(parts[1])/f"{db_name}.sqlite", v, self.model if self.model else TikTokenTokenizer(), n_neighbors=self.config.rag_n_chunks)       
+                    self.active_rag_dbs.append({"name":parts[0],"path":parts[1],"vectorizer":vdb})
+                except:
+                    ASCIIColors.error(f"Couldn't load "+Path(parts[1])/f"{db_name}.sqlite consider revectorizing it")
 
     def start_servers(self):
 
