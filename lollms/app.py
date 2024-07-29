@@ -304,7 +304,7 @@ class LollmsApplication(LoLLMsCom):
                     vdb = VectorDatabase(Path(parts[1])/f"{db_name}.sqlite", v, self.model if self.model else TikTokenTokenizer(), n_neighbors=self.config.rag_n_chunks)       
                     self.active_rag_dbs.append({"name":parts[0],"path":parts[1],"vectorizer":vdb})
                 except:
-                    ASCIIColors.error(f"Couldn't load "+Path(parts[1])/f"{db_name}.sqlite consider revectorizing it")
+                    ASCIIColors.error(f"Couldn't load "+str(Path(parts[1])/f"{db_name}.sqlite")+" consider revectorizing it")
 
     def start_servers(self):
 
