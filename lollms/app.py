@@ -1000,12 +1000,14 @@ class LollmsApplication(LoLLMsCom):
                 else:
                     query = current_message.content
                 try:
-                    docs, sorted_similarities, document_ids = self.personality.persona_data_vectorizer.recover_text(query, top_k=int(self.config.data_vectorization_nb_chunks))
-                    for doc, infos, doc_id in zip(docs, sorted_similarities, document_ids):
+                    chunks:List[Chunk] = self.personality.persona_data_vectorizer.search(query, int(self.config.rag_n_chunks))
+                    for chunk in chunks:
                         if self.config.data_vectorization_put_chunk_informations_into_context:
-                            documentation += f"{self.start_header_id_template}document chunk{self.end_header_id_template}\nchunk_infos:{infos}\ncontent:{doc}\n"
+                            documentation += f"{self.start_header_id_template}document chunk{self.end_header_id_template}\ndocument title: {chunk.doc.title}\nchunk content:\n{chunk.text}\n"
                         else:
-                            documentation += f"{self.start_header_id_template}chunk{self.end_header_id_template}\n{doc}\n"
+                            documentation += f"{self.start_header_id_template}chunk{self.end_header_id_template}\n{chunk.text}\n"
+
+                    documentation += f"{self.separator_template}{self.start_header_id_template}important information: Use the documentation data to answer the user questions. If the data is not present in the documentation, please tell the user that the information he is asking for does not exist in the documentation section. It is strictly forbidden to give the user an answer without having actual proof from the documentation.\n"
 
                 except Exception as ex:
                     trace_exception(ex)
