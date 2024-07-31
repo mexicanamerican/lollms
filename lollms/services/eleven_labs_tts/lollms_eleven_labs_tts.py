@@ -68,7 +68,7 @@ class LollmsElevenLabsTTS(LollmsTTS):
         self.streaming = streaming
         self.ready = True
 
-    def tts_file(self, text, speaker=None, file_name_or_path: Path | str = None, language="en", use_threading=False):
+    def tts_file(self, text, file_name_or_path: Path | str = None, speaker=None, language="en", use_threading=False):
         speech_file_path = file_name_or_path
         payload = {
             "text": text,
