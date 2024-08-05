@@ -3414,7 +3414,7 @@ class APScript(StateMachine):
         Returns:
         List[dict]: A list of dictionaries where each dictionary represents a code block and contains the following keys:
             - 'index' (int): The index of the code block in the text.
-            - 'file_name' (str): An empty string. This field is not used in the current implementation.
+            - 'file_name' (str): The name of the file extracted from the preceding line, if available.
             - 'content' (str): The content of the code block.
             - 'type' (str): The type of the code block. If the code block starts with a language specifier (like 'python' or 'java'), this field will contain that specifier. Otherwise, it will be set to 'language-specific'.
 
@@ -3424,18 +3424,18 @@ class APScript(StateMachine):
         """        
         remaining = text
         bloc_index = 0
-        first_index=0
+        first_index = 0
         indices = []
-        while len(remaining)>0:
+        while len(remaining) > 0:
             try:
                 index = remaining.index("```")
-                indices.append(index+first_index)
-                remaining = remaining[index+3:]
-                first_index += index+3
-                bloc_index +=1
+                indices.append(index + first_index)
+                remaining = remaining[index + 3:]
+                first_index += index + 3
+                bloc_index += 1
             except Exception as ex:
-                if bloc_index%2==1:
-                    index=len(remaining)
+                if bloc_index % 2 == 1:
+                    index = len(remaining)
                     indices.append(index)
                 remaining = ""
 
@@ -3443,15 +3443,22 @@ class APScript(StateMachine):
         is_start = True
         for index, code_delimiter_position in enumerate(indices):
             block_infos = {
-                'index':index,
+                'index': index,
                 'file_name': "",
                 'content': "",
-                'type':""
+                'type': ""
             }
             if is_start:
+                # Check the preceding line for file name
+                preceding_text = text[:code_delimiter_position].strip().splitlines()
+                if preceding_text:
+                    last_line = preceding_text[-1]
+                    if last_line.startswith("<file_name>") and last_line.endswith("</file_name>"):
+                        file_name = last_line[len("<file_name>"):-len("</file_name>")].strip()
+                        block_infos['file_name'] = file_name
 
-                sub_text = text[code_delimiter_position+3:]
-                if len(sub_text)>0:
+                sub_text = text[code_delimiter_position + 3:]
+                if len(sub_text) > 0:
                     try:
                         find_space = sub_text.index(" ")
                     except:
@@ -3462,19 +3469,18 @@ class APScript(StateMachine):
                         find_return = int(1e10)
                     next_index = min(find_return, find_space)
                     if '{' in sub_text[:next_index]:
-                        next_index =0
+                        next_index = 0
                     start_pos = next_index
-                    if code_delimiter_position+3<len(text) and text[code_delimiter_position+3] in ["\n"," ","\t"] :
-                        # No
-                        block_infos["type"]='language-specific'
+                    if code_delimiter_position + 3 < len(text) and text[code_delimiter_position + 3] in ["\n", " ", "\t"]:
+                        block_infos["type"] = 'language-specific'
                     else:
-                        block_infos["type"]=sub_text[:next_index]
+                        block_infos["type"] = sub_text[:next_index]
 
-                    next_pos = indices[index+1]-code_delimiter_position
-                    if sub_text[next_pos-3]=="`":
-                        block_infos["content"]=sub_text[start_pos:next_pos-3].strip()
+                    next_pos = indices[index + 1] - code_delimiter_position
+                    if sub_text[next_pos - 3] == "`":
+                        block_infos["content"] = sub_text[start_pos:next_pos - 3].strip()
                     else:
-                        block_infos["content"]=sub_text[start_pos:next_pos].strip()
+                        block_infos["content"] = sub_text[start_pos:next_pos].strip()
                     code_blocks.append(block_infos)
                 is_start = False
             else:
@@ -3482,6 +3488,7 @@ class APScript(StateMachine):
                 continue
 
         return code_blocks
+
 
 
 
