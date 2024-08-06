@@ -3404,6 +3404,23 @@ class APScript(StateMachine):
 
         return paths
 
+    def update_section(self, content, section_name, new_code):
+        # Define patterns for HTML, JavaScript, and CSS sections
+        html_pattern = re.compile(f"<!-- section_start: {section_name} -->.*?<!-- section_end: {section_name} -->", re.DOTALL)
+        js_css_pattern = re.compile(f"// section_start: {section_name}.*?// section_end: {section_name}", re.DOTALL)
+
+        # Try to replace HTML section
+        updated_content, html_replacements = re.subn(html_pattern, f"<!-- section_start: {section_name} -->\n{new_code}\n<!-- section_end: {section_name} -->", content)
+
+        # If HTML replacement didn't occur, try JavaScript/CSS section
+        if html_replacements == 0:
+            updated_content, js_css_replacements = re.subn(js_css_pattern, f"// section_start: {section_name}\n{new_code}\n// section_end: {section_name}", content)
+            
+            if js_css_replacements == 0:
+                return content, False  # Section not found
+        
+        return updated_content, True  # Section updated successfully
+
     def extract_code_blocks(self, text: str) -> List[dict]:
         """
         This function extracts code blocks from a given text.
@@ -3445,6 +3462,7 @@ class APScript(StateMachine):
             block_infos = {
                 'index': index,
                 'file_name': "",
+                'section': "",
                 'content': "",
                 'type': ""
             }
@@ -3452,10 +3470,13 @@ class APScript(StateMachine):
                 # Check the preceding line for file name
                 preceding_text = text[:code_delimiter_position].strip().splitlines()
                 if preceding_text:
-                    last_line = preceding_text[-1]
+                    last_line = preceding_text[-1].strip()
                     if last_line.startswith("<file_name>") and last_line.endswith("</file_name>"):
                         file_name = last_line[len("<file_name>"):-len("</file_name>")].strip()
                         block_infos['file_name'] = file_name
+                    if last_line.startswith("<section>") and last_line.endswith("</section>"):
+                        section = last_line[len("<section>"):-len("</section>")].strip()
+                        block_infos['section'] = section
 
                 sub_text = text[code_delimiter_position + 3:]
                 if len(sub_text) > 0:
@@ -3477,7 +3498,7 @@ class APScript(StateMachine):
                         block_infos["type"] = sub_text[:next_index]
 
                     next_pos = indices[index + 1] - code_delimiter_position
-                    if sub_text[next_pos - 3] == "`":
+                    if next_pos - 3<len(sub_text) and sub_text[next_pos - 3] == "`":
                         block_infos["content"] = sub_text[start_pos:next_pos - 3].strip()
                     else:
                         block_infos["content"] = sub_text[start_pos:next_pos].strip()
