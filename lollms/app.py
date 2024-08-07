@@ -1197,9 +1197,9 @@ class LollmsApplication(LoLLMsCom):
                                 trace_exception(ex)
                                 self.warning("Couldn't add documentation to the context. Please verify the vector database")
                     else:
-                        docs = client.discussion.vectorizer.list_documents()
+                        docs = client.discussion.vectorizer.get_all_documents()
                         for doc in docs:
-                            documentation += client.discussion.vectorizer.get_document(doc['title'])
+                            documentation += doc
                             
                 # Check if there is discussion knowledge to add to the prompt
                 if self.config.activate_skills_lib:
