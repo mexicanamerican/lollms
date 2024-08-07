@@ -2052,7 +2052,7 @@ class StateMachine:
                 try:
                     func(command, full_context, callback, context_state, client)
                 except:# retrocompatibility
-                    func(command, full_context)
+                    func(command, full_context, client)
                 return
 
         default_func = current_state.get("default")
