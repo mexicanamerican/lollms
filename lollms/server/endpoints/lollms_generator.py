@@ -190,7 +190,7 @@ async def lollms_generate(request: LollmsGenerateRequest):
                     elf_server.cancel_gen = False         
                 return StreamingResponse(generate_chunks(), media_type="text/plain", headers=headers)
             else:
-                def callback(chunk, chunk_type:MSG_TYPE_CONTENT=MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_ADD_CHUNK):
+                def callback(chunk, chunk_type:MSG_OPERATION_TYPE=MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_ADD_CHUNK):
                     # Yield each chunk of data
                     if chunk is None:
                         return True
