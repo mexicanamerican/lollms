@@ -2253,7 +2253,7 @@ class APScript(StateMachine):
 
         """
         try:
-            self.process_state(command, "", self.callback, client)
+            self.process_state(command, "", self.callback, context_state=None, client= client)
         except Exception as ex:
             trace_exception(ex)
             self.warning(f"Couldn't execute command {command}")
@@ -2883,7 +2883,7 @@ class APScript(StateMachine):
             f'        </div>',
             f'    </summary>',
             f'    <div class="px-4 pb-4 pt-2 text-gray-700 dark:text-gray-300 transition-all duration-300 ease-in-out max-h-0 overflow-hidden group-open:max-h-40">',
-            content,
+            f'      <p>{content}</p>',
             f'    </div>',
             f'</details>\n'
         ])
@@ -3789,7 +3789,7 @@ class APScript(StateMachine):
             callback = self.callback
 
         if callback:
-            callback(message_text, MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_NEW_MESSAGE, parameters={'type':message_type.value,'metadata':metadata},personality = self.personality)
+            callback(message_text, MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_NEW_MESSAGE, metadata , personality = self.personality)
 
     def finished_message(self, message_text:str="", callback: Callable[[str, MSG_OPERATION_TYPE, dict, list], bool]=None):
         """This sends step rogress to front end
