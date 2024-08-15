@@ -3077,7 +3077,7 @@ class APScript(StateMachine):
         if callback:
             callback(code, MSG_OPERATION_TYPE.MSG_TYPE_CODE)
 
-    def chunk(self, full_text:str, callback: Callable[[str | list | None, MSG_OPERATION_TYPE, str, Any | None], bool]=None):
+    def add_chunk_to_message_content(self, full_text:str, callback: Callable[[str | list | None, MSG_OPERATION_TYPE, str, Any | None], bool]=None):
         """This sends full text to front end
 
         Args:
@@ -4185,7 +4185,7 @@ class APScript(StateMachine):
         nested_function_calls = 0
         while len(function_calls)>0 and nested_function_calls<max_nested_function_calls:
             nested_function_calls += 1
-            self.chunk("\n") 
+            self.add_chunk_to_message_content("\n") 
             if hide_function_call:
                 self.set_message_content("") #Hide function 
 
