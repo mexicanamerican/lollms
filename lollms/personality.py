@@ -118,7 +118,7 @@ class AIPersonality:
                     ignore_discussion_documents_rag=False,
                     is_relative_path=True,
                     installation_option:InstallOption=InstallOption.INSTALL_IF_NECESSARY,
-                    callback: Callable[[str, MSG_OPERATION_TYPE, dict, list], bool]=None
+                    callback: Callable[[str | list | None, MSG_OPERATION_TYPE, str, Any | None], bool]=None
                 ):
         """
         Initialize an AIPersonality instance.
@@ -311,7 +311,7 @@ class AIPersonality:
         if callback:
             callback(message_text, MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_NEW_MESSAGE, parameters={'type':message_type.value,'metadata':metadata}, personality=self)
 
-    def set_message_content(self, full_text:str, callback: Callable[[str, MSG_OPERATION_TYPE, dict, list], bool]=None):
+    def set_message_content(self, full_text:str, callback: Callable[[str | list | None, MSG_OPERATION_TYPE, str, Any | None], bool]=None):
         """This sends full text to front end
 
         Args:
@@ -324,7 +324,7 @@ class AIPersonality:
         if callback:
             callback(full_text, MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_SET_CONTENT)
 
-    def ui(self, ui_text:str, callback: Callable[[str, MSG_OPERATION_TYPE, dict, list], bool]=None):
+    def ui(self, ui_text:str, callback: Callable[[str | list | None, MSG_OPERATION_TYPE, str, Any | None], bool]=None):
         """This sends ui text to front end
 
         Args:
@@ -338,7 +338,7 @@ class AIPersonality:
             callback(ui_text, MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_UI)
 
 
-    def set_message_content_invisible_to_ai(self, full_text:str, callback: Callable[[str, MSG_OPERATION_TYPE, dict, list], bool]=None):
+    def set_message_content_invisible_to_ai(self, full_text:str, callback: Callable[[str | list | None, MSG_OPERATION_TYPE, str, Any | None], bool]=None):
         """This sends full text to front end (INVISIBLE to AI)
 
         Args:
@@ -351,7 +351,7 @@ class AIPersonality:
         if callback:
             callback(full_text, MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_SET_CONTENT_INVISIBLE_TO_AI)
 
-    def set_message_content_invisible_to_user(self, full_text:str, callback: Callable[[str, MSG_OPERATION_TYPE, dict, list], bool]=None):
+    def set_message_content_invisible_to_user(self, full_text:str, callback: Callable[[str | list | None, MSG_OPERATION_TYPE, str, Any | None], bool]=None):
         """This sends full text to front end (INVISIBLE to user)
 
         Args:
@@ -533,7 +533,7 @@ class AIPersonality:
             ASCIIColors.red("Model failed to rank inputs")
             return None
 
-    def step_start(self, step_text, callback: Callable[[str, MSG_OPERATION_TYPE, dict, list], bool]=None):
+    def step_start(self, step_text, callback: Callable[[str | list | None, MSG_OPERATION_TYPE, str, Any | None], bool]=None):
         """This triggers a step start
 
         Args:
@@ -559,7 +559,7 @@ class AIPersonality:
         if callback:
             callback(step_text, MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_STEP_END_SUCCESS)
 
-    def step(self, step_text, callback: Callable[[str, MSG_OPERATION_TYPE, dict, list], bool]=None):
+    def step(self, step_text, callback: Callable[[str | list | None, MSG_OPERATION_TYPE, str, Any | None], bool]=None):
         """This triggers a step information
 
         Args:
@@ -773,7 +773,7 @@ class AIPersonality:
         
         return self.bot_says
 
-    def setCallback(self, callback: Callable[[str, MSG_OPERATION_TYPE, dict, list], bool]):
+    def setCallback(self, callback: Callable[[str | list | None, MSG_OPERATION_TYPE, str, Any | None], bool]):
         self.callback = callback
         if self._processor:
             self._processor.callback = callback
@@ -2030,7 +2030,7 @@ class StateMachine:
 
 
 
-    def process_state(self, command, full_context, callback: Callable[[str, MSG_OPERATION_TYPE, dict, list], bool]=None, context_state:dict=None, client:Client=None):
+    def process_state(self, command, full_context, callback: Callable[[str | list | None, MSG_OPERATION_TYPE, str, Any | None], bool]=None, context_state:dict=None, client:Client=None):
         """
         Process the given command based on the current state.
 
@@ -2385,7 +2385,7 @@ class APScript(StateMachine):
         return self.personality.generate(prompt, max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug)
 
 
-    def run_workflow(self, prompt:str, previous_discussion_text:str="", callback: Callable[[str, MSG_OPERATION_TYPE, dict, list], bool]=None, context_details:dict=None, client:Client=None):
+    def run_workflow(self, prompt:str, previous_discussion_text:str="", callback: Callable[[str | list | None, MSG_OPERATION_TYPE, str, AIPersonality| None], bool]=None, context_details:dict=None, client:Client=None):
         """
         This function generates code based on the given parameters.
 
@@ -2918,7 +2918,7 @@ class APScript(StateMachine):
         return chunks
 
 
-    def step_start(self, step_text, callback: Callable[[str, MSG_OPERATION_TYPE, dict, list], bool]=None):
+    def step_start(self, step_text, callback: Callable[[str | list | None, MSG_OPERATION_TYPE, str, Any | None], bool]=None):
         """This triggers a step start
 
         Args:
@@ -2944,7 +2944,7 @@ class APScript(StateMachine):
         if callback:
             callback(step_text, MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_STEP_END_SUCCESS if status else MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_STEP_END_FAILURE)
 
-    def step(self, step_text, callback: Callable[[str, MSG_OPERATION_TYPE, dict, list], bool]=None):
+    def step(self, step_text, callback: Callable[[str | list | None, MSG_OPERATION_TYPE, str, Any | None], bool]=None):
         """This triggers a step information
 
         Args:
@@ -2962,7 +2962,7 @@ class APScript(StateMachine):
         if callback:
             callback(step_text, MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_STEP)
 
-    def exception(self, ex, callback: Callable[[str, MSG_OPERATION_TYPE, dict, list], bool]=None):
+    def exception(self, ex, callback: Callable[[str | list | None, MSG_OPERATION_TYPE, str, Any | None], bool]=None):
         """This sends exception to the client
 
         Args:
@@ -2980,7 +2980,7 @@ class APScript(StateMachine):
         if callback:
             callback(str(ex), MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_EXCEPTION)
 
-    def warning(self, warning:str, callback: Callable[[str, MSG_OPERATION_TYPE, dict, list], bool]=None):
+    def warning(self, warning:str, callback: Callable[[str | list | None, MSG_OPERATION_TYPE, str, Any | None], bool]=None):
         """This sends exception to the client
 
         Args:
@@ -3017,7 +3017,7 @@ class APScript(StateMachine):
         if callback:
             callback([{"title":title, "content":json.dumps(json_infos, indent=indent)}], MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_JSON_INFOS)
 
-    def ui(self, html_ui:str, callback: Callable[[str, MSG_OPERATION_TYPE, dict, list], bool]|None=None):
+    def ui(self, html_ui:str, callback: Callable[[str | list | None, MSG_OPERATION_TYPE, str, Any | None], bool]|None=None):
         """This sends ui elements to front end
 
         Args:
@@ -3036,7 +3036,7 @@ class APScript(StateMachine):
             callback(html_ui, MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_UI)
 
 
-    def ui_in_iframe(self, html_ui:str, callback: Callable[[str, MSG_OPERATION_TYPE, dict, list], bool]=None):
+    def ui_in_iframe(self, html_ui:str, callback: Callable[[str | list | None, MSG_OPERATION_TYPE, str, Any | None], bool]=None):
         """This sends ui elements to front end inside an iframe
 
         Args:
@@ -3059,7 +3059,7 @@ class APScript(StateMachine):
 
 
 
-    def code(self, code:str, callback: Callable[[str, MSG_OPERATION_TYPE, dict, list], bool]=None):
+    def code(self, code:str, callback: Callable[[str | list | None, MSG_OPERATION_TYPE, str, Any | None], bool]=None):
         """This sends code to front end
 
         Args:
@@ -3077,7 +3077,7 @@ class APScript(StateMachine):
         if callback:
             callback(code, MSG_OPERATION_TYPE.MSG_TYPE_CODE)
 
-    def chunk(self, full_text:str, callback: Callable[[str, MSG_OPERATION_TYPE, dict, list], bool]=None):
+    def chunk(self, full_text:str, callback: Callable[[str | list | None, MSG_OPERATION_TYPE, str, Any | None], bool]=None):
         """This sends full text to front end
 
         Args:
@@ -3091,7 +3091,7 @@ class APScript(StateMachine):
             callback(full_text, MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_ADD_CHUNK)
 
 
-    def set_message_content(self, full_text:str, callback: Callable[[str, MSG_OPERATION_TYPE, dict, list], bool]=None, msg_type:MSG_OPERATION_TYPE = MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_SET_CONTENT):
+    def set_message_content(self, full_text:str, callback: Callable[[str | list | None, MSG_OPERATION_TYPE, str, Any | None], bool]=None, msg_type:MSG_OPERATION_TYPE = MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_SET_CONTENT):
         """This sends full text to front end
 
         Args:
@@ -3104,7 +3104,7 @@ class APScript(StateMachine):
         if callback:
             callback(full_text, msg_type)
 
-    def set_message_content_invisible_to_ai(self, full_text:str, callback: Callable[[str, MSG_OPERATION_TYPE, dict, list], bool]=None):
+    def set_message_content_invisible_to_ai(self, full_text:str, callback: Callable[[str | list | None, MSG_OPERATION_TYPE, str, Any | None], bool]=None):
         """This sends full text to front end (INVISIBLE to AI)
 
         Args:
@@ -3117,7 +3117,7 @@ class APScript(StateMachine):
         if callback:
             callback(full_text, MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_SET_CONTENT_INVISIBLE_TO_AI)
 
-    def set_message_content_invisible_to_user(self, full_text:str, callback: Callable[[str, MSG_OPERATION_TYPE, dict, list], bool]=None):
+    def set_message_content_invisible_to_user(self, full_text:str, callback: Callable[[str | list | None, MSG_OPERATION_TYPE, str, Any | None], bool]=None):
         """This sends full text to front end (INVISIBLE to user)
 
         Args:
@@ -3760,7 +3760,7 @@ class APScript(StateMachine):
                 verbose=verbose
             )
 
-    def info(self, info_text:str, callback: Callable[[str, MSG_OPERATION_TYPE, dict, list], bool]=None):
+    def info(self, info_text:str, callback: Callable[[str | list | None, MSG_OPERATION_TYPE, str, Any | None], bool]=None):
         """This sends info text to front end
 
         Args:
@@ -3773,7 +3773,7 @@ class APScript(StateMachine):
         if callback:
             callback(info_text, MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_SET_CONTENT)
 
-    def step_progress(self, step_text:str, progress:float, callback: Callable[[str, MSG_OPERATION_TYPE, dict, list, AIPersonality], bool]=None):
+    def step_progress(self, step_text:str, progress:float, callback: Callable[[str | list | None, MSG_OPERATION_TYPE, str, Any | None], bool]=None):
         """This sends step rogress to front end
 
         Args:
@@ -3797,9 +3797,9 @@ class APScript(StateMachine):
             callback = self.callback
 
         if callback:
-            callback(message_text, MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_NEW_MESSAGE, metadata , personality = self.personality)
+            callback(message_text, MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_NEW_MESSAGE, personality = self.personality)
 
-    def finished_message(self, message_text:str="", callback: Callable[[str, MSG_OPERATION_TYPE, dict, list], bool]=None):
+    def finished_message(self, message_text:str="", callback: Callable[[str | list | None, MSG_OPERATION_TYPE, str, Any | None], bool]=None):
         """This sends step rogress to front end
 
         Args:

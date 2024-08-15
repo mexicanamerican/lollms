@@ -16,7 +16,7 @@ from lollms.tasks import TasksLibrary
 
 from lollmsvectordb.database_elements.chunk import Chunk
 from lollmsvectordb.vector_database import VectorDatabase
-from typing import Callable
+from typing import Callable, Any
 from pathlib import Path
 from datetime import datetime
 from functools import partial
