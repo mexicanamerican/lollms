@@ -3015,9 +3015,9 @@ class APScript(StateMachine):
             callback = self.callback
 
         if callback:
-            callback("", MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_JSON_INFOS, metadata = [{"title":title, "content":json.dumps(json_infos, indent=indent)}])
+            callback([{"title":title, "content":json.dumps(json_infos, indent=indent)}], MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_JSON_INFOS)
 
-    def ui(self, html_ui:str, callback: Callable[[str, MSG_OPERATION_TYPE, dict, list], bool]=None):
+    def ui(self, html_ui:str, callback: Callable[[str, MSG_OPERATION_TYPE, dict, list], bool]|None=None):
         """This sends ui elements to front end
 
         Args:
@@ -3488,6 +3488,7 @@ class APScript(StateMachine):
             - 'file_name' (str): The name of the file extracted from the preceding line, if available.
             - 'content' (str): The content of the code block.
             - 'type' (str): The type of the code block. If the code block starts with a language specifier (like 'python' or 'java'), this field will contain that specifier. Otherwise, it will be set to 'language-specific'.
+            - 'is_complete' (bool): True if the block has a closing tag, False otherwise.
 
         Note:
         The function assumes that the number of triple backticks in the text is even.
@@ -3518,7 +3519,8 @@ class APScript(StateMachine):
                 'file_name': "",
                 'section': "",
                 'content': "",
-                'type': ""
+                'type': "",
+                'is_complete': False
             }
             if is_start:
                 # Check the preceding line for file name
@@ -3527,6 +3529,9 @@ class APScript(StateMachine):
                     last_line = preceding_text[-1].strip()
                     if last_line.startswith("<file_name>") and last_line.endswith("</file_name>"):
                         file_name = last_line[len("<file_name>"):-len("</file_name>")].strip()
+                        block_infos['file_name'] = file_name
+                    elif last_line.startswith("## filename:"):
+                        file_name = last_line[len("## filename:"):].strip()
                         block_infos['file_name'] = file_name
                     if last_line.startswith("<section>") and last_line.endswith("</section>"):
                         section = last_line[len("<section>"):-len("</section>")].strip()
@@ -3551,11 +3556,17 @@ class APScript(StateMachine):
                     else:
                         block_infos["type"] = sub_text[:next_index]
 
-                    next_pos = indices[index + 1] - code_delimiter_position
-                    if next_pos - 3<len(sub_text) and sub_text[next_pos - 3] == "`":
-                        block_infos["content"] = sub_text[start_pos:next_pos - 3].strip()
+                    if index + 1 < len(indices):
+                        next_pos = indices[index + 1] - code_delimiter_position
+                        if next_pos - 3 < len(sub_text) and sub_text[next_pos - 3] == "`":
+                            block_infos["content"] = sub_text[start_pos:next_pos - 3].strip()
+                            block_infos["is_complete"] = True
+                        else:
+                            block_infos["content"] = sub_text[start_pos:next_pos].strip()
+                            block_infos["is_complete"] = False
                     else:
-                        block_infos["content"] = sub_text[start_pos:next_pos].strip()
+                        block_infos["content"] = sub_text[start_pos:].strip()
+                        block_infos["is_complete"] = False
                     code_blocks.append(block_infos)
                 is_start = False
             else:
@@ -3563,9 +3574,6 @@ class APScript(StateMachine):
                 continue
 
         return code_blocks
-
-
-
 
     def build_and_execute_python_code(self,context, instructions, execution_function_signature, extra_imports=""):
         start_header_id_template    = self.config.start_header_id_template
