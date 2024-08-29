@@ -520,9 +520,9 @@ class LollmsApplication(LoLLMsCom):
             if self.config.active_tti_service == "diffusers" and (self.tti is None or self.tti.name!="diffusers"):
                 from lollms.services.tti.diffusers.lollms_diffusers import LollmsDiffusers
                 self.tti = LollmsDiffusers(self)
-            elif self.config.active_tti_service == "diffusers_client" and (self.tti is None or self.tti.name!="diffusers_client"):
+            elif self.config.active_tti_service == "diffusers_client" and (self.tti.base_url!=self.config.diffusers_client_base_url or self.tti.name!="diffusers_client"):
                 from lollms.services.tti.diffusers_client.lollms_diffusers_client import LollmsDiffusersClient
-                self.tti = LollmsDiffusersClient(self)
+                self.tti = LollmsDiffusersClient(self, base_url=self.config.diffusers_client_base_url)
             elif self.config.active_tti_service == "autosd" and (self.tti is None or self.tti.name!="stable_diffusion"):
                 if self.sd:
                     self.tti = self.sd
