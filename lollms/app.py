@@ -516,15 +516,6 @@ class LollmsApplication(LoLLMsCom):
                 except:
                     self.warning(f"Couldn't load Comfyui")
 
-            if self.config.enable_motion_ctrl_service and self.motion_ctrl is None:
-                try:
-                    from lollms.services.motion_ctrl.lollms_motion_ctrl import Service
-                    self.motion_ctrl = Service(self, base_url=self.config.motion_ctrl_base_url)
-                except Exception as ex:
-                    trace_exception(ex)
-                    self.warning(f"Couldn't load Motion control")
-
-
             ASCIIColors.blue("Activating TTI service")
             if self.config.active_tti_service == "diffusers" and (self.tti is None or self.tti.name!="diffusers"):
                 from lollms.services.tti.diffusers.lollms_diffusers import LollmsDiffusers
