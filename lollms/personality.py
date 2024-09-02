@@ -899,13 +899,13 @@ class AIPersonality:
             self.database_path = self.data_path / "db.sqlite"
             from lollmsvectordb.lollms_tokenizers.tiktoken_tokenizer import TikTokenTokenizer
 
-            if vectorizer == "semantic":
+            if self.config.rag_vectorizer == "semantic":
                 from lollmsvectordb.lollms_vectorizers.semantic_vectorizer import SemanticVectorizer
                 v = SemanticVectorizer()
-            elif vectorizer == "tfidf":
+            elif self.config.rag_vectorizer == "tfidf":
                 from lollmsvectordb.lollms_vectorizers.tfidf_vectorizer import TFIDFVectorizer
                 v = TFIDFVectorizer()
-            elif vectorizer == "openai":
+            elif self.config.rag_vectorizer == "openai":
                 from lollmsvectordb.lollms_vectorizers.openai_vectorizer import OpenAIVectorizer
                 v = OpenAIVectorizer()
 
