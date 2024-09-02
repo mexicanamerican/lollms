@@ -907,7 +907,7 @@ class AIPersonality:
                 v = TFIDFVectorizer()
             elif self.config.rag_vectorizer == "openai":
                 from lollmsvectordb.lollms_vectorizers.openai_vectorizer import OpenAIVectorizer
-                v = OpenAIVectorizer()
+                v = OpenAIVectorizer(api_key=self.config.rag_vectorizer_openai_key)
 
             self.persona_data_vectorizer = VectorDatabase(self.database_path, v, TikTokenTokenizer(), self.config.rag_chunk_size, self.config.rag_overlap)
 
