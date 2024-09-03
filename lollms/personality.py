@@ -3395,7 +3395,7 @@ class APScript(StateMachine):
         self.print_prompt("prompt",prompt)
         code = self.generate_code(prompt, images, max_answer_length).strip().replace("</s>","").replace("<s>","")
         code = fix_json(code)
-        return generate_actions(actions_list, code)
+        return generate_actions(actions_list, code), code
 
 
     def parse_directory_structure(self, structure):
