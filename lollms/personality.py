@@ -3321,7 +3321,12 @@ class APScript(StateMachine):
         return title
 
 
-    def plan_with_images(self, request: str, images:list, actions_list:list=[LoLLMsAction], context:str = "", max_answer_length: int = 512) -> List[LoLLMsAction]:
+    def plan_with_images(self, 
+                         request: str, 
+                         images:list, 
+                         actions_list:list=[LoLLMsAction], 
+                         context:str = "", 
+                         max_answer_length: int = 512) -> List[LoLLMsAction]:
         """
         creates a plan out of a request and a context
 
@@ -3332,23 +3337,21 @@ class APScript(StateMachine):
         Returns:
             int: Index of the selected option within the possible_ansers list. Or -1 if there was not match found among any of them.
         """
-        start_header_id_template    = self.config.start_header_id_template
-        end_header_id_template      = self.config.end_header_id_template
-        system_message_template     = self.config.system_message_template
-
-        template = "\n".join([
-            f"{start_header_id_template}{system_message_template}{end_header_id_template}",
+        
+        prompt = "\n".join([
+            self.system_full_header,
             "Act as plan builder, a tool capable of making plans to perform the user requested operation."
         ])
-
+        
         if len(actions_list)>0:
-            template += "\n".join([
+            prompt += "\n".join([
                 "The plan builder is an AI that responds in json format. It should plan a succession of actions in order to reach the objective.",
-                f"{start_header_id_template}list of action types information{end_header_id_template}",
+                self.system_custom_header("list of action types information"),
                 "[",
-                "{actions_list}",
+                f"{actions_list}",
                 "]",
                 "The AI should respond in this format using data from actions_list:",
+                "```json",
                 "{",
                 '    "actions": [',
                 '    {',
@@ -3366,33 +3369,22 @@ class APScript(StateMachine):
                 '    ...',
                 '    ]',
                 "}"
+                "```",
             ])
         if context != "":
-            template += "\n".join([
-                f"{start_header_id_template}context{end_header_id_template}",
-                "{context}Ok"
+            
+            prompt += "\n".join([
+                self.system_custom_header("context"),
+                f"{context}"
             ])
 
-        template += "\n".join([
-            f"{start_header_id_template}request{end_header_id_template}{{request}}",
-            f"{start_header_id_template}plan{end_header_id_template}To achieve the requested objective, this is the list of actions to follow, formatted as requested in json format:\n```json\n"
+        prompt += "\n".join([
+            self.system_custom_header("request"),
+            self.ai_custom_header("plan"),
         ])
-        pr  = PromptReshaper(template)
-        prompt = pr.build({
-                "context":context,
-                "request":request,
-                "actions_list":",\n".join([f"{action}" for action in actions_list])
-                },
-                self.personality.model.tokenize,
-                self.personality.model.detokenize,
-                self.personality.model.config.ctx_size,
-                ["previous_discussion"]
-                )
-        gen = self.generate_with_images(prompt, images, max_answer_length).strip().replace("</s>","").replace("<s>","")
-        gen = self.remove_backticks(gen)
-        self.print_prompt("full",prompt+gen)
-        gen = fix_json(gen)
-        return generate_actions(actions_list, gen)
+        code = self.generate_code(prompt, images, max_answer_length).strip().replace("</s>","").replace("<s>","")
+        code = fix_json(code)
+        return generate_actions(actions_list, code)
 
     def plan(self, request: str, actions_list:list=[LoLLMsAction], context:str = "", max_answer_length: int = 512) -> List[LoLLMsAction]:
         """
