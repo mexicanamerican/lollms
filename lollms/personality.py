@@ -2417,7 +2417,7 @@ class APScript(StateMachine):
             if not codes[-1]["is_complete"]:
                 code = "\n".join(codes[-1]["content"].split("\n")[:-1])
                 while not codes[-1]["is_complete"]:
-                    response = self.personality.generate(prompt+code+self.user_full_header+"continue the code inside the adequate markdown code tag. Start from last line and continue the code."+self.separator_template+self.ai_full_header, max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug)
+                    response = self.personality.generate(prompt+code+self.user_full_header+"continue the code. Start from last line and continue the code. Put the code inside a markdown code tag."+self.separator_template+self.ai_full_header, max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug)
                     codes = self.extract_code_blocks(response)
                     if len(codes)==0:
                         break
