@@ -729,7 +729,7 @@ class AIPersonality:
             self.bot_says = bot_says
             return True
 
-    def generate_with_images(self, prompt, images, max_size, temperature = None, top_k = None, top_p=None, repeat_penalty=None, repeat_last_n=None, callback=None, debug=False, show_progress=False ):
+    def generate_with_images(self, prompt, images, max_size=None, temperature = None, top_k = None, top_p=None, repeat_penalty=None, repeat_last_n=None, callback=None, debug=False, show_progress=False ):
         ASCIIColors.info("Text generation started: Warming up")
         self.nb_received_tokens = 0
         self.bot_says = ""
@@ -2427,7 +2427,7 @@ class APScript(StateMachine):
                         else:
                             code +="\n"+ "\n".join(codes[-1]["content"].split("\n"))
             else:
-                code = "\n".join(codes[-1]["content"].split("\n"))
+                code = codes[-1]["content"]
 
             return code
         else:
