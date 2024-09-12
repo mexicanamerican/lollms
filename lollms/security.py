@@ -10,6 +10,7 @@ import platform
 import string
 from lollms.utilities import PackageManager
 from starlette.middleware.base import BaseHTTPMiddleware
+from fastapi.responses import JSONResponse
 
 if not PackageManager.check_package_installed("lxml"):
     PackageManager.install_package("lxml")
