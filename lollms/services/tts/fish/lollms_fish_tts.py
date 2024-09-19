@@ -1,7 +1,6 @@
 from pathlib import Path
 from typing import List, Dict, Any
 import httpx
-import ormsgpack
 from pydantic import BaseModel
 from lollms.app import LollmsApplication
 from lollms.paths import LollmsPaths
@@ -12,6 +11,11 @@ if not PackageManager.check_package_installed("sounddevice"):
     PackageManager.install_package("sounddevice")
 if not PackageManager.check_package_installed("soundfile"):
     PackageManager.install_package("soundfile")
+
+if not PackageManager.check_package_installed("ormsgpack"):
+    PackageManager.install_package("ormsgpack")
+
+import ormsgpack
 
 import sounddevice as sd
 import soundfile as sf
@@ -81,7 +85,7 @@ class LollmsFishAudioTTS(LollmsTTS):
     def tts_file(self, text, file_name_or_path: Path | str = None, speaker=None, language="en", use_threading=False):
         speech_file_path = Path(file_name_or_path) if file_name_or_path else self._get_output_path("mp3")
         
-        reference = self._get_reference_audio(self.voice_name)
+        reference = self._get_reference_audio(speaker)
         request = ServeTTSRequest(
             text=text,
             references=[reference] if reference else []
