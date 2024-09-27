@@ -240,13 +240,16 @@ class LollmsDiffusers(LollmsTTI):
         height = adjust_dimensions(int(height))
         if output_path is None:
             output_path = self.output_dir
+            output_path = Path(output_path)
+            fn = find_next_available_filename(output_path,"diff_img_")
+        else:
+            output_path = Path(output_path)
+            fn = output_path
         if seed!=-1:
             generator = torch.Generator("cuda").manual_seed(seed)
             image = self.model(positive_prompt, negative_prompt=negative_prompt, height=height, width=width, guidance_scale=scale, num_inference_steps=steps, generator=generator).images[0]
         else:
             image = self.model(positive_prompt, negative_prompt=negative_prompt, height=height, width=width, guidance_scale=scale, num_inference_steps=steps).images[0]
-        output_path = Path(output_path)
-        fn = find_next_available_filename(output_path,"diff_img_")
         # Save the image
         image.save(fn)
         return fn, {"prompt":positive_prompt, "negative_prompt":negative_prompt}
