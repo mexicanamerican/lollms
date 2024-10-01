@@ -128,9 +128,6 @@ class AIPersonality:
         ValueError: If the provided path is not a folder or does not contain a config.yaml file.
         """
         self.config = config
-        start_header_id_template    = self.config.start_header_id_template
-        end_header_id_template      = self.config.end_header_id_template
-        system_message_template     = self.config.system_message_template
 
         self.bot_says = ""
 
