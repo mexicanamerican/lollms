@@ -20,7 +20,7 @@ import pipmaster as pm
 if version.parse(str(pm.get_installed_version("numpy"))) > version.parse(str("1.26.9")):
     pm.install_version("numpy", "1.26.4")
 
-if pm.is_installed("pydub"):
+if not pm.is_installed("pydub"):
     pm.install("pydub")
 
 import numpy as np
