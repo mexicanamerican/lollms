@@ -22,5 +22,3 @@ python-socketio[asyncio_client]
 
 freedom-search
 scrapemaster
-
-inspect
