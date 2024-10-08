@@ -356,7 +356,8 @@ def show_yes_no_dialog(title, text):
         root.destroy()
     
         return result
-    except:
+    except Exception as ex:
+        trace_exception(ex)
         return yes_or_no_input(text)
         
 def show_message_dialog(title, text):
