@@ -40,63 +40,6 @@ import subprocess
 
 from functools import partial
 
-def install_conda_utility():
-    import platform
-    if platform.system()=="Windows":
-        conda_path = Path(sys.executable).parent.parent/"miniconda3"/"condabin"/"conda"
-    else:
-        conda_path = Path(sys.executable).parent.parent.parent/"miniconda3"/"bin"/"conda"
-    ASCIIColors.red("Conda path:")
-    ASCIIColors.yellow(conda_path)
-    process = subprocess.Popen(f'{conda_path} install conda -y', shell=True)
-    
-    # Wait for the process to finish
-    process.wait()
-    #from conda.cli.python_api import  run_command, Commands
-    # Create a new Conda environment with the specified Python version
-    #run_command(Commands.CREATE, "-n", env_name, f"python={python_version}")
-
-def install_conda_package(package_name):
-    try:
-        import platform
-        if platform.system()=="Windows":
-            conda_path = Path(sys.executable).parent.parent/"miniconda3"/"condabin"/"conda"
-        else:
-            conda_path = Path(sys.executable).parent.parent.parent/"miniconda3"/"bin"/"conda"
-        ASCIIColors.red("Conda path:")
-        ASCIIColors.yellow(conda_path)
-        process = subprocess.Popen(f'{conda_path} install {package_name} -y', shell=True)
-        
-        # Wait for the process to finish
-        process.wait()
-        #from conda.cli.python_api import  run_command, Commands
-        # Create a new Conda environment with the specified Python version
-        #run_command(Commands.CREATE, "-n", env_name, f"python={python_version}")
-        return True
-    except Exception as ex:
-        trace_exception(ex)
-        return False
-
-def create_conda_env(env_name, python_version):
-    from lollms.security import sanitize_shell_code
-    env_name = sanitize_shell_code(env_name)
-    python_version = sanitize_shell_code(python_version)
-    # Activate the Conda environment
-    import platform
-    if platform.system()=="Windows":
-        conda_path = Path(sys.executable).parent.parent/"miniconda3"/"condabin"/"conda"
-    else:
-        conda_path = Path(sys.executable).parent.parent.parent/"miniconda3"/"bin"/"conda"
-    ASCIIColors.red("Conda path: ",flush=True, end="")
-    ASCIIColors.yellow(conda_path)
-    process = subprocess.Popen(f'{conda_path} create --name {env_name} python={python_version} -y', shell=True)
-    
-    # Wait for the process to finish
-    process.wait()
-    #from conda.cli.python_api import  run_command, Commands
-    # Create a new Conda environment with the specified Python version
-    #run_command(Commands.CREATE, "-n", env_name, f"python={python_version}")
-
 def run_pip_in_env(env_name, pip_args, cwd=None):
     import platform
     # Set the current working directory if provided, otherwise use the current directory
