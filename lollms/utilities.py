@@ -337,6 +337,9 @@ def show_custom_dialog(title, text, options):
     
 def show_yes_no_dialog(title, text):
     try:
+        import pipmaster as pm
+        if not pm.is_installed("tk"):
+            pm.install("tk")
         import tkinter as tk
         from tkinter import messagebox
         # Create a new Tkinter root window and hide it
