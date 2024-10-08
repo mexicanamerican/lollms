@@ -334,34 +334,45 @@ def show_custom_dialog(title, text, options):
     except Exception as ex:
         ASCIIColors.error(ex)
         return show_console_custom_dialog(title, text, options)
-    
-def show_yes_no_dialog(title, text):
+    def show_yes_no_dialog(title, text):
     try:
-        import sys
-        print(sys.executable)
-        import pipmaster as pm
-        pm.package_manager = sys.executable + " -m pip"
-        if not pm.is_installed("tk"):
-            pm.install("tk")
-        import tkinter as tk
-        from tkinter import messagebox
-        # Create a new Tkinter root window and hide it
-        root = tk.Tk()
-        root.withdraw()
-    
-        # Make the window appear on top
-        root.attributes('-topmost', True)
-        
-        # Show the dialog box
-        result = messagebox.askyesno(title, text)
-    
-        # Destroy the root window
-        root.destroy()
-    
-        return result
+        if sys.platform.startswith('win'):
+            return show_windows_dialog(title, text)
+        elif sys.platform.startswith('darwin'):
+            return show_macos_dialog(title, text)
+        elif sys.platform.startswith('linux'):
+            return show_linux_dialog(title, text)
+        else:
+            return console_dialog(title, text)
     except Exception as ex:
-        trace_exception(ex)
-        return yes_or_no_input(text)
+        print(f"Error: {ex}")
+        return console_dialog(title, text)
+
+def show_windows_dialog(title, text):
+    from ctypes import windll
+    result = windll.user32.MessageBoxW(0, text, title, 4)
+    return result == 6  # 6 means "Yes"
+
+def show_macos_dialog(title, text):
+    script = f'tell app "System Events" to display dialog "{text}" buttons {{"No", "Yes"}} default button "Yes" with title "{title}"'
+    result = subprocess.run(['osascript', '-e', script], capture_output=True, text=True)
+    return "Yes" in result.stdout
+
+def show_linux_dialog(title, text):
+    zenity_path = Path('/usr/bin/zenity')
+    if zenity_path.exists():
+        result = subprocess.run([str(zenity_path), '--question', '--title', title, '--text', text], capture_output=True)
+        return result.returncode == 0
+    else:
+        return console_dialog(title, text)
+
+def console_dialog(title, text):
+    print(f"{title}\n{text}")
+    while True:
+        response = input("Enter 'yes' or 'no': ").lower()
+        if response in ['yes', 'no']:
+            return response == 'yes'
+        print("Invalid input. Please enter 'yes' or 'no'.")
         
 def show_message_dialog(title, text):
     import tkinter as tk
