@@ -334,7 +334,7 @@ def show_custom_dialog(title, text, options):
     except Exception as ex:
         ASCIIColors.error(ex)
         return show_console_custom_dialog(title, text, options)
-    def show_yes_no_dialog(title, text):
+def show_yes_no_dialog(title, text):
     try:
         if sys.platform.startswith('win'):
             return show_windows_dialog(title, text)
