@@ -340,6 +340,7 @@ def show_yes_no_dialog(title, text):
         import sys
         print(sys.executable)
         import pipmaster as pm
+        pm.package_manager = sys.executable + " -m pip"
         if not pm.is_installed("tk"):
             pm.install("tk")
         import tkinter as tk
