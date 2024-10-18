@@ -160,7 +160,12 @@ def scrape_and_save(url, file_path:str|Path=None, use_selenium=False, follow_lin
                 md_file.write(text + '\n\n')
         print(f"Texts saved to {file_path}")
         print(f"Images saved to {images_folder}")
-
+    if len(results['texts'])==0:
+        return {
+            'texts': ["Query returned no information. Please try to change the query."],
+            'image_urls': []
+        }
+        
     return {
         'texts': results['texts'],
         'image_urls': results['image_urls']
