@@ -2259,6 +2259,83 @@ class APScript(StateMachine):
         """
         pass
 
+    def generate_html_from_dict(self, data):
+        css_style = """
+        <style>
+            .container {
+                font-family: 'Arial', sans-serif;
+                max-width: 1000px;
+                margin: 20px auto;
+                padding: 20px;
+                background-color: #f8f9fa;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            .header {
+                background-color: #343a40;
+                color: white;
+                padding: 20px;
+                border-radius: 6px;
+                margin-bottom: 20px;
+            }
+            .section {
+                margin-bottom: 20px;
+                padding: 15px;
+                background-color: white;
+                border-radius: 6px;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            }
+            .key {
+                font-weight: bold;
+                color: #495057;
+                margin-bottom: 5px;
+            }
+            .value {
+                color: #212529;
+                white-space: pre-wrap;
+                line-height: 1.6;
+            }
+            .list {
+                margin: 0;
+                padding-left: 20px;
+            }
+        </style>
+        """
+
+        def format_value(value):
+            if isinstance(value, list):
+                if not value:
+                    return "<em>Empty list</em>"
+                items = [f"<li>{item}</li>" for item in value]
+                return f"<ul class='list'>{''.join(items)}</ul>"
+            elif isinstance(value, (str, int, float)):
+                # Replace pipe character and preserve formatting for multiline strings
+                if isinstance(value, str) and '|' in value:
+                    value = value.replace('|', '').strip()
+                return f"<div class='value'>{value}</div>"
+            else:
+                return f"<div class='value'>{str(value)}</div>"
+
+        html = css_style
+        html += "<div class='container'>"
+        
+        # Add header with name if it exists
+        if "name" in data:
+            html += f"<div class='header'><h1>{data['name']}</h1></div>"
+
+        # Process all key-value pairs
+        for key, value in data.items():
+            if key != "name":  # Skip name as it's already in header
+                html += "<div class='section'>"
+                html += f"<div class='key'>{key.replace('_', ' ').title()}:</div>"
+                html += format_value(value)
+                html += "</div>"
+
+        html += "</div>"
+        return html
+
+
+
     def execute_command(self, command: str, parameters:list=[], client:Client=None):
         """
         Recovers user commands and executes them. Each personality can define a set of commands that they can receive and execute
@@ -2408,16 +2485,22 @@ class APScript(StateMachine):
         codes = self.extract_code_blocks(response)
         return codes
     
-    def generate_code(self, prompt, images=[], max_size = None,  temperature = None, top_k = None, top_p=None, repeat_penalty=None, repeat_last_n=None, callback=None, debug=False, return_full_generated_code=False ):
+    def generate_code(self, prompt, images=[], max_size = None,  temperature = None, top_k = None, top_p=None, repeat_penalty=None, repeat_last_n=None, callback=None, debug=False, return_full_generated_code=False, accept_all_if_no_code_tags_is_present=False):
         response_full = ""
+        full_prompt = self.system_custom_header("Generation infos")+ "Generated code must be put inside the adequate markdown code tag. Use this template:\n```language name\nCode\n```\nMake sure only a single code tag is generated at each dialogue turn." + self.separator_template + self.system_custom_header("User prompt")+ prompt + self.separator_template + self.ai_custom_header("generated code")
         if len(self.personality.image_files)>0:
-            response = self.personality.generate_with_images(self.system_custom_header("Generation infos")+ "Generated code must be put inside the adequate markdown code tag. Use this template:\n```language name\nCode\n```\nMake sure only a single code tag is generated at each dialogue turn." + self.separator_template + prompt, self.personality.image_files, max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug)
+            response = self.personality.generate_with_images(full_prompt, self.personality.image_files, max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug)
         elif  len(images)>0:
-            response = self.personality.generate_with_images(self.system_custom_header("Generation infos")+ "Generated code must be put inside the adequate markdown code tag. Use this template:\n```language name\nCode\n```\nMake sure only a single code tag is generated at each dialogue turn." + self.separator_template + prompt, images, max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug)
+            response = self.personality.generate_with_images(full_prompt, images, max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug)
         else:
-            response = self.personality.generate(self.system_custom_header("Generation infos")+ "Generated code must be put inside the adequate markdown code tag. Use this template:\n```language name\nCode\n```\nMake sure only a single code tag is generated at each dialogue turn." + self.separator_template + prompt, max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug)
+            response = self.personality.generate(full_prompt, max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug)
         response_full += response
         codes = self.extract_code_blocks(response)
+        if len(codes)==0 and accept_all_if_no_code_tags_is_present:
+            if return_full_generated_code:
+                return response, response_full
+            else:
+                return response
         if len(codes)>0:
             if not codes[-1]["is_complete"]:
                 code = "\n".join(codes[-1]["content"].split("\n")[:-1])
@@ -2441,6 +2524,124 @@ class APScript(StateMachine):
                 return code
         else:
             return None
+
+    def generate_text(self, prompt, images=[], max_size = None,  temperature = None, top_k = None, top_p=None, repeat_penalty=None, repeat_last_n=None, callback=None, debug=False, return_full_generated_code=False, accept_all_if_no_code_tags_is_present=False):
+        response_full = ""
+        full_prompt = self.system_custom_header("Generation infos")+ "Generated text content must be put inside a markdown code tag. Use this template:\n```\nText\n```\nMake sure only a single text tag is generated at each dialogue turn." + self.separator_template + self.system_custom_header("User prompt")+ prompt + self.separator_template + self.ai_custom_header("generated answer")
+        if len(self.personality.image_files)>0:
+            response = self.personality.generate_with_images(full_prompt, self.personality.image_files, max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug)
+        elif  len(images)>0:
+            response = self.personality.generate_with_images(full_prompt, images, max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug)
+        else:
+            response = self.personality.generate(full_prompt, max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug)
+        response_full += response
+        codes = self.extract_code_blocks(response)
+        if len(codes)==0 and accept_all_if_no_code_tags_is_present:
+            if return_full_generated_code:
+                return response, response_full
+            else:
+                return response
+        if len(codes)>0:
+            if not codes[-1]["is_complete"]:
+                code = "\n".join(codes[-1]["content"].split("\n")[:-1])
+                while not codes[-1]["is_complete"]:
+                    response = self.personality.generate(prompt+code+self.user_full_header+"continue the text. Start from last line and continue the text. Put the text inside a markdown code tag."+self.separator_template+self.ai_full_header, max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug)
+                    response_full += response
+                    codes = self.extract_code_blocks(response)
+                    if len(codes)==0:
+                        break
+                    else:
+                        if not codes[-1]["is_complete"]:
+                            code +="\n"+ "\n".join(codes[-1]["content"].split("\n")[:-1])
+                        else:
+                            code +="\n"+ "\n".join(codes[-1]["content"].split("\n"))
+            else:
+                code = codes[-1]["content"]
+            
+            if return_full_generated_code:
+                return code, response_full
+            else:
+                return code
+        else:
+            return None        
+
+    def generate_structured_content(self, 
+                                prompt, 
+                                template, 
+                                single_shot=False, 
+                                output_format="yaml"):
+        """
+        Generate structured content (YAML/JSON) either in single-shot or step-by-step mode.
+        
+        Args:
+            prompt (str): The main prompt describing what to generate
+            template (dict): Dictionary containing the structure and field-specific prompts
+            single_shot (bool): If True, generates all content at once. If False, generates field by field
+            output_format (str): "yaml" or "json"
+        
+        Returns:
+            dict: Contains both the structured data and formatted string
+        """
+        
+        # Initialize the output dictionary with default values
+        output_data = {}
+        for field, field_info in template.items():
+            output_data[field] = field_info.get("default", "")
+        
+        if single_shot:
+            # Generate all content at once for powerful LLMs
+            full_prompt = f"""Generate {output_format.upper()} content for: {prompt}
+Use this structure:
+{output_data}
+"""
+            response = self.generate_code(full_prompt, callback=self.sink, accept_all_if_no_code_tags_is_present=True)
+            # Parse the response based on format
+            if output_format == "yaml":
+                import yaml
+                try:
+                    cleaned_response = response.replace("```yaml", "").replace("```", "").strip()
+                    output_data = yaml.safe_load(cleaned_response)
+                except yaml.YAMLError:
+                    # If parsing fails, fall back to step-by-step
+                    single_shot = False
+            elif output_format == "json":
+                import json
+                try:
+                    cleaned_response = response.replace("```json", "").replace("```", "").strip()
+                    output_data = json.loads(cleaned_response)
+                except json.JSONDecodeError:
+                    # If parsing fails, fall back to step-by-step
+                    single_shot = False
+        
+        if not single_shot:
+            # Generate each field individually
+            for field, field_info in template.items():
+                if "prompt" in field_info:
+                    field_prompt = field_info["prompt"].format(main_prompt=prompt)
+                    response = self.generate_code(field_prompt, callback=self.sink, accept_all_if_no_code_tags_is_present=True )
+                    # Clean up the response
+                    cleaned_response = response.strip()
+                    # Apply any field-specific processing
+                    if "processor" in field_info:
+                        cleaned_response = field_info["processor"](cleaned_response)
+                    output_data[field] = cleaned_response
+        
+        # Format the output string
+        if output_format == "yaml":
+            formatted_string = ""
+            for key, value in output_data.items():
+                if isinstance(value, str) and ("\n" in value or len(value) > 40):
+                    v = value.replace('\n', '\n    ')
+                    formatted_string += f"{key}: |\n    {v}\n"
+                else:
+                    formatted_string += f"{key}: {value}\n"
+        else:  # json
+            formatted_string = json.dumps(output_data, indent=2)
+        
+        return {
+            "data": output_data,
+            "formatted_string": formatted_string
+        }
             
     def run_workflow(self, prompt:str, previous_discussion_text:str="", callback: Callable[[str | list | None, MSG_OPERATION_TYPE, str, AIPersonality| None], bool]=None, context_details:dict=None, client:Client=None):
         """
