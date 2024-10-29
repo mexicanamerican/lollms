@@ -31,7 +31,7 @@ from ascii_colors import ASCIIColors
 import time
 from lollms.types import MSG_OPERATION_TYPE, SUMMARY_MODE
 import json
-from typing import Any, List, Optional, Type, Callable, Dict, Any, Union
+from typing import Any, List, Optional, Type, Callable, Dict, Any, Union, Tuple
 import json
 from lollmsvectordb.vector_database import VectorDatabase
 from lollmsvectordb.text_document_loader import TextDocumentsLoader
@@ -3123,28 +3123,84 @@ Use this structure:
             prompt_parts[sacrifice_id] = sacrifice_text
             return self.separator_template.join([s for s in prompt_parts if s!=""])
     # ================================================= Sending commands to ui ===========================================
-    def add_collapsible_entry(self, title, content, subtitle="", open_by_default=False):
+    def add_collapsible_entry(self, title, content, subtitle="", open_by_default=False, icon=None, type="default"):
+        """
+        Creates a collapsible entry with enhanced styling and animations.
+        
+        Args:
+            title (str): The main title of the collapsible
+            content (str): The content to be displayed when expanded
+            subtitle (str): Optional subtitle text
+            open_by_default (bool): Whether the collapsible should be open by default
+            icon (str): Optional custom icon SVG string
+            type (str): Type of collapsible ('default', 'success', 'warning', 'error', 'info')
+        
+        Returns:
+            str: HTML string for the collapsible element
+        """
+        # Color schemes for different types
+        color_schemes = {
+            "default": "border-gray-200 bg-white hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-750",
+            "success": "border-green-200 bg-green-50 hover:bg-green-100 dark:border-green-700 dark:bg-green-900/20 dark:hover:bg-green-900/30",
+            "warning": "border-yellow-200 bg-yellow-50 hover:bg-yellow-100 dark:border-yellow-700 dark:bg-yellow-900/20 dark:hover:bg-yellow-900/30",
+            "error": "border-red-200 bg-red-50 hover:bg-red-100 dark:border-red-700 dark:bg-red-900/20 dark:hover:bg-red-900/30",
+            "info": "border-blue-200 bg-blue-50 hover:bg-blue-100 dark:border-blue-700 dark:bg-blue-900/20 dark:hover:bg-blue-900/30"
+        }
+        
+        # Default arrow icon if no custom icon is provided
+        default_icon = '''
+<svg class="w-5 h-5 text-gray-500 dark:text-gray-400 transition-transform duration-300 transform group-open:rotate-90" 
+xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+<path fill-rule="evenodd" 
+d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" 
+clip-rule="evenodd" />
+</svg>
+        '''
+        
+        icon_html = icon if icon else default_icon
+        color_scheme = color_schemes.get(type, color_schemes["default"])
         open_attr = 'open' if open_by_default else ''
+        
         return "\n".join([
-            f'<details class="w-full rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800 mb-4 transition-all duration-300 ease-in-out hover:shadow-md focus-within:ring-2 focus-within:ring-blue-500 dark:focus-within:ring-blue-400" {open_attr}>',
-            f'    <summary class="flex items-center justify-between p-4 cursor-pointer select-none transition-all duration-300 ease-in-out">',
-            f'        <div class="flex items-center space-x-3">',
-            f'            <div class="flex-shrink-0">',
-            f'                <svg class="w-5 h-5 text-gray-500 dark:text-gray-400 transition-transform duration-300 transform group-open:rotate-90" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">',
-            f'                    <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />',
-            f'                </svg>',
-            f'            </div>',
-            f'            <div>',
-            f'                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">{title}</h3>',
-            f'                <p class="text-sm text-gray-500 dark:text-gray-400">{subtitle}</p>',
-            f'            </div>',
-            f'        </div>',
-            f'    </summary>',
-            f'    <div class="px-4 pb-4 pt-2 text-gray-700 dark:text-gray-300 transition-all duration-300 ease-in-out max-h-0 overflow-hidden group-open:max-h-40">',
-            f'      <p>{content}</p>',
-            f'    </div>',
-            f'</details>\n'
-        ])
+            f'''
+<details 
+class="group w-full rounded-xl border {color_scheme} shadow-sm mb-4 
+transition-all duration-300 ease-in-out hover:shadow-md 
+focus-within:ring-2 focus-within:ring-blue-500 dark:focus-within:ring-blue-400" 
+{open_attr}>
+<summary 
+class="flex items-center justify-between p-4 cursor-pointer select-none 
+transition-all duration-300 ease-in-out">
+<div class="flex items-center space-x-3 flex-grow">
+<div class="flex-shrink-0">
+{icon_html}
+</div>
+<div class="flex-grow">
+<h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+{title}
+</h3>
+{f'<p class="text-sm text-gray-500 dark:text-gray-400">{subtitle}</p>' if subtitle else ''}
+</div>
+</div>
+<div class="flex-shrink-0">
+<svg class="w-5 h-5 text-gray-500 dark:text-gray-400 transition-transform duration-300 
+transform group-open:rotate-180" 
+xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+<path fill-rule="evenodd" 
+d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" 
+clip-rule="evenodd" />
+</svg>
+</div>
+</summary>
+<div class="px-4 pb-4 pt-2 text-gray-700 dark:text-gray-300 
+transition-all duration-300 ease-in-out">
+<div class="prose dark:prose-invert max-w-none">
+{content}
+</div>
+</div>
+</details>
+'''
+])
 
 
 
@@ -3651,29 +3707,35 @@ Use this structure:
         
         return updated_content, True  # Section updated successfully
 
-    def extract_code_blocks(self, text: str) -> List[dict]:
+    def extract_code_blocks(self, text: str, return_remaining_text: bool = False) -> Union[List[dict], Tuple[List[dict], str]]:
         """
-        This function extracts code blocks from a given text.
+        This function extracts code blocks from a given text and optionally returns the text without code blocks.
 
         Parameters:
         text (str): The text from which to extract code blocks. Code blocks are identified by triple backticks (```).
+        return_remaining_text (bool): If True, also returns the text with code blocks removed.
 
         Returns:
-        List[dict]: A list of dictionaries where each dictionary represents a code block and contains the following keys:
-            - 'index' (int): The index of the code block in the text.
-            - 'file_name' (str): The name of the file extracted from the preceding line, if available.
-            - 'content' (str): The content of the code block.
-            - 'type' (str): The type of the code block. If the code block starts with a language specifier (like 'python' or 'java'), this field will contain that specifier. Otherwise, it will be set to 'language-specific'.
-            - 'is_complete' (bool): True if the block has a closing tag, False otherwise.
-
-        Note:
-        The function assumes that the number of triple backticks in the text is even.
-        If the number of triple backticks is odd, it will consider the rest of the text as the last code block.
+        Union[List[dict], Tuple[List[dict], str]]: 
+            - If return_remaining_text is False: Returns only the list of code block dictionaries
+            - If return_remaining_text is True: Returns a tuple containing:
+                * List of code block dictionaries
+                * String containing the text with all code blocks removed
+            
+        Each code block dictionary contains:
+            - 'index' (int): The index of the code block in the text
+            - 'file_name' (str): The name of the file extracted from the preceding line, if available
+            - 'content' (str): The content of the code block
+            - 'type' (str): The type of the code block
+            - 'is_complete' (bool): True if the block has a closing tag, False otherwise
         """        
         remaining = text
         bloc_index = 0
         first_index = 0
         indices = []
+        text_without_blocks = text
+        
+        # Find all code block delimiters
         while len(remaining) > 0:
             try:
                 index = remaining.index("```")
@@ -3689,16 +3751,27 @@ Use this structure:
 
         code_blocks = []
         is_start = True
+        
+        # Process code blocks and build text without blocks if requested
+        if return_remaining_text:
+            text_parts = []
+            last_end = 0
+            
         for index, code_delimiter_position in enumerate(indices):
-            block_infos = {
-                'index': index,
-                'file_name': "",
-                'section': "",
-                'content': "",
-                'type': "",
-                'is_complete': False
-            }
             if is_start:
+                block_infos = {
+                    'index': len(code_blocks),
+                    'file_name': "",
+                    'section': "",
+                    'content': "",
+                    'type': "",
+                    'is_complete': False
+                }
+                
+                # Store text before code block if returning remaining text
+                if return_remaining_text:
+                    text_parts.append(text[last_end:code_delimiter_position].strip())
+                
                 # Check the preceding line for file name
                 preceding_text = text[:code_delimiter_position].strip().splitlines()
                 if preceding_text:
@@ -3727,6 +3800,7 @@ Use this structure:
                     if '{' in sub_text[:next_index]:
                         next_index = 0
                     start_pos = next_index
+                    
                     if code_delimiter_position + 3 < len(text) and text[code_delimiter_position + 3] in ["\n", " ", "\t"]:
                         block_infos["type"] = 'language-specific'
                     else:
@@ -3740,16 +3814,31 @@ Use this structure:
                         else:
                             block_infos["content"] = sub_text[start_pos:next_pos].strip()
                             block_infos["is_complete"] = False
+                        
+                        if return_remaining_text:
+                            last_end = indices[index + 1] + 3
                     else:
                         block_infos["content"] = sub_text[start_pos:].strip()
                         block_infos["is_complete"] = False
+                        
+                        if return_remaining_text:
+                            last_end = len(text)
+                    
                     code_blocks.append(block_infos)
                 is_start = False
             else:
                 is_start = True
-                continue
-
+                
+        if return_remaining_text:
+            # Add any remaining text after the last code block
+            if last_end < len(text):
+                text_parts.append(text[last_end:].strip())
+            # Join all non-code parts with newlines
+            text_without_blocks = '\n'.join(filter(None, text_parts))
+            return code_blocks, text_without_blocks
+            
         return code_blocks
+
 
     def build_and_execute_python_code(self,context, instructions, execution_function_signature, extra_imports=""):
         start_header_id_template    = self.config.start_header_id_template
@@ -4185,9 +4274,9 @@ Use this structure:
             self.print_prompt("Generated", generated_text)
 
         # Extract the function calls from the generated text.
-        function_calls = self.extract_function_calls_as_json(generated_text)
+        function_calls, text_without_code = self.extract_function_calls_as_json(generated_text)
 
-        return generated_text, function_calls
+        return generated_text, function_calls, text_without_code
 
 
     def generate_with_function_calls_and_images(self, context_details: dict, images:list, functions: List[Dict[str, Any]], max_answer_length: Optional[int] = None, callback = None) -> List[Dict[str, Any]]:
@@ -4209,9 +4298,9 @@ Use this structure:
         generated_text = self.fast_gen_with_images(upgraded_prompt, images, max_answer_length, callback=callback)
 
         # Extract the function calls from the generated text.
-        function_calls = self.extract_function_calls_as_json(generated_text)
+        function_calls, text_without_code = self.extract_function_calls_as_json(generated_text)
 
-        return generated_text, function_calls
+        return generated_text, function_calls, text_without_code
 
     def execute_function(self, code, function_definitions = None):
         function_call = json.loads(code)
@@ -4361,7 +4450,7 @@ Use this structure:
         """
 
         # Extract markdown code blocks that contain JSON.
-        code_blocks = self.extract_code_blocks(text)
+        code_blocks, text_without_code = self.extract_code_blocks(text, True)
 
         # Filter out and parse JSON entries.
         function_calls = []
@@ -4379,7 +4468,7 @@ Use this structure:
                     # If the content is not valid JSON, skip it.
                     continue
 
-        return function_calls
+        return function_calls, text_without_code
 
 
     def interact(
@@ -4408,15 +4497,15 @@ Use this structure:
 
         final_output = ""
         if len(self.personality.image_files)>0:
-            out, function_calls = self.generate_with_function_calls_and_images(context_details, self.personality.image_files, function_definitions, callback=callback)
+            out, function_calls, text_without_code = self.generate_with_function_calls_and_images(context_details, self.personality.image_files, function_definitions, callback=callback)
         else:
-            out, function_calls = self.generate_with_function_calls(context_details, function_definitions, callback=callback)
+            out, function_calls, text_without_code = self.generate_with_function_calls(context_details, function_definitions, callback=callback)
         nested_function_calls = 0
         while len(function_calls)>0 and nested_function_calls<max_nested_function_calls:
             nested_function_calls += 1
             self.add_chunk_to_message_content("\n") 
             if hide_function_call:
-                self.set_message_content("") #Hide function 
+                self.set_message_content(text_without_code) #Hide function 
 
             if self.config.debug:
                 self.print_prompt("Function calls", json.dumps(function_calls, indent=4))
@@ -4430,10 +4519,11 @@ Use this structure:
                     self.new_message("")
                 context_details["discussion_messages"] +=out
                 if len(self.personality.image_files)>0:
-                    out, function_calls = self.generate_with_function_calls_and_images(context_details, self.personality.image_files, function_definitions, callback=callback)
+                    out, function_calls, twc = self.generate_with_function_calls_and_images(context_details, self.personality.image_files, function_definitions, callback=callback)
                 else:
-                    out, function_calls = self.generate_with_function_calls(context_details, function_definitions, callback=callback)
+                    out, function_calls, twc = self.generate_with_function_calls(context_details, function_definitions, callback=callback)
                 final_output += "\n" + out
+                text_without_code += twc
         else:
             final_output = out
         return final_output
