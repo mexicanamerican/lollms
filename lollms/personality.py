@@ -303,7 +303,7 @@ class AIPersonality:
             callback = self.callback
 
         if callback:
-            callback(message_text, MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_NEW_MESSAGE, parameters={'type':message_type.value,'metadata':metadata}, personality=self)
+            callback(message_text, MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_NEW_MESSAGE, personality=self)
 
     def set_message_content(self, full_text:str, callback: Callable[[str | list | None, MSG_OPERATION_TYPE, str, Any | None], bool]=None):
         """This sends full text to front end
