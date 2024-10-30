@@ -156,6 +156,9 @@ class AIPersonality:
         #General information
         self._author: str = "ParisNeo"
         self._name: str = "lollms"
+        self._creation_date = "unknown"
+        self._last_update_date = "unknown"
+
         self._user_name: str = "user"
         self._category: str = "General"
         self._category_desc: str = "General"
@@ -829,6 +832,9 @@ class AIPersonality:
         self._version = config.get("version", self._version)
         self._author = config.get("author", self._author)
         self._name = config.get("name", self._name)
+        self._creation_date = config.get("creation_date", self._creation_date)
+        self._last_update_date = config.get("last_update_date", self._last_update_date)
+        
         self._user_name = config.get("user_name", self._user_name)
         self._category_desc = config.get("category", self._category)
         self._language = config.get("language", self._language)
@@ -1115,6 +1121,8 @@ class AIPersonality:
             "author": self._author,
             "version": self._version,
             "name": self._name,
+            "creation_date": self._creation_date,
+            "last_update_date": self._last_update_date,
             "user_name": self._user_name,
             "category": self._category,
             "language": self._language,
@@ -1157,6 +1165,8 @@ class AIPersonality:
             "author": self._author,
             "version": self._version,
             "name": self._name,
+            "creation_date": self._creation_date,
+            "last_update_date": self._last_update_date,
             "user_name": self._user_name,
             "category": self._category,
             "language": self._language,
@@ -1233,6 +1243,26 @@ class AIPersonality:
     def name(self, value: str):
         """Set the name."""
         self._name = value
+
+    @property
+    def creation_date(self) -> str:
+        """Get the name."""
+        return self._creation_date
+
+    @creation_date.setter
+    def creation_date(self, value: str):
+        """Set the name."""
+        self._creation_date = value        
+
+    @property
+    def last_update_date(self) -> str:
+        """Get the name."""
+        return self._last_update_date
+
+    @last_update_date.setter
+    def last_update_date(self, value: str):
+        """Set the name."""
+        self._last_update_date = value        
 
     @property
     def user_name(self) -> str:
