@@ -1208,8 +1208,10 @@ Use this structure:
 
         self.set_config(config, True)
 
-        if config["language"]:         
-            default_language = config["language"].lower().strip().split()[0]
+        lang = config.get("language","english")
+
+        if lang:         
+            default_language = lang.lower().strip().split()[0]
         else:
             default_language = 'english'
             
