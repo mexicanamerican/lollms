@@ -1220,6 +1220,7 @@ Use this structure:
                             yaml.dump(json_cfg, f)
                         with open(language_path,"r",encoding="utf-8", errors="ignore") as f:
                             new_config = yaml.safe_load(f)
+                        config["category"] = self.category
                         self.set_config(new_config)                           
                         self.HideBlockingMessage()
 
