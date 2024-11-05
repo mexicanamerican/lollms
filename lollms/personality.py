@@ -1209,10 +1209,19 @@ Use this structure:
                         config_file = package_path / "config.yaml"
                         if not config_file.exists():
                             raise ValueError(f"The provided folder {package_path} does not exist.")
-
+                        def string_constructor(loader, node):
+                            return yaml.loader.SafeLoader.construct_scalar(loader, node)
+                        # Sauvegardez le constructeur original
+                        original_constructor = yaml.loader.SafeLoader.yaml_constructors.get('tag:yaml.org,2002:timestamp')
+                        yaml.add_constructor('tag:yaml.org,2002:timestamp', string_constructor, yaml.loader.SafeLoader)
                         with open(config_file, "r", encoding='utf-8') as f:
                             default_config = yaml.safe_load(f)
-
+                        # Restaurez le constructeur original
+                        if original_constructor:
+                            yaml.add_constructor('tag:yaml.org,2002:timestamp', original_constructor,  yaml.loader.SafeLoader)
+                        else:
+                            # Si aucun constructeur original n'était présent, supprimez simplement le constructeur personnalisé
+                            del  yaml.loader.SafeLoader.yaml_constructors['tag:yaml.org,2002:timestamp']
                         # Translating
                         new_config = self.generate_code(f"Translate the following json file values to {language}. Use double quotes for the keys and strings.  Do not translate the keys, just the values\n```json\n{default_config}```\n", max_continues=1)
                         json_cfg = json.loads(new_config)
@@ -1220,7 +1229,7 @@ Use this structure:
                             yaml.dump(json_cfg, f)
                         with open(language_path,"r",encoding="utf-8", errors="ignore") as f:
                             new_config = yaml.safe_load(f)
-                        config["category"] = self.category
+                        new_config["category"] = self.category
                         self.set_config(new_config)                           
                         self.HideBlockingMessage()
 
