@@ -1112,7 +1112,7 @@ Use this structure:
         self._personality_conditioning = config.get("personality_conditioning", self._personality_conditioning)
         self._prompts_list = config.get("prompts_list", self._prompts_list)
         try:
-            personality_folder = self.lollms_paths.personal_configuration_path/"personalities"/self.name
+            personality_folder = self.lollms_paths.personal_configuration_path/"personalities"/self.personality_folder_name
             personality_folder.mkdir(exist_ok=True, parents=True)
             custom_prompts = personality_folder/"custom_prompts.yaml"
             if custom_prompts.exists():
@@ -1142,7 +1142,7 @@ Use this structure:
 
     def add_prompt(self, prompt):
         try:
-            personality_folder = self.lollms_paths.personal_configuration_path/"personalities"/self.name
+            personality_folder = self.lollms_paths.personal_configuration_path/"personalities"/self.personality_folder_name
             personality_folder.mkdir(exist_ok=True, parents=True)
             custom_prompts = personality_folder/"custom_prompts.yaml"
             if custom_prompts.exists():
@@ -1160,7 +1160,7 @@ Use this structure:
 
     def delete_prompt(self, prompt):
         try:
-            personality_folder = self.lollms_paths.personal_configuration_path/"personalities"/self.name
+            personality_folder = self.lollms_paths.personal_configuration_path/"personalities"/self.personality_folder_name
             personality_folder.mkdir(exist_ok=True, parents=True)
             custom_prompts = personality_folder/"custom_prompts.yaml"
             if custom_prompts.exists():
@@ -1188,10 +1188,10 @@ Use this structure:
             self.set_config(config)
             return
         if self.language.lower().strip() and  self.language.lower().strip()!= language:
-            language_path = self.app.lollms_paths.personal_configuration_path/"personalities"/self.name/f"languages_{language}.yaml"
+            language_path = self.app.lollms_paths.personal_configuration_path/"personalities"/self.personality_folder_name/f"languages_{language}.yaml"
             if not language_path.exists():
                 #checking if there is already a translation in the personality folder
-                persona_language_path = self.lollms_paths.personalities_zoo_path/self.category/self.name.replace(" ","_")/"languages"/f"{language}.yaml"
+                persona_language_path = self.lollms_paths.personalities_zoo_path/self.category/self.personality_folder_name.replace(" ","_")/"languages"/f"{language}.yaml"
                 if persona_language_path.exists():
                     shutil.copy(persona_language_path, language_path)
                     with open(language_path,"r",encoding="utf-8", errors="ignore") as f:
@@ -1289,7 +1289,7 @@ Use this structure:
         current_language = self.selected_language.lower().strip().split()[0]
 
         if current_language and  current_language!= default_language:
-            language_path = self.app.lollms_paths.personal_configuration_path/"personalities"/config["name"]/f"languages_{current_language}.yaml"
+            language_path = self.app.lollms_paths.personal_configuration_path/"personalities"/self.personality_folder_name/f"languages_{current_language}.yaml"
             if not language_path.exists():
                 #checking if there is already a translation in the personality folder
                 persona_language_path = self.lollms_paths.personalities_zoo_path/self.category/self.name.replace(" ","_")/"languages"/f"{current_language}.yaml"
