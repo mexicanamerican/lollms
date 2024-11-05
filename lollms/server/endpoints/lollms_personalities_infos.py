@@ -67,8 +67,8 @@ def get_personality():
     ASCIIColors.yellow("Getting current personality")
     personality = lollmsElfServer.personality
 
-    real_assets_path = lollmsElfServer.lollms_paths.personalities_zoo_path / personality.category / personality.name / 'assets'
-    assets_path = Path("personalities") / personality.category / personality.name / 'assets'
+    real_assets_path = lollmsElfServer.lollms_paths.personalities_zoo_path / personality.category / personality.personality_folder_name / 'assets'
+    assets_path = Path("personalities") / personality.category / personality.personality_folder_name / 'assets'
     gif_logo_path = assets_path / 'logo.gif'
     webp_logo_path = assets_path / 'logo.webp'
     png_logo_path = assets_path / 'logo.png'
@@ -138,8 +138,8 @@ def get_all_personalities():
                 if lollmsElfServer.personality.personality_folder_name==pers:
                     personality = lollmsElfServer.personality
 
-                    real_assets_path = lollmsElfServer.lollms_paths.personalities_zoo_path / personality.category / personality.name / 'assets'
-                    assets_path = Path("personalities") / personality.category / personality.name / 'assets'
+                    real_assets_path = lollmsElfServer.lollms_paths.personalities_zoo_path / personality.category / personality.personality_folder_name / 'assets'
+                    assets_path = Path("personalities") / personality.category / personality.personality_folder_name / 'assets'
                     gif_logo_path = assets_path / 'logo.gif'
                     webp_logo_path = assets_path / 'logo.webp'
                     png_logo_path = assets_path / 'logo.png'
