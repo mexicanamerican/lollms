@@ -703,9 +703,13 @@ class LollmsApplication(LoLLMsCom):
         try:
             personality = PersonalityBuilder(self.lollms_paths, self.config, self.model, self, callback=callback).build_personality(id)
             if personality.model is not None:
-                self.cond_tk = personality.model.tokenize(personality.personality_conditioning)
-                self.n_cond_tk = len(self.cond_tk)
-                ASCIIColors.success(f"Personality  {personality.name} mounted successfully")
+                try:
+                    self.cond_tk = personality.model.tokenize(personality.personality_conditioning)
+                    self.n_cond_tk = len(self.cond_tk)
+                    ASCIIColors.success(f"Personality  {personality.name} mounted successfully")
+                except:
+                    self.cond_tk = []      
+                    self.n_cond_tk = 0      
             else:
                 ASCIIColors.success(f"Personality  {personality.name} mounted successfully but no model is selected")
         except Exception as ex:
