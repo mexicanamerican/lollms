@@ -525,7 +525,7 @@ class LollmsSD(LollmsTTI):
         if save_folder is None:
             save_folder = self.output_dir    
         save_folder = Path(save_folder)
-        if not save_folder.is_dir():
+        if save_folder.is_dir():
             image_name = self.get_available_image_name(save_folder, self.wm)
             image_path = os.path.join(save_folder, image_name)
         else:
