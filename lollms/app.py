@@ -1281,7 +1281,7 @@ The reformulation must be placed inside a json markdown tag like this:
                         self.personality.step_end("Adding skills")
                         self.personality.step_end("Querying skills library")
                     except Exception as ex:
-                        ASCIIColors.error(ex)
+                        trace_exception(ex)
                         self.warning("Couldn't add long term memory information to the context. Please verify the vector database")        # Add information about the user
                         self.personality.step_end("Adding skills")
                         self.personality.step_end("Querying skills library",False)
