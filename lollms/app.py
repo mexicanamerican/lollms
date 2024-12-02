@@ -1271,8 +1271,8 @@ The reformulation must be placed inside a json markdown tag like this:
                         self.personality.step_start("Adding skills")
                         if self.config.debug:
                             ASCIIColors.info(f"Query : {query}")
-                        skill_titles, skills = self.skills_library.query_vector_db(query, top_k=3, min_dist=self.config.rag_min_correspondance)#query_entry_fts(query)
-                        knowledge_infos={"titles":skill_titles,"contents":skills}
+                        skill_titles, skills, similarities = self.skills_library.query_vector_db(query, top_k=3, min_similarity=self.config.rag_min_correspondance)#query_entry_fts(query)
+                        knowledge_infos={"titles":skill_titles,"contents":skills, "similarities":similarities}
                         if len(skills)>0:
                             if knowledge=="":
                                 knowledge=f"{self.system_custom_header(knowledge)}\n"
