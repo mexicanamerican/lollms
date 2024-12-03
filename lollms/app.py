@@ -337,19 +337,20 @@ class LollmsApplication(LoLLMsCom):
                     from lollmsvectordb import VectorDatabase
                     from lollmsvectordb.text_document_loader import TextDocumentsLoader
                     from lollmsvectordb.lollms_tokenizers.tiktoken_tokenizer import TikTokenTokenizer
-                    if self.lollms.config.rag_vectorizer=="semantic":
+                    if self.config.rag_vectorizer=="semantic":
                         from lollmsvectordb.lollms_vectorizers.semantic_vectorizer import SemanticVectorizer
-                        vectorizer = SemanticVectorizer(self.lollms.config.rag_vectorizer_model)
-                    elif self.lollms.config.rag_vectorizer=="tfidf":
+                        vectorizer = SemanticVectorizer(self.config.rag_vectorizer_model)
+                    elif self.config.rag_vectorizer=="tfidf":
                         from lollmsvectordb.lollms_vectorizers.tfidf_vectorizer import TFIDFVectorizer
                         vectorizer = TFIDFVectorizer()
-                    elif self.lollms.config.rag_vectorizer=="openai":
+                    elif self.config.rag_vectorizer=="openai":
                         from lollmsvectordb.lollms_vectorizers.openai_vectorizer import OpenAIVectorizer
-                        vectorizer = OpenAIVectorizer(self.lollms.config.rag_vectorizer_model, self.lollms.config.rag_vectorizer_openai_key)
+                        vectorizer = OpenAIVectorizer(self.config.rag_vectorizer_model, self.config.rag_vectorizer_openai_key)
 
-                    vdb = VectorDatabase(Path(parts[1])/f"{db_name}.sqlite", vectorizer, None if self.lollms.config.rag_vectorizer=="semantic" else self.model if self.model else TikTokenTokenizer(), n_neighbors=self.config.rag_n_chunks)       
+                    vdb = VectorDatabase(Path(parts[1])/f"{db_name}.sqlite", vectorizer, None if self.config.rag_vectorizer=="semantic" else self.model if self.model else TikTokenTokenizer(), n_neighbors=self.config.rag_n_chunks)       
                     self.active_rag_dbs.append({"name":parts[0],"path":parts[1],"vectorizer":vdb})
-                except:
+                except Exception as ex:
+                    trace_exception(ex)
                     ASCIIColors.error(f"Couldn't load "+str(Path(parts[1])/f"{db_name}.sqlite")+" consider revectorizing it")
 
     def start_servers(self):
@@ -966,21 +967,21 @@ class LollmsApplication(LoLLMsCom):
 
         # boosting information
         if self.config.positive_boost:
-            positive_boost=f"{self.separator_template}{self.start_header_id_template}important information: "+self.config.positive_boost+"\n"
+            positive_boost=f"{self.system_custom_header('important information')}"+self.config.positive_boost+"\n"
             n_positive_boost = len(self.model.tokenize(positive_boost))
         else:
             positive_boost=""
             n_positive_boost = 0
 
         if self.config.negative_boost:
-            negative_boost=f"{self.separator_template}{self.start_header_id_template}important information: "+self.config.negative_boost+"\n"
+            negative_boost=f"{self.system_custom_header('important information')}"+self.config.negative_boost+"\n"
             n_negative_boost = len(self.model.tokenize(negative_boost))
         else:
             negative_boost=""
             n_negative_boost = 0
 
         if self.config.fun_mode:
-            fun_mode=f"{self.separator_template}{self.start_header_id_template}important information: Fun mode activated. In this mode you must answer in a funny playful way. Do not be serious in your answers. Each answer needs to make the user laugh.\n"
+            fun_mode=f"{self.system_custom_header('important information')} Fun mode activated. In this mode you must answer in a funny playful way. Do not be serious in your answers. Each answer needs to make the user laugh.\n"
             n_fun_mode = len(self.model.tokenize(positive_boost))
         else:
             fun_mode=""
@@ -1091,11 +1092,11 @@ class LollmsApplication(LoLLMsCom):
                     if self.config.data_vectorization_build_keys_words:
                         self.personality.step_start("Building vector store query")
                         q = f"{self.separator_template}".join([
-                            f"{self.start_header_id_template}instruction{self.end_header_id_template}Read the entire discussion and rewrite the last prompt for someone who hasn't read the discussion.",
+                            f"{self.system_custom_header('instruction')}Read the entire discussion and rewrite the last prompt for someone who hasn't read the discussion.",
                             "Do not answer the prompt. Do not provide any explanations.",
-                            f"{self.start_header_id_template}discussion{self.end_header_id_template}",
+                            f"{self.system_custom_header('discussion')}",
                             f"{discussion[-2048:]}",
-                            f"{self.start_header_id_template}enhanced_query{self.end_header_id_template}"
+                            f"{self.ai_custom_header('enhanced_query')}"
                         ])
                         query = self.personality.fast_gen(q, max_generation_size=256, show_progress=True, callback=self.personality.sink)
                         self.personality.step_end("Building vector store query")
@@ -1105,7 +1106,7 @@ class LollmsApplication(LoLLMsCom):
                         query = current_message.content
                     if documentation=="":
                         documentation=f"{self.separator_template}".join([
-                            f"{self.separator_template}{self.start_header_id_template}important information{self.end_header_id_template}",
+                            f"{self.system_custom_header('important information')}",
                             "Always refer to the provided documentation to answer user questions accurately.",
                             "Absence of Information: If the required information is not available in the documentation, inform the user that the requested information is not present in the documentation section.",
                             "Strict Adherence to Documentation: It is strictly prohibited to provide answers without concrete evidence from the documentation.",
@@ -1142,7 +1143,6 @@ class LollmsApplication(LoLLMsCom):
                                     v.add_summaries(doc['path'],[{"context":query, "summary":summary}])
                                 full_documentation += document_infos
                         documentation += self.personality.summarize_text(full_documentation, f"Extract information from the current text chunk and previous text chunks to answer the query. If there is no information about the query, just return an empty string.\n{self.system_custom_header('query')}{query}", callback=self.personality.sink)
-
                     else:
                         results = []
                         recovered_ids=[[] for _ in range(len(self.active_rag_dbs))]
