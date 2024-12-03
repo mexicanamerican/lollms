@@ -1467,7 +1467,7 @@ The reformulation must be placed inside a json markdown tag like this:
             "ai_prefix":ai_prefix,
             "extra":"",
             "available_space":available_space,
-            "skills":skills,
+            "skills":[{"title": title, "content":content, "similarity":similarity} for title, content, similarity in zip(skill_titles, skills, similarities)],
             "is_continue":is_continue,
             "previous_chunk":previous_chunk,
             "prompt":current_message.content
