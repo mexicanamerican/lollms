@@ -1030,7 +1030,7 @@ class LollmsApplication(LoLLMsCom):
                     if self.config.internet_quick_search:
                         self.personality.step_start("Performing Internet search (quick mode)")
                     else:
-                        self.personality.step_start("Performing Internet search (advanced mode: slower but more advanced)")
+                        self.personality.step_start("Performing Internet search (advanced mode: slower but more accurate)")
 
                     internet_search_results=f"{self.system_full_header}Use the web search results data to answer {self.config.user_name}. Try to extract information from the web search and use it to perform the requested task or answer the question. Do not come up with information that is not in the websearch results. Try to stick to the websearch results and clarify if your answer was based on the resuts or on your own culture. If you don't know how to perform the task, then tell the user politely that you need more data inputs.{self.separator_template}{self.start_header_id_template}Web search results{self.end_header_id_template}\n"
 
