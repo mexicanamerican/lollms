@@ -1137,7 +1137,7 @@ class LollmsApplication(LoLLMsCom):
                                     "document_path":doc['path'],
                                     "chunk_content":summary,
                                     "chunk_size":0,
-                                    "distance":0,
+                                    "similarity":0,
                                 })
                                 if summary!="":
                                     v.add_summaries(doc['path'],[{"context":query, "summary":summary}])
@@ -1175,7 +1175,7 @@ class LollmsApplication(LoLLMsCom):
                                 "document_path":chunk.doc.path,
                                 "chunk_content":chunk.text,
                                 "chunk_size":chunk.nb_tokens,
-                                "distance":chunk.distance,
+                                "similarity":1-chunk.distance,
                             })
                             documentation += document_infos
                             
@@ -1223,7 +1223,7 @@ class LollmsApplication(LoLLMsCom):
                                     "document_path":doc['path'],
                                     "chunk_content":summary,
                                     "chunk_size":0,
-                                    "distance":0,
+                                    "similarity":0,
                                 })
                                 if summary!="":
                                     v.add_summaries(doc['path'],[{"context":query, "summary":summary}])
