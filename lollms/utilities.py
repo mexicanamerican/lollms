@@ -19,7 +19,6 @@ import shutil
 
 from typing import List, Optional
 
-from PIL import Image
 import requests
 from io import BytesIO
 import base64
@@ -40,6 +39,10 @@ import subprocess
 
 from functools import partial
 
+import pipmaster as pm
+if not pm.is_installed("Pillow"):
+    pm.install("Pillow")
+from PIL import Image
 
 def create_env(env_name, python_version):
     pass
