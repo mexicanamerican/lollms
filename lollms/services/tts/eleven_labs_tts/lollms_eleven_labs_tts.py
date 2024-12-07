@@ -144,8 +144,11 @@ class LollmsElevenLabsTTS(LollmsTTS):
         else:
             url = f"https://api.elevenlabs.io/v1/text-to-speech/{self.voice_id}"
             response = requests.post(url, json=payload, headers=headers)
-            with open(speech_file_path, 'wb') as f:
-                f.write(response.content)
+            if response.status_code == 200:
+                with open(speech_file_path, 'wb') as f:
+                    f.write(response.content)
+            else:
+                self.app.error(f"Couldn't generate speech, {response.reason}")
 
         def play_audio(file_path):
             # Read the audio file
