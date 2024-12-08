@@ -1058,7 +1058,7 @@ class LollmsApplication(LoLLMsCom):
 
 
                 if not self.config.rag_deactivate:
-                    if self.config.data_vectorization_build_keys_words:
+                    if self.config.rag_build_keys_words:
                         if discussion is None:
                             discussion = self.recover_discussion(client_id)
                         query = self.personality.fast_gen(f"{self.separator_template}{self.start_header_id_template}instruction: Read the discussion and rewrite the last prompt for someone who didn't read the entire discussion.\nDo not answer the prompt. Do not add explanations.{self.separator_template}{self.start_header_id_template}discussion:\n{discussion[-2048:]}{self.separator_template}{self.start_header_id_template}enhanced query: ", max_generation_size=256, show_progress=True)
@@ -1068,7 +1068,7 @@ class LollmsApplication(LoLLMsCom):
                     try:
                         chunks:List[Chunk] = self.personality.persona_data_vectorizer.search(query, int(self.config.rag_n_chunks))
                         for chunk in chunks:
-                            if self.config.data_vectorization_put_chunk_informations_into_context:
+                            if self.config.rag_put_chunk_informations_into_context:
                                 documentation += f"{self.start_header_id_template}document chunk{self.end_header_id_template}\ndocument title: {chunk.doc.title}\nchunk content:\n{chunk.text}\n"
                             else:
                                 documentation += f"{self.start_header_id_template}chunk{self.end_header_id_template}\n{chunk.text}\n"
@@ -1089,7 +1089,7 @@ class LollmsApplication(LoLLMsCom):
                     if discussion is None:
                         discussion = self.recover_discussion(client_id)
 
-                    if self.config.data_vectorization_build_keys_words:
+                    if self.config.rag_build_keys_words:
                         self.personality.step_start("Building vector store query")
                         q = f"{self.separator_template}".join([
                             f"{self.system_custom_header('instruction')}Read the entire discussion and rewrite the last prompt for someone who hasn't read the discussion.",
@@ -1194,7 +1194,7 @@ class LollmsApplication(LoLLMsCom):
                             documentation += f"{self.separator_template}"
 
                         if query is None:
-                            if self.config.data_vectorization_build_keys_words:
+                            if self.config.rag_build_keys_words:
                                 self.personality.step_start("Building vector store query")
                                 query = self.personality.fast_gen(f"{self.separator_template}{self.start_header_id_template}instruction: Read the discussion and rewrite the last prompt for someone who didn't read the entire discussion.\nDo not answer the prompt. Do not add explanations.{self.separator_template}{self.start_header_id_template}discussion:\n{discussion[-2048:]}{self.separator_template}{self.start_header_id_template}enhanced query: ", max_generation_size=256, show_progress=True, callback=self.personality.sink)
                                 self.personality.step_end("Building vector store query")
@@ -1233,7 +1233,7 @@ class LollmsApplication(LoLLMsCom):
                             try:
                                 chunks:List[Chunk] = client.discussion.vectorizer.search(query, int(self.config.rag_n_chunks))
                                 for chunk in chunks:
-                                    if self.config.data_vectorization_put_chunk_informations_into_context:
+                                    if self.config.rag_put_chunk_informations_into_context:
                                         documentation += f"{self.start_header_id_template}document chunk{self.end_header_id_template}\ndocument title: {chunk.doc.title}\nchunk content:\n{chunk.text}\n"
                                     else:
                                         documentation += f"{self.start_header_id_template}chunk{self.end_header_id_template}\n{chunk.text}\n"

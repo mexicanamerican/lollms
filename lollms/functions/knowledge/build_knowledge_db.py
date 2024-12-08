@@ -90,7 +90,7 @@ def buildKnowledgeDB(llm:APScript, data_store:VectorDatabase, data_folder_path:s
     qna_list=[]
     # Perform further processing with questions_vector
     for index, question in enumerate(questions_vector):
-        docs, sorted_similarities, document_ids = data_store.search(question, n_results=int(llm.personality_config.data_vectorization_nb_chunks)) 
+        docs, sorted_similarities, document_ids = data_store.search(question, n_results=int(llm.personality_config.rag_n_chunks)) 
         if llm.personality_config.use_enhanced_mode:
             llm.step_start(f"Verifying RAG data_{index}")
             prompt_text = """{llm.config.start_header_id_template}chunk: {{chunk}}

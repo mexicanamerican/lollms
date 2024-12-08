@@ -1391,9 +1391,6 @@ Use this structure:
             for f in files:
                 text = dl.read_file(f)
                 self.persona_data_vectorizer.add_document(f.name, text, f)
-                # data_vectorization_chunk_size: 512 # chunk size
-                # data_vectorization_overlap_size: 128 # overlap between chunks size
-                # data_vectorization_nb_chunks: 2 # number of chunks to use
             self.persona_data_vectorizer.build_index()
 
         else:
