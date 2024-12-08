@@ -77,11 +77,11 @@ def get_user_vectorizer(user_key: str):
         v = OpenAIVectorizer(lollmsElfServer.config.rag_vectorizer_openai_key)
 
     return VectorDatabase(
-        str(user_folder / f"rag_db_{small_key}.sqlite"),
+        "",
         v, TikTokenTokenizer(),
-        lollmsElfServer.model,
         chunk_size=lollmsElfServer.config.rag_chunk_size,
-        overlap=lollmsElfServer.config.rag_overlap
+        overlap=lollmsElfServer.config.rag_overlap,
+        model=lollmsElfServer.model,
     )
 
 async def validate_key(key: str):
