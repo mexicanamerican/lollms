@@ -3,7 +3,6 @@ from lollms.paths import LollmsPaths
 from lollms.personality import PersonalityBuilder, AIPersonality
 from lollms.binding import LLMBinding, BindingBuilder, ModelBuilder
 from lollms.databases.discussions_database import Message
-from lollms.extension import LOLLMSExtension, ExtensionBuilder
 from lollms.config import InstallOption
 from lollms.helpers import ASCIIColors, trace_exception
 from lollms.com import NotificationType, NotificationDisplayType, LoLLMsCom

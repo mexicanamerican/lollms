@@ -10,14 +10,12 @@ lollms_path = Path(__file__).parent
 lollms_default_cfg_path = lollms_path / "configs/config.yaml"
 lollms_bindings_zoo_path = lollms_path / "zoos/bindings_zoo"
 lollms_personalities_zoo_path = lollms_path / "zoos/personalities_zoo"
-lollms_extensions_zoo_path = lollms_path / "zoos/extensions_zoo"
 
 lollms_core_repo = "https://github.com/ParisNeo/lollms.git"
 safe_store_repo = "https://github.com/ParisNeo/safe_store.git"
 
 personalities_zoo_repo = "https://github.com/ParisNeo/lollms_personalities_zoo.git"
 bindings_zoo_repo = "https://github.com/ParisNeo/lollms_bindings_zoo.git"
-extensions_zoo_repo = "https://github.com/ParisNeo/lollms_extensions_zoo.git"
 models_zoo_repo = "https://github.com/ParisNeo/models_zoo.git"
 gptqlora_repo = "https://github.com/ParisNeo/gptqlora.git"
 
@@ -103,7 +101,6 @@ class LollmsPaths:
             rt.mkdir(parents=True, exist_ok=True)
             self.bindings_zoo_path              = rt / "bindings_zoo"
             self.personalities_zoo_path         = rt / "personalities_zoo"
-            self.extensions_zoo_path            = rt / "extensions_zoo"
             self.models_zoo_path                = rt / "models_zoo"
         else:
             ASCIIColors.orange("local zoos folder not found")
@@ -111,7 +108,6 @@ class LollmsPaths:
             rt.mkdir(parents=True, exist_ok=True)
             self.bindings_zoo_path              = rt / "bindings_zoo"
             self.personalities_zoo_path         = rt / "personalities_zoo"
-            self.extensions_zoo_path            = rt / "extensions_zoo"
             self.models_zoo_path                = rt / "models_zoo"
 
         ASCIIColors.green("----------------------Paths information-----------------------")
@@ -168,8 +164,6 @@ class LollmsPaths:
         ASCIIColors.yellow(f"{self.bindings_zoo_path}")
         ASCIIColors.red("personalities_zoo_path:",end="")
         ASCIIColors.yellow(f"{self.personalities_zoo_path}")
-        ASCIIColors.red("extensions_zoo_path:",end="")
-        ASCIIColors.yellow(f"{self.extensions_zoo_path}")
         ASCIIColors.red("models_zoo_path:",end="")
         ASCIIColors.yellow(f"{self.models_zoo_path}")
         ASCIIColors.green("-------------------------------------------------------------")
@@ -191,7 +185,6 @@ class LollmsPaths:
             "Personal outputs Path": self.personal_outputs_path,
             "Bindings Zoo Path": self.bindings_zoo_path,
             "Personalities Zoo Path": self.personalities_zoo_path,
-            "Extensions zoo path": self.extensions_zoo_path,
             "Personal user infos path": self.personal_user_infos_path,
             "Personal trainers path": self.personal_trainers_path,
             "Personal gptqlora trainer path": self.gptqlora_path,
@@ -243,11 +236,6 @@ class LollmsPaths:
             # Clone the repository to the target path
             ASCIIColors.info("No personalities found in your personal space.\nCloning the personalities zoo")
             subprocess.run(["git", "clone", personalities_zoo_repo, self.personalities_zoo_path])
-
-        if not self.extensions_zoo_path.exists():
-            # Clone the repository to the target path
-            ASCIIColors.info("No extensions found in your personal space.\nCloning the extensions zoo")
-            subprocess.run(["git", "clone", extensions_zoo_repo, self.extensions_zoo_path])
 
         if not self.models_zoo_path.exists():
             # Clone the repository to the target path

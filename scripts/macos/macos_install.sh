@@ -126,8 +126,6 @@ cd zoos/bindings_zoo
 git checkout main
 cd ../personalities_zoo
 git checkout main
-cd ../extensions_zoo
-git checkout main
 cd ../models_zoo
 git checkout main
 

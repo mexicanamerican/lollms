@@ -92,26 +92,6 @@ async def serve_personalities(path: str):
     return FileResponse(str(file_path))
 
 
-@router.get("/extensions/{path:path}")
-async def serve_extensions(path: str):
-    """
-    Serve personalities file.
-
-    Args:
-        path (str): The path of the extensions file to serve.
-
-    Returns:
-        FileResponse: The file response containing the requested extensions file.
-    """
-    path = sanitize_path_from_endpoint(path)    
-    
-    file_path = lollmsElfServer.lollms_paths.extensions_zoo_path / path
-
-    if not Path(file_path).exists():
-        raise HTTPException(status_code=400, detail="File not found")
-
-    return FileResponse(str(file_path))
-
 # ----------------------------------- Services -----------------------------------------
 
 @router.get("/audio/{path:path}")
