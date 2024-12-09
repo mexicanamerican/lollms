@@ -6,7 +6,7 @@
 from pathlib import Path
 import sys
 from lollms.app import LollmsApplication
-from lollms.utilities import PackageManager, check_and_install_torch, find_next_available_filename, install_cuda, check_torch_version
+from lollms.utilities import PackageManager, check_and_install_torch, find_next_available_filename
 
 import sys
 import requests

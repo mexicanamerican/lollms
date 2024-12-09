@@ -29,12 +29,13 @@ from typing import List, Dict, Any
 from ascii_colors import ASCIIColors, trace_exception
 from lollms.paths import LollmsPaths
 from lollms.tti import LollmsTTI
-from lollms.utilities import git_pull, show_yes_no_dialog, run_script_in_env, create_env
+from lollms.utilities import git_pull, show_yes_no_dialog, EnvironmentManager
 import subprocess
 import shutil
 from tqdm import tqdm
 import threading
 
+em = EnvironmentManager()
 
 
 def download_file(url, folder_path, local_filename):
@@ -64,7 +65,7 @@ def install_sd(lollms_app:LollmsApplication):
     shared_folder = root_dir/"shared"
     sd_folder = shared_folder / "auto_sd"
     ASCIIColors.cyan("Installing autosd conda environment with python 3.10")
-    create_env("autosd","3.10")
+    em.create_env("autosd","3.10")
     ASCIIColors.cyan("Done")
     if os.path.exists(str(sd_folder)):
         print("Repository already exists. Pulling latest changes...")
