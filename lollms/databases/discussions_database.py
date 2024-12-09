@@ -783,9 +783,9 @@ class Discussion:
             elif self.lollms.config.rag_vectorizer=="openai":
                 from lollmsvectordb.lollms_vectorizers.openai_vectorizer import OpenAIVectorizer
                 vectorizer = OpenAIVectorizer(self.lollms.config.rag_vectorizer_model, self.lollms.config.rag_vectorizer_openai_key)
-            elif self.config.rag_vectorizer == "ollama":
+            elif self.lollms.config.rag_vectorizer == "ollama":
                 from lollmsvectordb.lollms_vectorizers.ollama_vectorizer import OllamaVectorizer
-                v = OllamaVectorizer(self.lollms.config.rag_vectorizer_model, self.lollms.config.rag_service_url)
+                vectorizer = OllamaVectorizer(self.lollms.config.rag_vectorizer_model, self.lollms.config.rag_service_url)
 
             self.vectorizer = VectorDatabase(
                                         self.discussion_rag_folder/"db.sqli",
@@ -957,6 +957,10 @@ class Discussion:
                         elif self.lollms.config.rag_vectorizer == "openai":
                             from lollmsvectordb.lollms_vectorizers.openai_vectorizer import OpenAIVectorizer
                             v = OpenAIVectorizer(self.lollms.config.rag_vectorizer_openai_key)
+                        elif self.lollms.config.rag_vectorizer == "ollama":
+                            from lollmsvectordb.lollms_vectorizers.ollama_vectorizer import OllamaVectorizer
+                            v = OllamaVectorizer(self.lollms.config.rag_vectorizer_model, self.lollms.config.rag_service_url)
+
                         self.vectorizer = VectorDatabase(
                                     self.discussion_rag_folder/"db.sqli",
                                     v,
