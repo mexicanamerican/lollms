@@ -22,6 +22,10 @@ class SkillsLibrary:
             elif vectorizer == "openai":
                 from lollmsvectordb.lollms_vectorizers.openai_vectorizer import OpenAIVectorizer
                 v = OpenAIVectorizer()
+            elif self.config.rag_vectorizer == "ollama":
+                from lollmsvectordb.lollms_vectorizers.ollama_vectorizer import OllamaVectorizer
+                v = OllamaVectorizer()
+
         else:
             from lollmsvectordb.lollms_vectorizers.semantic_vectorizer import SemanticVectorizer
             v = SemanticVectorizer("BAAI/bge-m3")

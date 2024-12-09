@@ -347,6 +347,9 @@ def internet_search_with_vectorization(query, chromedriver_path=None, internet_n
     elif vectorizer == "openai":
         from lollmsvectordb.lollms_vectorizers.openai_vectorizer import OpenAIVectorizer
         v = OpenAIVectorizer()
+    elif vectorizer == "ollama":
+        from lollmsvectordb.lollms_vectorizers.ollama_vectorizer import OllamaVectorizer
+        v = OllamaVectorizer()
 
     vectorizer = VectorDatabase("", v, TikTokenTokenizer(), internet_vectorization_chunk_size, internet_vectorization_overlap_size)
 

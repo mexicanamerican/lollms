@@ -75,6 +75,9 @@ def get_user_vectorizer(user_key: str):
     elif lollmsElfServer.config.rag_vectorizer == "openai":
         from lollmsvectordb.lollms_vectorizers.openai_vectorizer import OpenAIVectorizer
         v = OpenAIVectorizer(lollmsElfServer.config.rag_vectorizer_openai_key)
+    elif lollmsElfServer.config.rag_vectorizer == "ollama":
+        from lollmsvectordb.lollms_vectorizers.ollama_vectorizer import OllamaVectorizer
+        v = OllamaVectorizer(lollmsElfServer.config.rag_vectorizer_model, lollmsElfServer.config.rag_service_url)
 
     return VectorDatabase(
         "",

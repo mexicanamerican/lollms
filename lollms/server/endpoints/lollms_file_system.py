@@ -142,6 +142,9 @@ def select_rag_database(client) -> Optional[Dict[str, Path]]:
                     elif lollmsElfServer.config.rag_vectorizer == "openai":
                         from lollmsvectordb.lollms_vectorizers.openai_vectorizer import OpenAIVectorizer
                         v = OpenAIVectorizer(lollmsElfServer.config.rag_vectorizer_openai_key)
+                    elif lollmsElfServer.config.rag_vectorizer == "ollama":
+                        from lollmsvectordb.lollms_vectorizers.ollama_vectorizer import OllamaVectorizer
+                        v = OllamaVectorizer(lollmsElfServer.config.rag_vectorizer_model, lollmsElfServer.config.rag_service_url)
 
                     vdb = VectorDatabase(Path(folder_path)/f"{db_name}.sqlite", v, lollmsElfServer.model if lollmsElfServer.model else TikTokenTokenizer())
                     # Get all files in the folder
@@ -277,6 +280,9 @@ def toggle_mount_rag_database(database_infos: MountDatabase):
                 elif lollmsElfServer.config.rag_vectorizer == "openai":
                     from lollmsvectordb.lollms_vectorizers.openai_vectorizer import OpenAIVectorizer
                     v = OpenAIVectorizer(lollmsElfServer.config.rag_vectorizer_openai_key)
+                elif lollmsElfServer.config.rag_vectorizer == "ollama":
+                    from lollmsvectordb.lollms_vectorizers.ollama_vectorizer import OllamaVectorizer
+                    v = OllamaVectorizer(lollmsElfServer.config.rag_vectorizer_model, lollmsElfServer.config.rag_service_url)
 
 
                 vdb = VectorDatabase(Path(path)/f"{database_infos.database_name}.sqlite", v, lollmsElfServer.model if lollmsElfServer.model else TikTokenTokenizer(), chunk_size=lollmsElfServer.config.rag_chunk_size, clean_chunks=lollmsElfServer.config.rag_clean_chunks, n_neighbors=lollmsElfServer.config.rag_n_chunks)       
@@ -344,6 +350,9 @@ async def vectorize_folder(database_infos: FolderInfos):
                 elif lollmsElfServer.config.rag_vectorizer == "openai":
                     from lollmsvectordb.lollms_vectorizers.openai_vectorizer import OpenAIVectorizer
                     v = OpenAIVectorizer(lollmsElfServer.config.rag_vectorizer_openai_key)
+                elif lollmsElfServer.config.rag_vectorizer == "ollama":
+                    from lollmsvectordb.lollms_vectorizers.ollama_vectorizer import OllamaVectorizer
+                    v = OllamaVectorizer(lollmsElfServer.config.rag_vectorizer_model, lollmsElfServer.config.rag_service_url)
 
                 vector_db_path = Path(folder_path)/f"{db_name}.sqlite"
 

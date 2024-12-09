@@ -1379,6 +1379,9 @@ Use this structure:
             elif self.config.rag_vectorizer == "openai":
                 from lollmsvectordb.lollms_vectorizers.openai_vectorizer import OpenAIVectorizer
                 v = OpenAIVectorizer(api_key=self.config.rag_vectorizer_openai_key)
+            elif self.config.rag_vectorizer == "ollama":
+                from lollmsvectordb.lollms_vectorizers.ollama_vectorizer import OllamaVectorizer
+                v = OllamaVectorizer(self.config.rag_vectorizer_model, self.config.rag_service_url)
 
             self.persona_data_vectorizer = VectorDatabase(self.database_path, v, TikTokenTokenizer(), self.config.rag_chunk_size, self.config.rag_overlap)
 
@@ -1543,7 +1546,10 @@ Use this structure:
                             self.ShowBlockingMessage("Processing file\nPlease wait ...\nUsing open ai vectorizer")
                             from lollmsvectordb.lollms_vectorizers.openai_vectorizer import OpenAIVectorizer
                             v = OpenAIVectorizer()
-
+                        elif self.config.rag_vectorizer == "ollama":
+                            self.ShowBlockingMessage("Processing file\nPlease wait ...\nUsing ollama vectorizer")
+                            from lollmsvectordb.lollms_vectorizers.ollama_vectorizer import OllamaVectorizer
+                            v = OllamaVectorizer(self.config.rag_vectorizer_model, self.config.rag_service_url)
                         self.vectorizer = VectorDatabase(
                                     client.discussion.discussion_rag_folder/"db.sqli",
                                     v,
@@ -3741,6 +3747,9 @@ transition-all duration-300 ease-in-out">
         elif vectorizer == "openai":
             from lollmsvectordb.lollms_vectorizers.openai_vectorizer import OpenAIVectorizer
             v = OpenAIVectorizer()
+        elif self.config.rag_vectorizer == "ollama":
+            from lollmsvectordb.lollms_vectorizers.ollama_vectorizer import OllamaVectorizer
+            v = OllamaVectorizer(self.config.rag_vectorizer_model, self.config.rag_service_url)
 
         vectorizer = VectorDatabase("", v, TikTokenTokenizer(), self.config.rag_chunk_size, self.config.rag_overlap)
         vectorizer.add_document(title, text, url)
