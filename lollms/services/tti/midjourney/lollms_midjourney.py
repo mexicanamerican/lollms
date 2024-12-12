@@ -36,7 +36,7 @@ import requests
 from PIL import Image
 
 
-MIDJOURNEY_API_URL = "https://api.mymidjourney.ai/api/v1/midjourney"
+MIDJOURNEY_API_URL = "https://api.imaginepro.ai/api/v1/nova"
 
 
 
