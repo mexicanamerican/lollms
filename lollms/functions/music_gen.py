@@ -117,7 +117,7 @@ def open_and_fill_suno(song_description: str, lyrics: str, title:str) -> str:
         pyautogui.click(x=250, y=280)
         # # Fill the song lerycs field
         pyautogui.write(lyrics)
-        time.sleep(3)  # Wait for the lyricsto be written
+        time.sleep(5)  # Wait for the lyricsto be written
 
         pyautogui.click(x=370, y=620)
         # # Fill the song_description field
@@ -130,6 +130,7 @@ def open_and_fill_suno(song_description: str, lyrics: str, title:str) -> str:
         # # Fill the song_description field
         pyautogui.write(song_description)
 
+        time.sleep(1)  # Wait for the lyricsto be written
 
         pyautogui.click(x=370, y=770)
         # # Fill the song_description field
@@ -146,7 +147,7 @@ def open_and_fill_suno(song_description: str, lyrics: str, title:str) -> str:
 def open_and_fill_suno_function():
     return {
         "function_name": "open_and_fill_udio",
-        "function": open_and_fill_udio,
+        "function": open_and_fill_suno,
         "function_description": "Opens udio.com page and fills in the song description and lyrics fields to start generating the music.",
         "function_parameters": [
             {"name": "song_description", "type": "str", "description":"a list of tags describing the song style and vibes. Make it short"},
