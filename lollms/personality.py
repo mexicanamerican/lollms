@@ -33,7 +33,6 @@ import time
 from lollms.types import MSG_OPERATION_TYPE, SUMMARY_MODE
 import json
 from typing import Any, List, Optional, Type, Callable, Dict, Any, Union, Tuple
-import json
 from lollmsvectordb.vector_database import VectorDatabase
 from lollmsvectordb.text_document_loader import TextDocumentsLoader
 from lollmsvectordb.text_chunker import TextChunker
@@ -48,7 +47,6 @@ import pipmaster as pm
 import inspect
 
 from lollms.code_parser import compress_js, compress_python, compress_html
-
 
 import requests
 from bs4 import BeautifulSoup
@@ -848,7 +846,6 @@ Use this structure:
             response = self.generate_code(full_prompt, callback=self.sink, accept_all_if_no_code_tags_is_present=True)
             # Parse the response based on format
             if output_format == "yaml":
-                import yaml
                 try:
                     cleaned_response = response.replace("```yaml", "").replace("```", "").strip()
                     output_data = yaml.safe_load(cleaned_response)
@@ -856,7 +853,6 @@ Use this structure:
                     # If parsing fails, fall back to step-by-step
                     single_shot = False
             elif output_format == "json":
-                import json
                 try:
                     cleaned_response = response.replace("```json", "").replace("```", "").strip()
                     output_data = json.loads(cleaned_response)
@@ -3114,9 +3110,19 @@ class APScript(StateMachine):
         
         if single_shot:
             # Generate all content at once for powerful LLMs
-            full_prompt = f"""Generate {output_format.upper()} content for: {prompt}
+            if output_format=="yaml":
+                full_prompt = f"""Generate {output_format.upper()} content for: {prompt}
 Use this structure:
-{output_data}
+```yaml
+{yaml.dump(output_data, default_flow_style=False)}
+```
+"""
+            elif output_format=="json":
+                full_prompt = f"""Generate {output_format.upper()} content for: {prompt}
+Use this structure:
+```json
+{json.dumps(output_data)}
+```
 """
             if self.config.debug and not self.personality.processor:
                 ASCIIColors.highlight(full_prompt,"source_document_title", ASCIIColors.color_yellow, ASCIIColors.color_red, False)
@@ -3124,7 +3130,6 @@ Use this structure:
             response = self.generate_code(full_prompt, callback=self.sink, accept_all_if_no_code_tags_is_present=True)
             # Parse the response based on format
             if output_format == "yaml":
-                import yaml
                 try:
                     cleaned_response = response.replace("```yaml", "").replace("```", "").strip()
                     output_data = yaml.safe_load(cleaned_response)
@@ -3132,7 +3137,6 @@ Use this structure:
                     # If parsing fails, fall back to step-by-step
                     single_shot = False
             elif output_format == "json":
-                import json
                 try:
                     cleaned_response = response.replace("```json", "").replace("```", "").strip()
                     output_data = json.loads(cleaned_response)
