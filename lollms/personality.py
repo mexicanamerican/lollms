@@ -3004,7 +3004,17 @@ class APScript(StateMachine):
     
     def generate_code(self, prompt, images=[], max_size = None,  temperature = None, top_k = None, top_p=None, repeat_penalty=None, repeat_last_n=None, callback=None, debug=False, return_full_generated_code=False, accept_all_if_no_code_tags_is_present=False):
         response_full = ""
-        full_prompt = self.system_custom_header("Generation infos")+ "Generated code must be put inside the adequate markdown code tag. Use this template:\n```language name\nCode\n```\nMake sure only a single code tag is generated at each dialogue turn." + self.separator_template + self.system_custom_header("User prompt")+ prompt + self.separator_template + self.ai_custom_header("generated code")
+        full_prompt = self.system_custom_header("Generation infos")+ """You are a code generation assistant.
+Your objective is to generate code as requested by the user and format the output as markdown.
+Generated code must be put inside the adequate markdown code tag.
+Use this code generation template:
+```language name (ex: python, json, javascript...)
+Code
+```
+Make sure only a single code tag is generated at each dialogue turn.""" + self.separator_template + self.system_custom_header("User prompt")+ prompt + self.separator_template + self.ai_custom_header("assistant")
+        if self.config.debug:
+            ASCIIColors.red("Generation request prompt:")
+            ASCIIColors.yellow(full_prompt)
         if len(self.personality.image_files)>0:
             response = self.personality.generate_with_images(full_prompt, self.personality.image_files, max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug)
         elif  len(images)>0:
@@ -3013,6 +3023,8 @@ class APScript(StateMachine):
             response = self.personality.generate(full_prompt, max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug)
         response_full += response
         codes = self.extract_code_blocks(response)
+        if self.config.debug:
+            ASCIIColors.green(codes)
         if len(codes)==0 and accept_all_if_no_code_tags_is_present:
             if return_full_generated_code:
                 return response, response_full
@@ -3124,6 +3136,8 @@ Use this structure:
 {json.dumps(output_data)}
 ```
 """
+            if self.config.debug:
+                ASCIIColors.green(full_prompt)
             if self.config.debug and not self.personality.processor:
                 ASCIIColors.highlight(full_prompt,"source_document_title", ASCIIColors.color_yellow, ASCIIColors.color_red, False)
 
