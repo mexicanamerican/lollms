@@ -3004,14 +3004,16 @@ class APScript(StateMachine):
     
     def generate_code(self, prompt, images=[], max_size = None,  temperature = None, top_k = None, top_p=None, repeat_penalty=None, repeat_last_n=None, callback=None, debug=False, return_full_generated_code=False, accept_all_if_no_code_tags_is_present=False):
         response_full = ""
-        full_prompt = self.system_custom_header("Generation infos")+ """You are a code generation assistant.
+        full_prompt = f"""{self.system_custom_header("system")}You are a code generation assistant.
 Your objective is to generate code as requested by the user and format the output as markdown.
 Generated code must be put inside the adequate markdown code tag.
 Use this code generation template:
 ```language name (ex: python, json, javascript...)
 Code
 ```
-Make sure only a single code tag is generated at each dialogue turn.""" + self.separator_template + self.system_custom_header("User prompt")+ prompt + self.separator_template + self.ai_custom_header("assistant")
+Make sure only a single code tag is generated at each dialogue turn.
+{self.separator_template}{self.system_custom_header("user")}{prompt}
+{self.separator_template}{self.ai_custom_header("assistant")}"""
         if self.config.debug:
             ASCIIColors.red("Generation request prompt:")
             ASCIIColors.yellow(full_prompt)
@@ -3024,6 +3026,7 @@ Make sure only a single code tag is generated at each dialogue turn.""" + self.s
         response_full += response
         codes = self.extract_code_blocks(response)
         if self.config.debug:
+            ASCIIColors.red("Generated codes:")
             ASCIIColors.green(codes)
         if len(codes)==0 and accept_all_if_no_code_tags_is_present:
             if return_full_generated_code:
@@ -3059,7 +3062,17 @@ Make sure only a single code tag is generated at each dialogue turn.""" + self.s
 
     def generate_text(self, prompt, images=[], max_size = None,  temperature = None, top_k = None, top_p=None, repeat_penalty=None, repeat_last_n=None, callback=None, debug=False, return_full_generated_code=False, accept_all_if_no_code_tags_is_present=False):
         response_full = ""
-        full_prompt = self.system_custom_header("Generation infos")+ "Generated text content must be put inside a markdown code tag. Use this template:\n```\nText\n```\nMake sure only a single text tag is generated at each dialogue turn." + self.separator_template + self.system_custom_header("User prompt")+ prompt + self.separator_template + self.ai_custom_header("generated answer")
+        full_prompt = f"""
+{self.system_custom_header("system")}
+You are a text generation assistant.
+Generated text content must be put inside a markdown code tag.
+Use this template:
+```
+Text
+```
+Make sure only a single text tag is generated at each dialogue turn.
+{self.separator_template}{self.system_custom_header("User prompt")}{prompt}
+{self.separator_template}{self.ai_custom_header("assistant")}"""
         if len(self.personality.image_files)>0:
             response = self.personality.generate_with_images(full_prompt, self.personality.image_files, max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug)
         elif  len(images)>0:
@@ -3130,7 +3143,7 @@ Use this structure:
 ```
 """
             elif output_format=="json":
-                full_prompt = f"""Generate {output_format.upper()} content for: {prompt}
+                full_prompt = f"""Generate {output_format.lower()} content for: {prompt}
 Use this structure:
 ```json
 {json.dumps(output_data)}
@@ -3158,12 +3171,12 @@ Use this structure:
                     # If parsing fails, fall back to step-by-step
                     single_shot = False
         
-        if not single_shot:
+        else:
             # Generate each field individually
             for field, field_info in template.items():
                 if "prompt" in field_info:
                     field_prompt = field_info["prompt"].format(main_prompt=prompt)
-                    response = self.generate_code(field_prompt, callback=self.sink, accept_all_if_no_code_tags_is_present=True )
+                    response = self.generate_text(field_prompt, callback=self.sink, accept_all_if_no_code_tags_is_present=True )
                     # Clean up the response
                     cleaned_response = response.strip()
                     # Apply any field-specific processing
