@@ -124,7 +124,6 @@ def select_rag_database(client) -> Optional[Dict[str, Path]]:
                 input_dialog = QInputDialog()
                 input_dialog.setWindowFlags(input_dialog.windowFlags() | Qt.WindowStaysOnTopHint)
                 input_dialog.setWindowModality(Qt.ApplicationModal)
-                input_dialog.setOption(QInputDialog.DontUseNativeDialog, True)
                 input_dialog.setWindowFlag(Qt.WindowStaysOnTopHint, True)
                 input_dialog.setWindowModality(Qt.ApplicationModal)
                 input_dialog.raise_()
