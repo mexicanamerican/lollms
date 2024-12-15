@@ -791,11 +791,13 @@ The generated code must be placed inside the html code tag.
                         repeat_penalty=None, 
                         repeat_last_n=None, 
                         callback=None, 
-                        debug=False, 
+                        debug=None, 
                         return_full_generated_code=False, 
                         accept_all_if_no_code_tags_is_present=False, 
                         max_continues=5
                     ):
+        if debug is None:
+            debug = self.config.debug
         response_full = ""
         full_prompt = f"""{self.system_full_header}Act as a code generation assistant who answers with a single code tag content.
 {self.system_custom_header("user")}        
@@ -809,13 +811,15 @@ Make sure only a single code tag is generated at each dialogue turn.
 ```{language}
 {template}
 ```
-Don't forget to close the markdown code tag
+{"Make sure you fill all fields and tyo use the exact same keys as the template." if language in ["json","yaml","xml"] else ""}
+Don't forget to close the markdown code tag.
 """
             elif code_tag_format=="html":
                 full_prompt +=f"""You must answer with the code placed inside the html code tag like this:
 <code language="{language}">
 {template}
 </code>
+{"Make sure you fill all fields and tyo use the exact same keys as the template." if language in ["json","yaml","xml"] else ""}
 Don't forget to close the html code tag
 """
 
@@ -891,23 +895,31 @@ Make sure only a single code tag is generated at each dialogue turn.
 ```json
 {template}
 ```
-Don't forget to close the markdown code tag
+Make sure you provide exactly the same fields as the template.
+Don't forget to close the markdown code tag.
 """
             elif code_tag_format=="html":
                 full_prompt +=f"""You must answer with the code placed inside the html code tag like this:
 <code language="json">
 {template}
 </code>
-Don't forget to close the html code tag
+Make sure you provide exactly the same fields as the template.
+Don't forget to close the html code tag.
 """
 
         full_prompt += self.ai_custom_header("assistant")
+        if debug:
+            ASCIIColors.yellow("Full text generation code:")
+            ASCIIColors.yellow(full_prompt)
         if len(self.image_files)>0:
             response = self.generate_with_images(full_prompt, self.image_files, max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug)
         elif  len(images)>0:
             response = self.generate_with_images(full_prompt, images, max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug)
         else:
             response = self.generate(full_prompt, max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug)
+        if debug:
+            ASCIIColors.green("Response:")
+            ASCIIColors.green(response)
         response_full += response
         codes = self.extract_code_blocks(response)
         if len(codes)==0 and accept_all_if_no_code_tags_is_present:
@@ -3146,7 +3158,7 @@ class APScript(StateMachine):
                         repeat_penalty=None, 
                         repeat_last_n=None, 
                         callback=None, 
-                        debug=False, 
+                        debug=None, 
                         return_full_generated_code=False, 
                         accept_all_if_no_code_tags_is_present=False, 
                         max_continues=5
@@ -3262,11 +3274,10 @@ class APScript(StateMachine):
             # Generate each field individually
             for field, field_info in template.items():
                 if "prompt" in field_info:
-                    field_prompt = field_info["prompt"].format(main_prompt=prompt)
+                    field_prompt = self.system_custom_header("prompt")+prompt+"\n"+self.system_custom_header("field to generate")+field+"\n"
                     template = f"""{{
-"{field}": [The value of {field}]
-                    }}
-                    """
+"{field}": [{field_info["prompt"]}]
+}}"""
                     code = self.generate_code(field_prompt, self.personality.image_files, template, "json", callback=self.sink, accept_all_if_no_code_tags_is_present=True )
                     # Clean up the response
                     cleaned_response = json.loads(code)[field]

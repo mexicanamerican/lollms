@@ -207,11 +207,18 @@ def find_rag_database_by_name(entries: List[str], name: str) -> Optional[str]:
     Returns:
         Optional[str]: The entry if found, otherwise None.
     """
+    ASCIIColors.green("find_rag_database_by_name:")
     for i, entry in enumerate(entries):
+        ASCIIColors.green(entry)
         parts = entry.split('::')
-        entry_name, entry_path = parts[0], parts[1]
-        if entry_name == name:
-            return i, entry_path
+        if len(parts)>1:
+            entry_name, entry_path = parts[0], parts[1]
+            if entry_name == name:
+                return i, entry_path
+        else:
+            entry_name = entry
+            if entry_name == name:
+                return i, entry_path
     return None
 # ----------------------------------- Personal files -----------------------------------------
 class SelectDatabase(BaseModel):
