@@ -1092,18 +1092,20 @@ class LollmsApplication(LoLLMsCom):
                         self.personality.step_start("Building vector store query")
                         q = f"{self.separator_template}".join([
                             "make a RAG vector database query from the last user prompt given this discussion.",
-                            f"{self.system_custom_header('discussion')}",
-                            "---",
+                            "--- discussion --",
                             f"{discussion[-2048:]}",
                             "---",
                         ])
                         template = """{
-"query": "[the rag query deduced from the last user prompt]"
+"query": "[the rag query deduced from the last messgae in the discussion]"
 }
 """
                         query = self.personality.generate_code(q, self.personality.image_files, template, callback=self.personality.sink)
-                        query = json.loads(query)
-                        query = query["query"]
+                        if query is None:
+                            query = current_message.content
+                        else:
+                            query = json.loads(query)
+                            query = query["query"]
                         self.personality.step_end("Building vector store query")
                         ASCIIColors.magenta(f"Query: {query}")
                         self.personality.step(f"Query: {query}")

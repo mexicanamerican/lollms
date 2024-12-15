@@ -811,6 +811,7 @@ Make sure only a single code tag is generated at each dialogue turn.
 {template}
 ```
 {"Make sure you fill all fields and to use the exact same keys as the template." if language in ["json","yaml","xml"] else ""}
+The code tag is mandatory.
 Don't forget encapsulate the code inside a markdown code tag. This is mandatory.
 """
             elif code_tag_format=="html":
@@ -819,10 +820,15 @@ Don't forget encapsulate the code inside a markdown code tag. This is mandatory.
 {template}
 </code>
 {"Make sure you fill all fields and to use the exact same keys as the template." if language in ["json","yaml","xml"] else ""}
+The code tag is mandatory.
 Don't forget encapsulate the code inside a html code tag. This is mandatory.
 """
 
         full_prompt += self.ai_custom_header("assistant")
+        if debug:
+            ASCIIColors.yellow("Prompt")
+            ASCIIColors.yellow(full_prompt)
+
         if len(self.image_files)>0:
             response = self.generate_with_images(full_prompt, self.image_files, max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug)
         elif  len(images)>0:
@@ -830,6 +836,9 @@ Don't forget encapsulate the code inside a html code tag. This is mandatory.
         else:
             response = self.generate(full_prompt, max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug)
         response_full += response
+        if debug:
+            ASCIIColors.green("Response")
+            ASCIIColors.green(response_full)
         codes = self.extract_code_blocks(response)
         if len(codes)==0 and accept_all_if_no_code_tags_is_present:
             if return_full_generated_code:
