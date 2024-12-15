@@ -10,7 +10,6 @@ class SkillsLibrary:
         self.config = config
         self._initialize_db()
         from lollmsvectordb.lollms_tokenizers.tiktoken_tokenizer import TikTokenTokenizer
-        self.config = config
         if config is not None:
             vectorizer = self.config.rag_vectorizer
             if vectorizer == "semantic":

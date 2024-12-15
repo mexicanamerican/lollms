@@ -176,7 +176,7 @@ class LollmsApplication(LoLLMsCom):
                 
                 
         self.session                    = Session(lollms_paths)
-        self.skills_library             = SkillsLibrary(self.lollms_paths.personal_skills_path/(self.config.skills_lib_database_name+".sqlite"))
+        self.skills_library             = SkillsLibrary(self.lollms_paths.personal_skills_path/(self.config.skills_lib_database_name+".sqlite"), config = self.config)
         self.tasks_library              = TasksLibrary(self)
 
     @staticmethod
