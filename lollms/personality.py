@@ -3226,6 +3226,8 @@ class APScript(StateMachine):
         output_data = {}
         for field, field_info in template.items():
             output_data[field] = field_info.get("default", f'[{field_info.get(f"prompt","")}]')
+            if output_data[field] == '':
+                output_data[field] = f'[{field_info.get(f"prompt","")}]'
         
         if single_shot:
             # Generate all content at once for powerful LLMs
