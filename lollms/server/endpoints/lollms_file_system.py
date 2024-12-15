@@ -142,7 +142,7 @@ def select_rag_database(client) -> Optional[Dict[str, Path]]:
 
                         if lollmsElfServer.config.rag_vectorizer == "semantic":
                             from lollmsvectordb.lollms_vectorizers.semantic_vectorizer import SemanticVectorizer
-                            v = SemanticVectorizer(lollmsElfServer.config.rag_vectorizer_model)
+                            v = SemanticVectorizer(lollmsElfServer.config.rag_vectorizer_model, lollmsElfServer.config.rag_vectorizer_execute_remote_code)
                         elif lollmsElfServer.config.rag_vectorizer == "tfidf":
                             from lollmsvectordb.lollms_vectorizers.tfidf_vectorizer import TFIDFVectorizer
                             v = TFIDFVectorizer()
@@ -289,7 +289,7 @@ def toggle_mount_rag_database(database_infos: MountDatabase):
 
                 if lollmsElfServer.config.rag_vectorizer == "semantic":
                     from lollmsvectordb.lollms_vectorizers.semantic_vectorizer import SemanticVectorizer
-                    v = SemanticVectorizer(lollmsElfServer.config.rag_vectorizer_model)
+                    v = SemanticVectorizer(lollmsElfServer.config.rag_vectorizer_model, lollmsElfServer.config.rag_vectorizer_execute_remote_code)
                 elif lollmsElfServer.config.rag_vectorizer == "tfidf":
                     from lollmsvectordb.lollms_vectorizers.tfidf_vectorizer import TFIDFVectorizer
                     v = TFIDFVectorizer()
@@ -355,7 +355,7 @@ async def vectorize_folder(database_infos: FolderInfos):
 
             if lollmsElfServer.config.rag_vectorizer == "semantic":
                 from lollmsvectordb.lollms_vectorizers.semantic_vectorizer import SemanticVectorizer
-                v = SemanticVectorizer(lollmsElfServer.config.rag_vectorizer_model)
+                v = SemanticVectorizer(lollmsElfServer.config.rag_vectorizer_model, lollmsElfServer.config.rag_vectorizer_execute_remote_code)
             elif lollmsElfServer.config.rag_vectorizer == "tfidf":
                 from lollmsvectordb.lollms_vectorizers.tfidf_vectorizer import TFIDFVectorizer
                 v = TFIDFVectorizer()

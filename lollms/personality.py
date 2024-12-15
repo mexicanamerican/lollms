@@ -1684,7 +1684,7 @@ Don't forget to close the html code tag.
                         if self.config.rag_vectorizer == "semantic":
                             self.ShowBlockingMessage("Processing file\nPlease wait ...\nUsing semantic vectorizer")
                             from lollmsvectordb.lollms_vectorizers.semantic_vectorizer import SemanticVectorizer
-                            v = SemanticVectorizer(self.config.rag_vectorizer_model)
+                            v = SemanticVectorizer(self.config.rag_vectorizer_model, self.config.rag_vectorizer_execute_remote_code)
                         elif self.config.rag_vectorizer == "tfidf":
                             self.ShowBlockingMessage("Processing file\nPlease wait ...\nUsing tfidf vectorizer")
                             from lollmsvectordb.lollms_vectorizers.tfidf_vectorizer import TFIDFVectorizer
@@ -3884,7 +3884,7 @@ transition-all duration-300 ease-in-out">
         vectorizer = self.config.rag_vectorizer
         if vectorizer == "semantic":
             from lollmsvectordb.lollms_vectorizers.semantic_vectorizer import SemanticVectorizer
-            v = SemanticVectorizer(self.config.rag_vectorizer_model)
+            v = SemanticVectorizer(self.config.rag_vectorizer_model, self.config.rag_vectorizer_execute_remote_code)
         elif vectorizer == "tfidf":
             from lollmsvectordb.lollms_vectorizers.tfidf_vectorizer import TFIDFVectorizer
             v = TFIDFVectorizer()

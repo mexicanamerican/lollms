@@ -68,7 +68,7 @@ def get_user_vectorizer(user_key: str):
     from lollmsvectordb.lollms_tokenizers.tiktoken_tokenizer import TikTokenTokenizer
     if lollmsElfServer.config.rag_vectorizer == "semantic":
         from lollmsvectordb.lollms_vectorizers.semantic_vectorizer import SemanticVectorizer
-        v = SemanticVectorizer(lollmsElfServer.config.rag_vectorizer_model)
+        v = SemanticVectorizer(lollmsElfServer.config.rag_vectorizer_model, lollmsElfServer.config.rag_vectorizer_execute_remote_code)
     elif lollmsElfServer.config.rag_vectorizer == "tfidf":
         from lollmsvectordb.lollms_vectorizers.tfidf_vectorizer import TFIDFVectorizer
         v = TFIDFVectorizer()

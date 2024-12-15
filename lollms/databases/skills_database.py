@@ -14,7 +14,7 @@ class SkillsLibrary:
             vectorizer = self.config.rag_vectorizer
             if vectorizer == "semantic":
                 from lollmsvectordb.lollms_vectorizers.semantic_vectorizer import SemanticVectorizer
-                v = SemanticVectorizer(self.config.rag_vectorizer_model)
+                v = SemanticVectorizer(self.config.rag_vectorizer_model, self.config.rag_vectorizer_execute_remote_code)
             elif vectorizer == "tfidf":
                 from lollmsvectordb.lollms_vectorizers.tfidf_vectorizer import TFIDFVectorizer
                 v = TFIDFVectorizer()
@@ -27,7 +27,7 @@ class SkillsLibrary:
 
         else:
             from lollmsvectordb.lollms_vectorizers.semantic_vectorizer import SemanticVectorizer
-            v = SemanticVectorizer(self.config.rag_vectorizer_model)
+            v = SemanticVectorizer(self.config.rag_vectorizer_model, self.config.rag_vectorizer_execute_remote_code)
 
         self.vectorizer = VectorDatabase("", v, TikTokenTokenizer(),chunk_size, overlap, n_neighbors)
         ASCIIColors.green("Vecorizer ready")
