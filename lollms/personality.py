@@ -869,7 +869,10 @@ Don't forget encapsulate the code inside a html code tag. This is mandatory.
             else:
                 return code
         else:
-            return None
+            if return_full_generated_code:
+                return None, None
+            else:
+                return None
 
 
     def generate_text(

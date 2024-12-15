@@ -28,7 +28,7 @@ class SkillsLibrary:
 
         else:
             from lollmsvectordb.lollms_vectorizers.semantic_vectorizer import SemanticVectorizer
-            v = SemanticVectorizer("BAAI/bge-m3")
+            v = SemanticVectorizer(self.config.rag_vectorizer_model)
 
         self.vectorizer = VectorDatabase("", v, TikTokenTokenizer(),chunk_size, overlap, n_neighbors)
         ASCIIColors.green("Vecorizer ready")
