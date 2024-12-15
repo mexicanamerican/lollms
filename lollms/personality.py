@@ -799,8 +799,7 @@ The generated code must be placed inside the html code tag.
         if debug is None:
             debug = self.config.debug
         response_full = ""
-        full_prompt = f"""{self.system_full_header}Act as a code generation assistant who answers with a single code tag content.
-{self.system_custom_header("user")}        
+        full_prompt = f"""{self.system_full_header}Act as a code generation assistant who answers with a single code tag content.    
 {prompt}
 Make sure only a single code tag is generated at each dialogue turn.
 """
@@ -811,16 +810,16 @@ Make sure only a single code tag is generated at each dialogue turn.
 ```{language}
 {template}
 ```
-{"Make sure you fill all fields and tyo use the exact same keys as the template." if language in ["json","yaml","xml"] else ""}
-Don't forget to close the markdown code tag.
+{"Make sure you fill all fields and to use the exact same keys as the template." if language in ["json","yaml","xml"] else ""}
+Don't forget encapsulate the code inside a markdown code tag. This is mandatory.
 """
             elif code_tag_format=="html":
                 full_prompt +=f"""You must answer with the code placed inside the html code tag like this:
 <code language="{language}">
 {template}
 </code>
-{"Make sure you fill all fields and tyo use the exact same keys as the template." if language in ["json","yaml","xml"] else ""}
-Don't forget to close the html code tag
+{"Make sure you fill all fields and to use the exact same keys as the template." if language in ["json","yaml","xml"] else ""}
+Don't forget encapsulate the code inside a html code tag. This is mandatory.
 """
 
         full_prompt += self.ai_custom_header("assistant")

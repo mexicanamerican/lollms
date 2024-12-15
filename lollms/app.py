@@ -342,6 +342,9 @@ class LollmsApplication(LoLLMsCom):
                     elif self.config.rag_vectorizer=="openai":
                         from lollmsvectordb.lollms_vectorizers.openai_vectorizer import OpenAIVectorizer
                         vectorizer = OpenAIVectorizer(self.config.rag_vectorizer_model, self.config.rag_vectorizer_openai_key)
+                    elif self.config.rag_vectorizer=="ollama":
+                        from lollmsvectordb.lollms_vectorizers.ollama_vectorizer import OllamaVectorizer
+                        vectorizer = OllamaVectorizer(self.config.rag_vectorizer_model, self.config.rag_service_url)
 
                     vdb = VectorDatabase(Path(parts[1])/f"{db_name}.sqlite", vectorizer, None if self.config.rag_vectorizer=="semantic" else self.model if self.model else TikTokenTokenizer(), n_neighbors=self.config.rag_n_chunks)       
                     self.active_rag_dbs.append({"name":parts[0],"path":parts[1],"vectorizer":vdb})
@@ -1088,13 +1091,19 @@ class LollmsApplication(LoLLMsCom):
                     if self.config.rag_build_keys_words:
                         self.personality.step_start("Building vector store query")
                         q = f"{self.separator_template}".join([
-                            f"{self.system_custom_header('instruction')}Read the entire discussion and rewrite the last prompt for someone who hasn't read the discussion.",
-                            "Do not answer the prompt. Do not provide any explanations.",
+                            "make a RAG vector database query from the last user prompt given this discussion.",
                             f"{self.system_custom_header('discussion')}",
+                            "---",
                             f"{discussion[-2048:]}",
-                            f"{self.ai_custom_header('enhanced_query')}"
+                            "---",
                         ])
-                        query = self.personality.fast_gen(q, max_generation_size=256, show_progress=True, callback=self.personality.sink)
+                        template = """{
+"query": "[the rag query deduced from the last user prompt]"
+}
+"""
+                        query = self.personality.generate_code(q, self.personality.image_files, template, callback=self.personality.sink)
+                        query = json.loads(query)
+                        query = query["query"]
                         self.personality.step_end("Building vector store query")
                         ASCIIColors.magenta(f"Query: {query}")
                         self.personality.step(f"Query: {query}")
