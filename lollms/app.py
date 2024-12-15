@@ -252,11 +252,6 @@ class LollmsApplication(LoLLMsCom):
 
                 
     def add_discussion_to_skills_library(self, client: Client):
-        end_header_id_template      = self.config.end_header_id_template
-        separator_template          = self.config.separator_template
-        system_message_template     = self.config.system_message_template
-
-
         messages = client.discussion.get_messages()
 
         # Extract relevant information from messages
@@ -269,21 +264,19 @@ class LollmsApplication(LoLLMsCom):
         self.tasks_library.callback = bk_cb
 
         # Generate title
-        title_prompt =  f"{separator_template}".join([
-            f"{self.start_header_id_template}{system_message_template}{end_header_id_template}Generate a concise and descriptive title for the following content.",
-            "The title should summarize the main topic or subject of the content.",
-            "Do not mention the format of the content (e.g., bullet points, discussion, etc.) in the title.",
-            "Provide only the title without any additional explanations or context.",
-            f"{self.start_header_id_template}content{end_header_id_template}",
-            f"{content}",
-            f"{self.start_header_id_template}title{end_header_id_template}"
+        title_prompt =  f"{self.separator_template}".join([
+            f"{self.system_full_header}Generate a concise and descriptive title and category for the following content:",
+            content
             ])
-
-        title = self._generate_text(title_prompt)
-
-        # Determine category
-        category_prompt = f"{self.system_full_header}Analyze the following title, and determine the most appropriate generic category that encompasses the main subject or theme. The category should be broad enough to include multiple related skill entries. Provide only the category name without any additional explanations or context:\n\nTitle:\n{title}\n{separator_template}{self.start_header_id_template}Category:\n"
-        category = self._generate_text(category_prompt)
+        template =  f"{self.separator_template}".join([
+            "{",
+            '   "title":"here you put the title"',
+            '   "category":"here you put the category"',
+            "}"])
+        language = "json"
+        title_category_json = json.loads(self._generate_code(title_prompt, template, language))
+        title = title_category_json["title"]
+        category = title_category_json["category"]
 
         # Add entry to skills library
         self.skills_library.add_entry(1, category, title, content)
@@ -318,7 +311,11 @@ class LollmsApplication(LoLLMsCom):
         max_tokens = min(self.config.ctx_size - self.model.get_nb_tokens(prompt),self.config.max_n_predict if self.config.max_n_predict else self.config.ctx_size- self.model.get_nb_tokens(prompt))
         generated_text = self.model.generate(prompt, max_tokens)
         return generated_text.strip()
-
+    
+    def _generate_code(self, prompt, template, language):
+        max_tokens = min(self.config.ctx_size - self.model.get_nb_tokens(prompt),self.config.max_n_predict if self.config.max_n_predict else self.config.ctx_size- self.model.get_nb_tokens(prompt))
+        generated_code = self.personality.generate_code(prompt, self.personality.image_files, template, language, max_size= max_tokens)
+        return generated_code
 
     def get_uploads_path(self, client_id):
         return self.lollms_paths.personal_uploads_path
@@ -888,7 +885,7 @@ class LollmsApplication(LoLLMsCom):
     def recover_discussion(self,client_id, message_index=-1):
         messages = self.session.get_client(client_id).discussion.get_messages()
         discussion=""
-        for msg in messages:
+        for msg in messages[:-1]:
             if message_index!=-1 and msg>message_index:
                 break
             discussion += "\n" + self.config.discussion_prompt_separator + msg.sender + ": " + msg.content.strip()
@@ -1252,17 +1249,12 @@ class LollmsApplication(LoLLMsCom):
                         if discussion is None:
                             discussion = self.recover_discussion(client_id)
                         self.personality.step_start("Building query")
-                        query = self.personality.generate_code(f"""{self.system_full_header}
-Your task is to carefully read the provided discussion and reformulate {self.config.user_name}'s request concisely.
-The reformulation must be placed inside a json markdown tag like this:
-```json
-{{
-    "request": the reformulated request
-}}
-```
-{self.system_custom_header("discussion:")}
+                        query = self.personality.generate_code(f"""Your task is to carefully read the provided discussion and reformulate {self.config.user_name}'s request concisely.
+{self.system_custom_header("discussion")}
 {discussion[-2048:]}
-{self.system_custom_header("search query:")}""", callback=self.personality.sink)
+""", template="""{
+    "request": "the reformulated request"
+}""", callback=self.personality.sink)
                         query_code = json.loads(query)
                         query = query_code["request"]
                         self.personality.step_end("Building query")

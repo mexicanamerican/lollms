@@ -43,13 +43,18 @@ from lollms.com import LoLLMsCom
 from lollms.helpers import trace_exception
 from lollms.utilities import PackageManager
 
-import pipmaster as pm
 import inspect
 
 from lollms.code_parser import compress_js, compress_python, compress_html
 
 import requests
 from bs4 import BeautifulSoup
+import pipmaster as pm
+if not pm.is_installed("PyQt5"):
+    pm.install("PyQt5")
+    
+import sys
+from PyQt5.QtWidgets import QApplication, QLineEdit, QButtonGroup, QRadioButton, QVBoxLayout, QWidget, QMessageBox
 
 def get_element_id(url, text):
     response = requests.get(url)
@@ -721,17 +726,100 @@ class AIPersonality:
 
         return gen
 
-    def generate_codes(self, prompt, max_size = None, temperature = None, top_k = None, top_p=None, repeat_penalty=None, repeat_last_n=None, callback=None, debug=False ):
-        if len(self.image_files)>0:
-            response = self.generate_with_images(self.system_custom_header("Generation infos")+ "Generated code must be put inside the adequate markdown code tag. Use this template:\n```language name\nCode\n```\n" + self.separator_template + prompt, self.image_files, max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug)
-        else:
-            response = self.generate(self.system_custom_header("Generation infos")+ "Generated code must be put inside the adequate markdown code tag. Use this template:\n```language name\nCode\n```\n" + self.separator_template + prompt, max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug)
-        codes = self.extract_code_blocks(response)
-        return codes
-    
-    def generate_code(self, prompt, images=[], max_size = None,  temperature = None, top_k = None, top_p=None, repeat_penalty=None, repeat_last_n=None, callback=None, debug=False, return_full_generated_code=False, accept_all_if_no_code_tags_is_present=False, max_continues=5):
+    def generate_codes(
+                        self, 
+                        prompt, 
+                        images=[],
+                        template=None,
+                        language="json",
+                        code_tag_format="markdown", # or "html"
+                        max_size = None,  
+                        temperature = None, 
+                        top_k = None, 
+                        top_p=None, 
+                        repeat_penalty=None, 
+                        repeat_last_n=None, 
+                        callback=None, 
+                        debug=False, 
+                        return_full_generated_code=False, 
+                    ):
         response_full = ""
-        full_prompt = self.system_custom_header("Generation infos")+ "Generated code must be put inside the adequate markdown code tag. Use this template:\n```language name\nCode\n```\nMake sure only a single code tag is generated at each dialogue turn." + self.separator_template + self.system_custom_header("User prompt")+ prompt + self.separator_template + self.ai_custom_header("generated code")
+        full_prompt = f"""{self.system_full_header}Act as code generation assistant who answers with a single code tag content.        
+{prompt}
+Make sure only a single code tag is generated at each dialogue turn.
+"""
+        if template:
+            full_prompt += "Here is a template of the answer:\n"
+            if code_tag_format=="markdown":
+                full_prompt += f"""```{language}
+{template}
+```
+The generated code must be placed inside the markdown code tag.
+"""
+            elif code_tag_format=="html":
+                full_prompt +=f"""<code language="{language}">
+{template}
+</code>
+The generated code must be placed inside the html code tag.
+"""
+
+        full_prompt += self.ai_custom_header("assistant")
+        if len(self.image_files)>0:
+            response = self.generate_with_images(full_prompt, self.image_files, max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug)
+        elif  len(images)>0:
+            response = self.generate_with_images(full_prompt, images, max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug)
+        else:
+            response = self.generate(full_prompt, max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug)
+        response_full += response
+        codes = self.extract_code_blocks(response)
+        if return_full_generated_code:
+            return codes, response_full
+        else:
+            return codes
+    
+    def generate_code(
+                        self, 
+                        prompt, 
+                        images=[],
+                        template=None,
+                        language="json",
+                        code_tag_format="markdown", # or "html"
+                        max_size = None,  
+                        temperature = None, 
+                        top_k = None, 
+                        top_p=None, 
+                        repeat_penalty=None, 
+                        repeat_last_n=None, 
+                        callback=None, 
+                        debug=False, 
+                        return_full_generated_code=False, 
+                        accept_all_if_no_code_tags_is_present=False, 
+                        max_continues=5
+                    ):
+        response_full = ""
+        full_prompt = f"""{self.system_full_header}Act as a code generation assistant who answers with a single code tag content.
+{self.system_custom_header("user")}        
+{prompt}
+Make sure only a single code tag is generated at each dialogue turn.
+"""
+        if template:
+            full_prompt += "Here is a template of the answer:\n"
+            if code_tag_format=="markdown":
+                full_prompt += f"""You must answer with the code placed inside the markdown code tag like this:
+```{language}
+{template}
+```
+Don't forget to close the markdown code tag
+"""
+            elif code_tag_format=="html":
+                full_prompt +=f"""You must answer with the code placed inside the html code tag like this:
+<code language="{language}">
+{template}
+</code>
+Don't forget to close the html code tag
+"""
+
+        full_prompt += self.ai_custom_header("assistant")
         if len(self.image_files)>0:
             response = self.generate_with_images(full_prompt, self.image_files, max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug)
         elif  len(images)>0:
@@ -771,9 +859,49 @@ class AIPersonality:
         else:
             return None
 
-    def generate_text(self, prompt, images=[], max_size = None,  temperature = None, top_k = None, top_p=None, repeat_penalty=None, repeat_last_n=None, callback=None, debug=False, return_full_generated_code=False, accept_all_if_no_code_tags_is_present=False):
+
+    def generate_text(
+                        self, 
+                        prompt, 
+                        images=[],
+                        template=None,
+                        code_tag_format="markdown", # or "html"
+                        max_size = None,  
+                        temperature = None, 
+                        top_k = None, 
+                        top_p=None, 
+                        repeat_penalty=None, 
+                        repeat_last_n=None, 
+                        callback=None, 
+                        debug=False, 
+                        return_full_generated_code=False, 
+                        accept_all_if_no_code_tags_is_present=False, 
+                        max_continues=5
+                    ):
         response_full = ""
-        full_prompt = self.system_custom_header("Generation infos")+ "Generated text content must be put inside a markdown code tag. Use this template:\n```\nText\n```\nMake sure only a single text tag is generated at each dialogue turn." + self.separator_template + self.system_custom_header("User prompt")+ prompt + self.separator_template + self.ai_custom_header("generated answer")
+        full_prompt = f"""{self.system_full_header}Act as a json generation assistant who answers with a single json code tag content.
+{self.system_custom_header("user")}        
+{prompt}
+Make sure only a single code tag is generated at each dialogue turn.
+"""
+        if template:
+            full_prompt += "Here is a template of the answer:\n"
+            if code_tag_format=="markdown":
+                full_prompt += f"""You must answer with the code placed inside the markdown code tag like this:
+```json
+{template}
+```
+Don't forget to close the markdown code tag
+"""
+            elif code_tag_format=="html":
+                full_prompt +=f"""You must answer with the code placed inside the html code tag like this:
+<code language="json">
+{template}
+</code>
+Don't forget to close the html code tag
+"""
+
+        full_prompt += self.ai_custom_header("assistant")
         if len(self.image_files)>0:
             response = self.generate_with_images(full_prompt, self.image_files, max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug)
         elif  len(images)>0:
@@ -790,8 +918,9 @@ class AIPersonality:
         if len(codes)>0:
             if not codes[-1]["is_complete"]:
                 code = "\n".join(codes[-1]["content"].split("\n")[:-1])
-                while not codes[-1]["is_complete"]:
-                    response = self.generate(prompt+code+self.user_full_header+"continue the text. Start from last line and continue the text. Put the text inside a markdown code tag."+self.separator_template+self.ai_full_header, max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug)
+                nb_continues = 0
+                while not codes[-1]["is_complete"] and nb_continues<max_continues:
+                    response = self.generate(full_prompt+code+self.user_full_header+"continue the code. Start from last line and continue the code. Put the code inside a markdown code tag."+self.separator_template+self.ai_full_header, max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug)
                     response_full += response
                     codes = self.extract_code_blocks(response)
                     if len(codes)==0:
@@ -801,6 +930,7 @@ class AIPersonality:
                             code +="\n"+ "\n".join(codes[-1]["content"].split("\n")[:-1])
                         else:
                             code +="\n"+ "\n".join(codes[-1]["content"].split("\n"))
+                    nb_continues += 1
             else:
                 code = codes[-1]["content"]
             
@@ -809,13 +939,14 @@ class AIPersonality:
             else:
                 return code
         else:
-            return None        
+            return None
 
     def generate_structured_content(self, 
-                                prompt, 
-                                template, 
+                                prompt,
+                                images = [],
+                                template = {}, 
                                 single_shot=False, 
-                                output_format="yaml"):
+                                output_format="json"):
         """
         Generate structured content (YAML/JSON) either in single-shot or step-by-step mode.
         
@@ -836,26 +967,25 @@ class AIPersonality:
         
         if single_shot:
             # Generate all content at once for powerful LLMs
-            full_prompt = f"""Generate {output_format.upper()} content for: {prompt}
-Use this structure:
-{output_data}
+            full_prompt = f"""Generate {output_format} content for: {prompt}
 """
             if self.config.debug and not self.processor:
                 ASCIIColors.highlight(full_prompt,"source_document_title", ASCIIColors.color_yellow, ASCIIColors.color_red, False)
 
-            response = self.generate_code(full_prompt, callback=self.sink, accept_all_if_no_code_tags_is_present=True)
+            if output_format=="yaml":
+                output_data = yaml.dumps(output_data)
+
+            code = self.generate_code(full_prompt, images, output_data, output_format, callback=self.sink, accept_all_if_no_code_tags_is_present=True)
             # Parse the response based on format
             if output_format == "yaml":
                 try:
-                    cleaned_response = response.replace("```yaml", "").replace("```", "").strip()
-                    output_data = yaml.safe_load(cleaned_response)
+                    output_data = yaml.safe_load(code)
                 except yaml.YAMLError:
                     # If parsing fails, fall back to step-by-step
                     single_shot = False
             elif output_format == "json":
                 try:
-                    cleaned_response = response.replace("```json", "").replace("```", "").strip()
-                    output_data = json.loads(cleaned_response)
+                    output_data = json.loads(code)
                 except json.JSONDecodeError:
                     # If parsing fails, fall back to step-by-step
                     single_shot = False
@@ -865,12 +995,10 @@ Use this structure:
             for field, field_info in template.items():
                 if "prompt" in field_info:
                     field_prompt = field_info["prompt"].format(main_prompt=prompt)
-                    response = self.generate_code(field_prompt, callback=self.sink, accept_all_if_no_code_tags_is_present=True )
-                    # Clean up the response
-                    cleaned_response = response.strip()
+                    code = self.generate_code(field_prompt,  images, output_data, callback=self.sink, accept_all_if_no_code_tags_is_present=True )
                     # Apply any field-specific processing
                     if "processor" in field_info:
-                        cleaned_response = field_info["processor"](cleaned_response)
+                        cleaned_response = field_info["processor"](code)
                     output_data[field] = cleaned_response
         
         # Format the output string
@@ -3002,113 +3130,79 @@ class APScript(StateMachine):
         codes = self.extract_code_blocks(response)
         return codes
     
-    def generate_code(self, prompt, images=[], max_size = None,  temperature = None, top_k = None, top_p=None, repeat_penalty=None, repeat_last_n=None, callback=None, debug=False, return_full_generated_code=False, accept_all_if_no_code_tags_is_present=False):
-        response_full = ""
-        full_prompt = f"""{self.system_custom_header("system")}You are a code generation assistant.
-Your objective is to generate code as requested by the user and format the output as markdown.
-Generated code must be put inside the adequate markdown code tag.
-Use this code generation template:
-```language name (ex: python, json, javascript...)
-Code
-```
-Make sure only a single code tag is generated at each dialogue turn.
-{self.separator_template}{self.system_custom_header("user")}{prompt}
-{self.separator_template}{self.ai_custom_header("assistant")}"""
-        if self.config.debug:
-            ASCIIColors.red("Generation request prompt:")
-            ASCIIColors.yellow(full_prompt)
-        if len(self.personality.image_files)>0:
-            response = self.personality.generate_with_images(full_prompt, self.personality.image_files, max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug)
-        elif  len(images)>0:
-            response = self.personality.generate_with_images(full_prompt, images, max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug)
-        else:
-            response = self.personality.generate(full_prompt, max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug)
-        response_full += response
-        codes = self.extract_code_blocks(response)
-        if self.config.debug:
-            ASCIIColors.red("Generated codes:")
-            ASCIIColors.green(codes)
-        if len(codes)==0 and accept_all_if_no_code_tags_is_present:
-            if return_full_generated_code:
-                return response, response_full
-            else:
-                return response
-        if len(codes)>0:
-            if not codes[-1]["is_complete"]:
-                code = "\n".join(codes[-1]["content"].split("\n")[:-1])
-                while not codes[-1]["is_complete"]:
-                    response = self.personality.generate(prompt+code+self.user_full_header+"continue the code. Start from last line and continue the code. Put the code inside a markdown code tag."+self.separator_template+self.ai_full_header, max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug)
-                    response_full += response
-                    codes = self.extract_code_blocks(response)
-                    if len(codes)==0:
-                        break
-                    else:
-                        if not codes[-1]["is_complete"]:
-                            code +="\n"+ "\n".join(codes[-1]["content"].split("\n")[:-1])
-                        else:
-                            code +="\n"+ "\n".join(codes[-1]["content"].split("\n"))
-            else:
-                code = codes[-1]["content"]
-            
-            if return_full_generated_code:
-                return code, response_full
-            else:
-                return code
-        else:
-            if return_full_generated_code:
-                return None, None
-            else:
-                return None
 
-    def generate_text(self, prompt, images=[], max_size = None,  temperature = None, top_k = None, top_p=None, repeat_penalty=None, repeat_last_n=None, callback=None, debug=False, return_full_generated_code=False, accept_all_if_no_code_tags_is_present=False):
-        response_full = ""
-        full_prompt = f"""
-{self.system_custom_header("system")}
-You are a text generation assistant.
-Generated text content must be put inside a markdown code tag.
-Use this template:
-```
-Text
-```
-Make sure only a single text tag is generated at each dialogue turn.
-{self.separator_template}{self.system_custom_header("User prompt")}{prompt}
-{self.separator_template}{self.ai_custom_header("assistant")}"""
-        if len(self.personality.image_files)>0:
-            response = self.personality.generate_with_images(full_prompt, self.personality.image_files, max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug)
-        elif  len(images)>0:
-            response = self.personality.generate_with_images(full_prompt, images, max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug)
-        else:
-            response = self.personality.generate(full_prompt, max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug)
-        response_full += response
-        codes = self.extract_code_blocks(response)
-        if len(codes)==0 and accept_all_if_no_code_tags_is_present:
-            if return_full_generated_code:
-                return response, response_full
-            else:
-                return response
-        if len(codes)>0:
-            if not codes[-1]["is_complete"]:
-                code = "\n".join(codes[-1]["content"].split("\n")[:-1])
-                while not codes[-1]["is_complete"]:
-                    response = self.personality.generate(prompt+code+self.user_full_header+"continue the text. Start from last line and continue the text. Put the text inside a markdown code tag."+self.separator_template+self.ai_full_header, max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug)
-                    response_full += response
-                    codes = self.extract_code_blocks(response)
-                    if len(codes)==0:
-                        break
-                    else:
-                        if not codes[-1]["is_complete"]:
-                            code +="\n"+ "\n".join(codes[-1]["content"].split("\n")[:-1])
-                        else:
-                            code +="\n"+ "\n".join(codes[-1]["content"].split("\n"))
-            else:
-                code = codes[-1]["content"]
-            
-            if return_full_generated_code:
-                return code, response_full
-            else:
-                return code
-        else:
-            return None        
+
+    def generate_code(
+                        self, 
+                        prompt, 
+                        images=[],
+                        template=None,
+                        language="json",
+                        code_tag_format="markdown", # or "html"
+                        max_size = None,  
+                        temperature = None, 
+                        top_k = None, 
+                        top_p=None, 
+                        repeat_penalty=None, 
+                        repeat_last_n=None, 
+                        callback=None, 
+                        debug=False, 
+                        return_full_generated_code=False, 
+                        accept_all_if_no_code_tags_is_present=False, 
+                        max_continues=5
+                    ):
+        return self.personality.generate_code(prompt, 
+                        images,
+                        template,
+                        language,
+                        code_tag_format, # or "html"
+                        max_size,  
+                        temperature, 
+                        top_k, 
+                        top_p, 
+                        repeat_penalty, 
+                        repeat_last_n, 
+                        callback, 
+                        debug, 
+                        return_full_generated_code, 
+                        accept_all_if_no_code_tags_is_present, 
+                        max_continues
+                    )
+
+    def generate_text(
+                        self, 
+                        prompt, 
+                        images=[],
+                        template=None,
+                        code_tag_format="markdown", # or "html"
+                        max_size = None,  
+                        temperature = None, 
+                        top_k = None, 
+                        top_p=None, 
+                        repeat_penalty=None, 
+                        repeat_last_n=None, 
+                        callback=None, 
+                        debug=False, 
+                        return_full_generated_code=False, 
+                        accept_all_if_no_code_tags_is_present=False, 
+                        max_continues=5
+                    ):
+        return self.personality.generate_text(prompt, 
+                        images,
+                        template,
+                        code_tag_format, # or "html"
+                        max_size,  
+                        temperature, 
+                        top_k, 
+                        top_p, 
+                        repeat_penalty, 
+                        repeat_last_n, 
+                        callback, 
+                        debug, 
+                        return_full_generated_code, 
+                        accept_all_if_no_code_tags_is_present, 
+                        max_continues
+                    )     
 
     def generate_structured_content(self, 
                                 prompt, 
@@ -3131,42 +3225,33 @@ Make sure only a single text tag is generated at each dialogue turn.
         # Initialize the output dictionary with default values
         output_data = {}
         for field, field_info in template.items():
-            output_data[field] = field_info.get("default", "")
+            output_data[field] = field_info.get("default", f'[{field_info.get(f"prompt","")}]')
         
         if single_shot:
             # Generate all content at once for powerful LLMs
+            full_prompt = f"Generate {output_format.lower()} content for: {prompt}"
             if output_format=="yaml":
-                full_prompt = f"""Generate {output_format.upper()} content for: {prompt}
-Use this structure:
-```yaml
-{yaml.dump(output_data, default_flow_style=False)}
-```
+                template = f"""{yaml.dump(output_data, default_flow_style=False)}
 """
             elif output_format=="json":
-                full_prompt = f"""Generate {output_format.lower()} content for: {prompt}
-Use this structure:
-```json
-{json.dumps(output_data)}
-```
+                template = f"""{json.dumps(output_data)}
 """
             if self.config.debug:
                 ASCIIColors.green(full_prompt)
             if self.config.debug and not self.personality.processor:
                 ASCIIColors.highlight(full_prompt,"source_document_title", ASCIIColors.color_yellow, ASCIIColors.color_red, False)
 
-            response = self.generate_code(full_prompt, callback=self.sink, accept_all_if_no_code_tags_is_present=True)
+            code = self.generate_code(full_prompt, self.personality.image_files, template, language=output_format, callback=self.sink, accept_all_if_no_code_tags_is_present=True)
             # Parse the response based on format
             if output_format == "yaml":
                 try:
-                    cleaned_response = response.replace("```yaml", "").replace("```", "").strip()
-                    output_data = yaml.safe_load(cleaned_response)
+                    output_data = yaml.safe_load(code)
                 except yaml.YAMLError:
                     # If parsing fails, fall back to step-by-step
                     single_shot = False
             elif output_format == "json":
                 try:
-                    cleaned_response = response.replace("```json", "").replace("```", "").strip()
-                    output_data = json.loads(cleaned_response)
+                    output_data = json.loads(code)
                 except json.JSONDecodeError:
                     # If parsing fails, fall back to step-by-step
                     single_shot = False
@@ -3176,9 +3261,13 @@ Use this structure:
             for field, field_info in template.items():
                 if "prompt" in field_info:
                     field_prompt = field_info["prompt"].format(main_prompt=prompt)
-                    response = self.generate_text(field_prompt, callback=self.sink, accept_all_if_no_code_tags_is_present=True )
+                    template = f"""{{
+"{field}": [The value of {field}]
+                    }}
+                    """
+                    code = self.generate_code(field_prompt, self.personality.image_files, template, "json", callback=self.sink, accept_all_if_no_code_tags_is_present=True )
                     # Clean up the response
-                    cleaned_response = response.strip()
+                    cleaned_response = json.loads(code)[field]
                     # Apply any field-specific processing
                     if "processor" in field_info:
                         cleaned_response = field_info["processor"](cleaned_response)
@@ -4401,38 +4490,30 @@ transition-all duration-300 ease-in-out">
     def build_and_execute_python_code(self,context, instructions, execution_function_signature, extra_imports=""):
         start_header_id_template    = self.config.start_header_id_template
         end_header_id_template      = self.config.end_header_id_template
-        system_message_template     = self.config.system_message_template
 
-        code = "```python\n"+self.fast_gen(
-            self.build_prompt([
-            f"{start_header_id_template}context{end_header_id_template}",
+        code =  self.generate_code(self.build_prompt([
+            self.system_custom_header('context'),
             context,
-            f"{start_header_id_template}{system_message_template}{end_header_id_template}",
+            self.system_full_header,
             f"{instructions}",
-            f"Here is the signature of the function:\n{execution_function_signature}",
             "Don't call the function, just write it",
             "Do not provide usage example.",
             "The code must me without comments",
-            f"{start_header_id_template}coder{end_header_id_template}Sure, in the following code, I import the necessary libraries, then define the function as you asked.",
-            "The function is ready to be used in your code and performs the task as you asked:",
-            "```python\n"
-            ],2), callback=self.sink)
-        code = code.replace("```python\n```python\n", "```python\n").replace("```\n```","```")
-        code=self.extract_code_blocks(code)
+            ],2), self.personality.image_files, execution_function_signature, "python")
 
-        if len(code)>0:
-            # Perform the search query
-            code = code[0]["content"]
-            code = "\n".join([
-                        extra_imports,
-                        code
-                    ])
-            ASCIIColors.magenta(code)
-            module_name = 'custom_module'
-            spec = importlib.util.spec_from_loader(module_name, loader=None)
-            module = importlib.util.module_from_spec(spec)
-            exec(code, module.__dict__)
-            return module, code
+
+        # Perform the search query
+        code = code["content"]
+        code = "\n".join([
+                    extra_imports,
+                    code
+                ])
+        ASCIIColors.magenta(code)
+        module_name = 'custom_module'
+        spec = importlib.util.spec_from_loader(module_name, loader=None)
+        module = importlib.util.module_from_spec(spec)
+        exec(code, module.__dict__)
+        return module, code
 
 
     def yes_no(self, question: str, context:str="", max_answer_length: int = 50, conditionning="") -> bool:
@@ -4448,7 +4529,7 @@ transition-all duration-300 ease-in-out">
         """
         return self.multichoice_question(question, ["no","yes"], context, max_answer_length, conditionning=conditionning)>0
 
-    def multichoice_question(self, question: str, possible_answers:list, context:str = "", max_answer_length: int = 50, conditionning="") -> int:
+    def multichoice_question(self, question: str, possible_answers:list, context:str = "", max_answer_length: int = 1024, conditionning="", return_justification=False) -> int:
         """
         Interprets a multi-choice question from a users response. This function expects only one choice as true. All other choices are considered false. If none are correct, returns -1.
 
@@ -4463,38 +4544,45 @@ transition-all duration-300 ease-in-out">
         """
         choices = "\n".join([f"{i}. {possible_answer}" for i, possible_answer in enumerate(possible_answers)])
         elements = [conditionning] if conditionning!="" else []
-        elements += [
-                f"{self.system_full_header}",
-                "Answer this multi choices question in form of a json in this form:\n",
-                """```json
-{
-    "justification": "A justification for your choice",
-    "choice_index": the index of the choice made
-}
-```                
-                """,
-        ]
         if context!="":
             elements+=[
-                        self.system_custom_header("Context"),
+                        self.system_custom_header("context"),
                         f"{context}",
                     ]
+        elements += [
+                "Answer this multi choices question about the context:\n",
+        ]
         elements += [
                 self.system_custom_header("question"),
                 question,
                 self.system_custom_header("possible answers"),
                 f"{choices}",
         ]
-        elements += [self.system_custom_header("answer")]
         prompt = self.build_prompt(elements)
 
-        code = self.generate_code(prompt, self.personality.image_files, max_answer_length, temperature=0.1, top_k=50, top_p=0.9, repeat_penalty=1.0, repeat_last_n=50, callback=self.sink).strip().replace("</s>","").replace("<s>","")
+        code = self.generate_code(
+                                    prompt, 
+                                    self.personality.image_files,"""{
+    "choice_index": [an int representing the index of the choice made]
+    "justification": "[Justify the choice]",
+}""",
+                                    max_size= max_answer_length, 
+                                    temperature=0.1,
+                                    top_k=50,
+                                    top_p=0.9,
+                                    repeat_penalty=1.0,
+                                    repeat_last_n=50,
+                                    callback=self.sink
+                                )
         if len(code)>0:
             json_code = json.loads(code)
             selection = json_code["choice_index"]
             self.print_prompt("Multi choice selection",prompt+code)
             try:
-                return int(selection)
+                if return_justification:
+                    return int(selection), json_code["justification"]
+                else:
+                    return int(selection)
             except:
                 ASCIIColors.cyan("Model failed to answer the question")
                 return -1
@@ -4608,58 +4696,71 @@ transition-all duration-300 ease-in-out">
         if callback:
             callback(step_text, MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_STEP_PROGRESS, {'progress':progress})
 
+
     def ask_user(self, question):
-        import tkinter as tk
-        from tkinter import simpledialog
-        root = tk.Tk()
-        root.withdraw()  # Hide the main window
-        
-        answer = simpledialog.askstring("Input", question, parent=root)
-        
-        root.destroy()  # Ensure the hidden root window is properly closed
-        
-        return answer        
+        try:
+            app = QApplication(sys.argv)
+            input_field = QLineEdit(question)
+            input_field.setWindowTitle("Input")
+            input_field.exec_()
+            answer = input_field.text()
+            input_field.deleteLater()
+            return answer
+        except:
+            ASCIIColors.warning(question)
 
     def ask_user_yes_no(self, question):
-        import tkinter as tk
-        from tkinter import messagebox
-        root = tk.Tk()
-        root.withdraw()  # Hide the main window
-        
-        response = messagebox.askyesno("Question", question)
-        
-        root.destroy()  # Ensure the hidden root window is properly closed
-        
-        return response
-    def ask_user_multichoice_question(self, question, choices, default=None):
-        import tkinter as tk
-        from tkinter import ttk
-        def on_ok():
-            nonlocal result
-            result = var.get()
-            root.quit()
+        try:
+            app = QApplication(sys.argv)
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Question)
+            msg.setText(question)
+            msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+            response = msg.exec_()
+            return response == QMessageBox.Yes
+        except:
+            print(question)
 
-        root = tk.Tk()
-        root.title("Question")
-        
-        frame = ttk.Frame(root, padding="10")
-        frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
-        
-        ttk.Label(frame, text=question).grid(column=0, row=0, sticky=tk.W, pady=5)
-        
-        var = tk.StringVar(value=default if default in choices else choices[0])
-        
-        for i, choice in enumerate(choices):
-            ttk.Radiobutton(frame, text=choice, variable=var, value=choice).grid(column=0, row=i+1, sticky=tk.W, padx=20)
-        
-        ttk.Button(frame, text="OK", command=on_ok).grid(column=0, row=len(choices)+1, pady=10)
-        
-        root.protocol("WM_DELETE_WINDOW", on_ok)  # Handle window close
-        
-        result = None
-        root.mainloop()
-        
-        return result   
+
+
+    def ask_user_multichoice_question(self, question, choices, default=None):
+        try:
+            app = QApplication(sys.argv)
+            window = QWidget()
+            layout = QVBoxLayout()
+            window.setLayout(layout)
+            
+            label = QLabel(question)
+            layout.addWidget(label)
+            
+            button_group = QButtonGroup()
+            for i, choice in enumerate(choices):
+                button = QRadioButton(choice)
+                button_group.addButton(button)
+                layout.addWidget(button)
+            
+            if default is not None:
+                for button in button_group.buttons():
+                    if button.text() == default:
+                        button.setChecked(True)
+                        break
+            
+            def on_ok():
+                nonlocal result
+                result = [button.text() for button in button_group.buttons() if button.isChecked()]
+                window.close()
+            
+            button = QPushButton("OK")
+            button.clicked.connect(on_ok)
+            layout.addWidget(button)
+            
+            window.show()
+            result = None
+            sys.exit(app.exec_())
+            
+            return result
+        except:
+            ASCIIColors.error(question)
 
     def new_message(self, message_text:str, message_type:MSG_OPERATION_TYPE= MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_SET_CONTENT, metadata=[], callback: Callable[[str, int, dict, list, AIPersonality], bool]=None):
         """This sends step rogress to front end

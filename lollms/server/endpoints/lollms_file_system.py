@@ -24,166 +24,177 @@ from functools import partial
 import os
 import re
 import threading
+
+import pipmaster as pm
+if not pm.is_installed("PyQt5"):
+    pm.install("PyQt5")
+
+import sys
+from PyQt5.QtWidgets import QApplication, QFileDialog, QInputDialog
+from pathlib import Path
+from PyQt5.QtCore import Qt
+from typing import Optional, Dict
 # ----------------------- Defining router and main class ------------------------------
 router = APIRouter()
 lollmsElfServer = LOLLMSElfServer.get_instance()
 
 
-# Tools
+
 def open_folder() -> Optional[Path]:
-    """
-    Opens a folder selection dialog and returns the selected folder path.
-    
-    Returns:
-        Optional[Path]: The path of the selected folder or None if no folder was selected.
-    """
-    import tkinter as tk
-    from tkinter import filedialog
     try:
-        # Create a new Tkinter root window and hide it
-        root = tk.Tk()
-        root.withdraw()
+        app = QApplication(sys.argv)
         
-        # Make the window appear on top
-        root.attributes('-topmost', True)
+        # Créer une instance de QFileDialog au lieu d'utiliser la méthode statique
+        dialog = QFileDialog()
+        dialog.setOption(QFileDialog.DontUseNativeDialog, True)
+        dialog.setWindowFlag(Qt.WindowStaysOnTopHint, True)
+        dialog.setFileMode(QFileDialog.Directory)
+        dialog.setOption(QFileDialog.ShowDirsOnly, True)
         
-        # Open the folder selection dialog
-        folder_path = filedialog.askdirectory()
+        # Afficher le dialogue et le mettre au premier plan
+        dialog.show()
+        dialog.raise_()
+        dialog.activateWindow()
         
-        # Destroy the root window
-        root.destroy()
-        
-        if folder_path:
-            return Path(folder_path)
+        if dialog.exec_() == QFileDialog.Accepted:
+            selected_folder = dialog.selectedFiles()[0]
+            return Path(selected_folder)
         else:
             return None
     except Exception as e:
-        print(f"An error occurred: {e}")
+        print(f"Une erreur s'est produite : {e}")
         return None
 
 def open_file(file_types: List[str]) -> Optional[Path]:
-    """
-    Opens a file selection dialog and returns the selected file path.
-    
-    Args:
-        file_types (List[str]): A list of file types to filter in the dialog (e.g., ["*.txt", "*.pdf"]).
-    
-    Returns:
-        Optional[Path]: The path of the selected file or None if no file was selected.
-    """
-    import tkinter as tk
-    from tkinter import filedialog
     try:
-        # Create a new Tkinter root window and hide it
-        root = tk.Tk()
-        root.withdraw()
+        app = QApplication(sys.argv)
         
-        # Make the window appear on top
-        root.attributes('-topmost', True)
+        # Créer une instance de QFileDialog
+        dialog = QFileDialog()
+        dialog.setOption(QFileDialog.DontUseNativeDialog, True)
+        dialog.setWindowFlag(Qt.WindowStaysOnTopHint, True)
+        dialog.setFileMode(QFileDialog.ExistingFile)
+        dialog.setNameFilter(';;'.join(file_types))
         
-        # Open the file selection dialog
-        file_path = filedialog.askopenfilename(filetypes=[("Files", file_types)])
+        # Afficher le dialogue et le mettre au premier plan
+        dialog.show()
+        dialog.raise_()
+        dialog.activateWindow()
         
-        # Destroy the root window
-        root.destroy()
-        
-        if file_path:
-            return Path(file_path)
+        if dialog.exec_() == QFileDialog.Accepted:
+            selected_file = dialog.selectedFiles()[0]
+            return Path(selected_file)
         else:
             return None
     except Exception as e:
-        print(f"An error occurred: {e}")
+        print(f"Une erreur s'est produite : {e}")
         return None
+    
+
 
 def select_rag_database(client) -> Optional[Dict[str, Path]]:
     """
-    Opens a folder selection dialog and then a string input dialog to get the database name.
+    Opens a folder selection dialog and then a string input dialog to get the database name using PyQt5.
     
     Returns:
         Optional[Dict[str, Path]]: A dictionary with the database name and the database path, or None if no folder was selected.
     """
     try:
-        import tkinter as tk
-        from tkinter import simpledialog, filedialog
-        # Create a new Tkinter root window and hide it
-        root = tk.Tk()
-        root.withdraw()
-        
-        # Make the window appear on top
-        root.attributes('-topmost', True)
-        
+        # Create a QApplication instance
+        app = QApplication.instance()
+        if not app:
+            app = QApplication(sys.argv)
+
         # Open the folder selection dialog
-        folder_path = filedialog.askdirectory()
+        dialog = QFileDialog()
+        dialog.setOption(QFileDialog.DontUseNativeDialog, True)
+        dialog.setWindowFlag(Qt.WindowStaysOnTopHint, True)
+        dialog.setWindowModality(Qt.ApplicationModal)
+        dialog.raise_()
+        dialog.activateWindow()
+
+        # Add a custom filter to show network folders
+        dialog.setNameFilter("All Files (*)")
+        dialog.setViewMode(QFileDialog.List)
         
-        if folder_path:
-            # Ask for the database name
-            db_name = simpledialog.askstring("Database Name", "Please enter the database name:")
-            
-            # Destroy the root window
-            root.destroy()
-            
-            if db_name:
-                try:
-                    lollmsElfServer.ShowBlockingMessage("Adding a new database.")
-                    if not PackageManager.check_package_installed_with_version("lollmsvectordb","0.6.0"):
-                        PackageManager.install_or_update("lollmsvectordb")
+        # Show the dialog modally
+        if dialog.exec_() == QFileDialog.Accepted:
+            folder_path = dialog.selectedFiles()[0]  # Get the selected folder path
+            if folder_path:
+                # Bring the input dialog to the foreground as well
+                input_dialog = QInputDialog()
+                input_dialog.setWindowFlags(input_dialog.windowFlags() | Qt.WindowStaysOnTopHint)
+                input_dialog.setWindowModality(Qt.ApplicationModal)
+                input_dialog.setOption(QInputDialog.DontUseNativeDialog, True)
+                input_dialog.setWindowFlag(Qt.WindowStaysOnTopHint, True)
+                input_dialog.setWindowModality(Qt.ApplicationModal)
+                input_dialog.raise_()
+                input_dialog.activateWindow()
+                db_name, ok = input_dialog.getText(None, "Database Name", "Please enter the database name:")
+                
+                if ok and db_name:
+                    try:
+                        lollmsElfServer.ShowBlockingMessage("Adding a new database.")
+                        if not PackageManager.check_package_installed_with_version("lollmsvectordb","0.6.0"):
+                            PackageManager.install_or_update("lollmsvectordb")
+                        
+                        from lollmsvectordb import VectorDatabase
+                        from lollmsvectordb.text_document_loader import TextDocumentsLoader
+                        from lollmsvectordb.lollms_tokenizers.tiktoken_tokenizer import TikTokenTokenizer
+
+                        if lollmsElfServer.config.rag_vectorizer == "semantic":
+                            from lollmsvectordb.lollms_vectorizers.semantic_vectorizer import SemanticVectorizer
+                            v = SemanticVectorizer(lollmsElfServer.config.rag_vectorizer_model)
+                        elif lollmsElfServer.config.rag_vectorizer == "tfidf":
+                            from lollmsvectordb.lollms_vectorizers.tfidf_vectorizer import TFIDFVectorizer
+                            v = TFIDFVectorizer()
+                        elif lollmsElfServer.config.rag_vectorizer == "openai":
+                            from lollmsvectordb.lollms_vectorizers.openai_vectorizer import OpenAIVectorizer
+                            v = OpenAIVectorizer(lollmsElfServer.config.rag_vectorizer_openai_key)
+                        elif lollmsElfServer.config.rag_vectorizer == "ollama":
+                            from lollmsvectordb.lollms_vectorizers.ollama_vectorizer import OllamaVectorizer
+                            v = OllamaVectorizer(lollmsElfServer.config.rag_vectorizer_model, lollmsElfServer.config.rag_service_url)
+
+                        vdb = VectorDatabase(Path(folder_path)/f"{db_name}.sqlite", v, lollmsElfServer.model if lollmsElfServer.model else TikTokenTokenizer())
+                        # Get all files in the folder
+                        folder = Path(folder_path)
+                        file_types = [f"**/*{f}" if lollmsElfServer.config.rag_follow_subfolders else f"*{f}" for f in TextDocumentsLoader.get_supported_file_types()]
+                        files = []
+                        for file_type in file_types:
+                            files.extend(folder.glob(file_type))
+                        
+                        # Load and add each document to the database
+                        for fn in files:
+                            try:
+                                text = TextDocumentsLoader.read_file(fn)
+                                title = fn.stem  # Use the file name without extension as the title
+                                lollmsElfServer.ShowBlockingMessage(f"Adding a new database.\nAdding {title}")
+                                vdb.add_document(title, text, fn)
+                                print(f"Added document: {title}")
+                            except Exception as e:
+                                lollmsElfServer.error(f"Failed to add document {fn}: {e}")
+                                print(f"Failed to add document {fn}: {e}")
+                        if vdb.new_data: #New files are added, need reindexing
+                            lollmsElfServer.ShowBlockingMessage(f"Adding a new database.\nIndexing the database...")
+                            vdb.build_index()
+                            ASCIIColors.success("OK")
+                        lollmsElfServer.HideBlockingMessage()
+                        run_async(partial(lollmsElfServer.sio.emit,'rag_db_added', {"database_name": db_name, "database_path": str(folder_path)}, to=client.client_id))
+
+                    except Exception as ex:
+                        trace_exception(ex)
+                        lollmsElfServer.HideBlockingMessage()
                     
-                    from lollmsvectordb import VectorDatabase
-                    from lollmsvectordb.text_document_loader import TextDocumentsLoader
-                    from lollmsvectordb.lollms_tokenizers.tiktoken_tokenizer import TikTokenTokenizer
-
-
-                    if lollmsElfServer.config.rag_vectorizer == "semantic":
-                        from lollmsvectordb.lollms_vectorizers.semantic_vectorizer import SemanticVectorizer
-                        v = SemanticVectorizer(lollmsElfServer.config.rag_vectorizer_model)
-                    elif lollmsElfServer.config.rag_vectorizer == "tfidf":
-                        from lollmsvectordb.lollms_vectorizers.tfidf_vectorizer import TFIDFVectorizer
-                        v = TFIDFVectorizer()
-                    elif lollmsElfServer.config.rag_vectorizer == "openai":
-                        from lollmsvectordb.lollms_vectorizers.openai_vectorizer import OpenAIVectorizer
-                        v = OpenAIVectorizer(lollmsElfServer.config.rag_vectorizer_openai_key)
-                    elif lollmsElfServer.config.rag_vectorizer == "ollama":
-                        from lollmsvectordb.lollms_vectorizers.ollama_vectorizer import OllamaVectorizer
-                        v = OllamaVectorizer(lollmsElfServer.config.rag_vectorizer_model, lollmsElfServer.config.rag_service_url)
-
-                    vdb = VectorDatabase(Path(folder_path)/f"{db_name}.sqlite", v, lollmsElfServer.model if lollmsElfServer.model else TikTokenTokenizer())
-                    # Get all files in the folder
-                    folder = Path(folder_path)
-                    file_types = [f"**/*{f}" if lollmsElfServer.config.rag_follow_subfolders else f"*{f}" for f in TextDocumentsLoader.get_supported_file_types()]
-                    files = []
-                    for file_type in file_types:
-                        files.extend(folder.glob(file_type))
-                    
-                    # Load and add each document to the database
-                    for fn in files:
-                        try:
-                            text = TextDocumentsLoader.read_file(fn)
-                            title = fn.stem  # Use the file name without extension as the title
-                            lollmsElfServer.ShowBlockingMessage(f"Adding a new database.\nAdding {title}")
-                            vdb.add_document(title, text, fn)
-                            print(f"Added document: {title}")
-                        except Exception as e:
-                            lollmsElfServer.error(f"Failed to add document {fn}: {e}")
-                            print(f"Failed to add document {fn}: {e}")
-                    if vdb.new_data: #New files are added, need reindexing
-                        lollmsElfServer.ShowBlockingMessage(f"Adding a new database.\nIndexing the database...")
-                        vdb.build_index()
-                        ASCIIColors.success("OK")
-                    lollmsElfServer.HideBlockingMessage()
-                    run_async(partial(lollmsElfServer.sio.emit,'rag_db_added', {"database_name": db_name, "database_path": str(folder_path)}, to=client.client_id))
-
-                except Exception as ex:
-                    trace_exception(ex)
-                    lollmsElfServer.HideBlockingMessage()
+                    return {"database_name": db_name, "database_path": Path(folder_path)}
+                else:
+                    return None
             else:
                 return None
-        else:
-            # Destroy the root window if no folder was selected
-            root.destroy()
-            return None
     except Exception as e:
         print(f"An error occurred: {e}")
         return None
+
+
 
 def find_rag_database_by_name(entries: List[str], name: str) -> Optional[str]:
     """
@@ -315,75 +326,72 @@ async def vectorize_folder(database_infos: FolderInfos):
             db_name = parts[0]
             folder_path = sanitize_path(parts[1], True) 
         else:
-            import tkinter as tk
-            from tkinter import simpledialog, filedialog
-            # Create a new Tkinter root window and hide it
-            root = tk.Tk()
-            root.withdraw()
-            
-            # Make the window appear on top
-            root.attributes('-topmost', True)
+            # Create a QApplication instance
+            app = QApplication.instance()
+            if not app:
+                app = QApplication(sys.argv)
             
             # Ask for the database name
-            db_name = simpledialog.askstring("Database Name", "Please enter the database name:")
+            db_name, ok = QInputDialog.getText(None, "Database Name", "Please enter the database name:")
             folder_path = database_infos.db_path
-                
             
-        if db_name:
-            try:
-                lollmsElfServer.ShowBlockingMessage("Revectorizing the database.")
-                if not PackageManager.check_package_installed_with_version("lollmsvectordb","0.6.0"):
-                    PackageManager.install_or_update("lollmsvectordb")
-                
+            if not ok or not db_name:
+                return
+        
+        try:
+            lollmsElfServer.ShowBlockingMessage("Revectorizing the database.")
+            if not PackageManager.check_package_installed_with_version("lollmsvectordb","0.6.0"):
+                PackageManager.install_or_update("lollmsvectordb")
+            
+            from lollmsvectordb.lollms_vectorizers.semantic_vectorizer import SemanticVectorizer
+            from lollmsvectordb import VectorDatabase
+            from lollmsvectordb.text_document_loader import TextDocumentsLoader
+            from lollmsvectordb.lollms_tokenizers.tiktoken_tokenizer import TikTokenTokenizer
+
+            if lollmsElfServer.config.rag_vectorizer == "semantic":
                 from lollmsvectordb.lollms_vectorizers.semantic_vectorizer import SemanticVectorizer
-                from lollmsvectordb import VectorDatabase
-                from lollmsvectordb.text_document_loader import TextDocumentsLoader
-                from lollmsvectordb.lollms_tokenizers.tiktoken_tokenizer import TikTokenTokenizer
+                v = SemanticVectorizer(lollmsElfServer.config.rag_vectorizer_model)
+            elif lollmsElfServer.config.rag_vectorizer == "tfidf":
+                from lollmsvectordb.lollms_vectorizers.tfidf_vectorizer import TFIDFVectorizer
+                v = TFIDFVectorizer()
+            elif lollmsElfServer.config.rag_vectorizer == "openai":
+                from lollmsvectordb.lollms_vectorizers.openai_vectorizer import OpenAIVectorizer
+                v = OpenAIVectorizer(lollmsElfServer.config.rag_vectorizer_openai_key)
+            elif lollmsElfServer.config.rag_vectorizer == "ollama":
+                from lollmsvectordb.lollms_vectorizers.ollama_vectorizer import OllamaVectorizer
+                v = OllamaVectorizer(lollmsElfServer.config.rag_vectorizer_model, lollmsElfServer.config.rag_service_url)
 
+            vector_db_path = Path(folder_path)/f"{db_name}.sqlite"
 
-                if lollmsElfServer.config.rag_vectorizer == "semantic":
-                    from lollmsvectordb.lollms_vectorizers.semantic_vectorizer import SemanticVectorizer
-                    v = SemanticVectorizer(lollmsElfServer.config.rag_vectorizer_model)
-                elif lollmsElfServer.config.rag_vectorizer == "tfidf":
-                    from lollmsvectordb.lollms_vectorizers.tfidf_vectorizer import TFIDFVectorizer
-                    v = TFIDFVectorizer()
-                elif lollmsElfServer.config.rag_vectorizer == "openai":
-                    from lollmsvectordb.lollms_vectorizers.openai_vectorizer import OpenAIVectorizer
-                    v = OpenAIVectorizer(lollmsElfServer.config.rag_vectorizer_openai_key)
-                elif lollmsElfServer.config.rag_vectorizer == "ollama":
-                    from lollmsvectordb.lollms_vectorizers.ollama_vectorizer import OllamaVectorizer
-                    v = OllamaVectorizer(lollmsElfServer.config.rag_vectorizer_model, lollmsElfServer.config.rag_service_url)
+            vdb = VectorDatabase(vector_db_path, v, lollmsElfServer.model if lollmsElfServer.model else TikTokenTokenizer(), reset=True)
+            vdb.new_data = True
+            # Get all files in the folder
+            folder = Path(folder_path)
+            file_types = [f"**/*{f}" if lollmsElfServer.config.rag_follow_subfolders else f"*{f}" for f in TextDocumentsLoader.get_supported_file_types()]
+            files = []
+            for file_type in file_types:
+                files.extend(folder.glob(file_type))
+            
+            # Load and add each document to the database
+            for fn in files:
+                try:
+                    text = TextDocumentsLoader.read_file(fn)
+                    title = fn.stem  # Use the file name without extension as the title
+                    lollmsElfServer.ShowBlockingMessage(f"Adding a new database.\nAdding {title}")
+                    vdb.add_document(title, text, fn)
+                    print(f"Added document: {title}")
+                except Exception as e:
+                    lollmsElfServer.error(f"Failed to add document {fn}: {e}")
+            if vdb.new_data: #New files are added, need reindexing
+                lollmsElfServer.ShowBlockingMessage(f"Adding a new database.\nIndexing the database...")
+                vdb.build_index()
+                ASCIIColors.success("OK")
+            lollmsElfServer.HideBlockingMessage()
+            run_async(partial(lollmsElfServer.sio.emit,'rag_db_added', {"database_name": db_name, "database_path": str(folder_path)}, to=client.client_id))
 
-                vector_db_path = Path(folder_path)/f"{db_name}.sqlite"
-
-                vdb = VectorDatabase(vector_db_path, v, lollmsElfServer.model if lollmsElfServer.model else TikTokenTokenizer(), reset=True)
-                vdb.new_data = True
-                # Get all files in the folder
-                folder = Path(folder_path)
-                file_types = [f"**/*{f}" if lollmsElfServer.config.rag_follow_subfolders else f"*{f}" for f in TextDocumentsLoader.get_supported_file_types()]
-                files = []
-                for file_type in file_types:
-                    files.extend(folder.glob(file_type))
-                
-                # Load and add each document to the database
-                for fn in files:
-                    try:
-                        text = TextDocumentsLoader.read_file(fn)
-                        title = fn.stem  # Use the file name without extension as the title
-                        lollmsElfServer.ShowBlockingMessage(f"Adding a new database.\nAdding {title}")
-                        vdb.add_document(title, text, fn)
-                        print(f"Added document: {title}")
-                    except Exception as e:
-                        lollmsElfServer.error(f"Failed to add document {fn}: {e}")
-                if vdb.new_data: #New files are added, need reindexing
-                    lollmsElfServer.ShowBlockingMessage(f"Adding a new database.\nIndexing the database...")
-                    vdb.build_index()
-                    ASCIIColors.success("OK")
-                lollmsElfServer.HideBlockingMessage()
-                run_async(partial(lollmsElfServer.sio.emit,'rag_db_added', {"database_name": db_name, "database_path": str(folder_path)}, to=client.client_id))
-
-            except Exception as ex:
-                trace_exception(ex)
-                lollmsElfServer.HideBlockingMessage()
+        except Exception as ex:
+            trace_exception(ex)
+            lollmsElfServer.HideBlockingMessage()
+    
     lollmsElfServer.rag_thread = threading.Thread(target=process)
     lollmsElfServer.rag_thread.start()

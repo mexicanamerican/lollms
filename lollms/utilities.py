@@ -45,6 +45,13 @@ import pipmaster as pm
 if not pm.is_installed("Pillow"):
     pm.install("Pillow")
 from PIL import Image
+
+if not pm.is_installed("PyQt5"):
+    pm.install("PyQt5")
+import sys
+from PyQt5.QtWidgets import QApplication, QButtonGroup, QRadioButton, QVBoxLayout, QWidget, QPushButton, QMessageBox
+from PyQt5.QtCore import Qt
+
 import os
 import subprocess
 import sys
@@ -397,72 +404,60 @@ def show_console_custom_dialog(title, text, options):
 
 def show_custom_dialog(title, text, options):
     try:
-        import tkinter as tk
-        from tkinter import simpledialog        
-        class CustomDialog(simpledialog.Dialog):
-            def __init__(self, parent, title, options, root):
-                self.options = options
-                self.root = root
-                self.buttons = []
-                self.result_value = ""
-                super().__init__(parent, title)
-            def do_ok(self, option):
-                self.result_value = option
-                self.ok(option)
-                self.root.destroy()
-            def body(self, master):
-                for option in self.options:
-                    button = tk.Button(master, text=option, command=partial(self.do_ok, option))
-                    button.pack(side="left", fill="x")
-                    self.buttons.append(button)
-
-            def apply(self):
-                self.result = self.options[0]  # Default value
-        root = tk.Tk()
-        root.withdraw()
-        root.attributes('-topmost', True)
-        d = CustomDialog(root, title=title, options=options, root=root)
-        try:
-            d.mainloop()
-        except Exception as ex:
-            pass
-        result = d.result_value
+        app = QApplication(sys.argv)
+        window = QWidget()
+        layout = QVBoxLayout()
+        window.setLayout(layout)
+        
+        label = QLabel(text)
+        layout.addWidget(label)
+        
+        button_group = QButtonGroup()
+        for i, option in enumerate(options):
+            button = QRadioButton(option)
+            button_group.addButton(button)
+            layout.addWidget(button)
+        
+        def on_ok():
+            nonlocal result
+            result = [button.text() for button in button_group.buttons() if button.isChecked()]
+            window.close()
+        
+        button = QPushButton("OK")
+        button.clicked.connect(on_ok)
+        layout.addWidget(button)
+        
+        window.show()
+        result = None
+        sys.exit(app.exec_())
+        
         return result
-    except Exception as ex:
-        ASCIIColors.error(ex)
-        return show_console_custom_dialog(title, text, options)
-    
+    except:
+        print(title)
+
+
 def show_yes_no_dialog(title, text):
     try:
-        if sys.platform.startswith('win'):
-            return show_windows_dialog(title, text)
-        elif sys.platform.startswith('darwin'):
-            return show_macos_dialog(title, text)
-        elif sys.platform.startswith('linux'):
-            return show_linux_dialog(title, text)
-        else:
-            return console_dialog(title, text)
+        app = QApplication.instance() or QApplication(sys.argv)
+        
+        # Create a message box with Yes/No buttons
+        msg = QMessageBox()
+        msg.setIcon(QMessageBox.Question)
+        msg.setText(text)
+        msg.setWindowTitle(title)
+        msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+
+        # Ensure the dialog comes to the foreground
+        msg.setWindowFlags(msg.windowFlags() | Qt.WindowStaysOnTopHint)
+        msg.raise_()
+        msg.activateWindow()
+
+        # Execute the dialog and return True if 'Yes' was clicked, False otherwise
+        return msg.exec_() == QMessageBox.Yes        
     except Exception as ex:
         print(f"Error: {ex}")
         return console_dialog(title, text)
 
-def show_windows_dialog(title, text):
-    from ctypes import windll
-    result = windll.user32.MessageBoxW(0, text, title, 4 | 0x40000)
-    return result == 6  # 6 means "Yes"
-
-def show_macos_dialog(title, text):
-    script = f'tell app "System Events" to display dialog "{text}" buttons {{"No", "Yes"}} default button "Yes" with title "{title}"'
-    result = subprocess.run(['osascript', '-e', script], capture_output=True, text=True)
-    return "Yes" in result.stdout
-
-def show_linux_dialog(title, text):
-    zenity_path = Path('/usr/bin/zenity')
-    if zenity_path.exists():
-        result = subprocess.run([str(zenity_path), '--question', '--title', title, '--text', text], capture_output=True)
-        return result.returncode == 0
-    else:
-        return console_dialog(title, text)
 
 def console_dialog(title, text):
     print(f"{title}\n{text}")
@@ -473,22 +468,18 @@ def console_dialog(title, text):
         print("Invalid input. Please enter 'yes' or 'no'.")
         
 def show_message_dialog(title, text):
-    import tkinter as tk
-    from tkinter import messagebox
-    # Create a new Tkinter root window and hide it
-    root = tk.Tk()
-    root.withdraw()
-
-    # Make the window appear on top
-    root.attributes('-topmost', True)
-    
-    # Show the dialog box
-    result = messagebox.askquestion(title, text)
-
-    # Destroy the root window
-    root.destroy()
-
-    return result
+    try:
+        app = QApplication(sys.argv)
+        msg = QMessageBox()
+        msg.setOption(QMessageBox.DontUseNativeDialog, True)
+        msg.setWindowFlag(Qt.WindowStaysOnTopHint, True)
+        msg.setIcon(QMessageBox.Information)
+        msg.setText(text)
+        msg.setWindowTitle(title)
+        result = msg.question(None, title, text, QMessageBox.Yes | QMessageBox.No)
+        return result == QMessageBox.Yes
+    except:
+        print(title)
 
 
 def is_linux():
