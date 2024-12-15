@@ -1095,6 +1095,7 @@ class LollmsApplication(LoLLMsCom):
                             "--- discussion --",
                             f"{discussion[-2048:]}",
                             "---",
+                            "Make sure to write the RAG vector database query in your output json code."
                         ])
                         template = """{
 "query": "[the rag query deduced from the last messge in the discussion]"
@@ -1104,8 +1105,12 @@ class LollmsApplication(LoLLMsCom):
                         if query is None:
                             query = current_message.content
                         else:
-                            query = json.loads(query)
-                            query = query["query"]
+                            try:
+                                query = json.loads(query)
+                                query = query["query"]
+                            except Exception as ex:
+                                ASCIIColors.error("failed to generate the query")
+                                query = current_message.content
                         self.personality.step_end("Building vector store query")
                         ASCIIColors.magenta(f"Query: {query}")
                         self.personality.step(f"Query: {query}")
