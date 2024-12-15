@@ -114,8 +114,7 @@ def select_rag_database(client) -> Optional[Dict[str, Path]]:
         dialog.activateWindow()
 
         # Add a custom filter to show network folders
-        dialog.setNameFilter("All Files (*)")
-        dialog.setViewMode(QFileDialog.List)
+        dialog.setFileMode(QFileDialog.Directory)
         
         # Show the dialog modally
         if dialog.exec_() == QFileDialog.Accepted:
