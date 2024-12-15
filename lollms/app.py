@@ -1097,7 +1097,7 @@ class LollmsApplication(LoLLMsCom):
                             "---",
                         ])
                         template = """{
-"query": "[the rag query deduced from the last messgae in the discussion]"
+"query": "[the rag query deduced from the last messge in the discussion]"
 }
 """
                         query = self.personality.generate_code(q, self.personality.image_files, template, callback=self.personality.sink)
