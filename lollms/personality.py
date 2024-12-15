@@ -4374,138 +4374,82 @@ transition-all duration-300 ease-in-out">
         
         return updated_content, True  # Section updated successfully
 
-    def extract_code_blocks(self, text: str, return_remaining_text: bool = False) -> Union[List[dict], Tuple[List[dict], str]]:
-        """
-        This function extracts code blocks from a given text and optionally returns the text without code blocks.
-
-        Parameters:
-        text (str): The text from which to extract code blocks. Code blocks are identified by triple backticks (```).
-        return_remaining_text (bool): If True, also returns the text with code blocks removed.
-
-        Returns:
-        Union[List[dict], Tuple[List[dict], str]]: 
-            - If return_remaining_text is False: Returns only the list of code block dictionaries
-            - If return_remaining_text is True: Returns a tuple containing:
-                * List of code block dictionaries
-                * String containing the text with all code blocks removed
-            
-        Each code block dictionary contains:
-            - 'index' (int): The index of the code block in the text
-            - 'file_name' (str): The name of the file extracted from the preceding line, if available
-            - 'content' (str): The content of the code block
-            - 'type' (str): The type of the code block
-            - 'is_complete' (bool): True if the block has a closing tag, False otherwise
-        """        
-        remaining = text
-        bloc_index = 0
-        first_index = 0
-        indices = []
-        text_without_blocks = text
+    def extract_code_blocks(text: str, return_remaining_text: bool = False) -> Union[List[dict], Tuple[List[dict], str]]:
+        codes = []
+        remaining_text = text
+        current_index = 0
         
-        # Find all code block delimiters
-        while len(remaining) > 0:
-            try:
-                index = remaining.index("```")
-                indices.append(index + first_index)
-                remaining = remaining[index + 3:]
-                first_index += index + 3
-                bloc_index += 1
-            except Exception as ex:
-                if bloc_index % 2 == 1:
-                    index = index+len(remaining)
-                    indices.append(index)
-                remaining = ""
-
-        code_blocks = []
-        is_start = True
-        
-        # Process code blocks and build text without blocks if requested
-        if return_remaining_text:
-            text_parts = []
-            last_end = 0
+        while True:
+            # Find next code block start
+            start_pos = remaining_text.find('```')
+            if start_pos == -1:
+                break
+                
+            # Check for file name before code block
+            file_name = ''
+            file_name_match = remaining_text[:start_pos].rfind('<file_name>')
+            if file_name_match != -1:
+                file_name_end = remaining_text[:start_pos].rfind('</file_name>')
+                if file_name_end != -1 and file_name_match < file_name_end:
+                    file_name = remaining_text[file_name_match + 11:file_name_end].strip()
             
-        for index, code_delimiter_position in enumerate(indices):
-            if is_start:
-                block_infos = {
-                    'index': len(code_blocks),
-                    'file_name': "",
-                    'section': "",
-                    'content': "",
-                    'type': "",
-                    'is_complete': False
-                }
-                
-                # Store text before code block if returning remaining text
-                if return_remaining_text:
-                    text_parts.append(text[last_end:code_delimiter_position].strip())
-                
-                # Check the preceding line for file name
-                preceding_text = text[:code_delimiter_position].strip().splitlines()
-                if preceding_text:
-                    last_line = preceding_text[-1].strip()
-                    if last_line.startswith("<file_name>") and last_line.endswith("</file_name>"):
-                        file_name = last_line[len("<file_name>"):-len("</file_name>")].strip()
-                        block_infos['file_name'] = file_name
-                    elif last_line.startswith("## filename:"):
-                        file_name = last_line[len("## filename:"):].strip()
-                        block_infos['file_name'] = file_name
-                    if last_line.startswith("<section>") and last_line.endswith("</section>"):
-                        section = last_line[len("<section>"):-len("</section>")].strip()
-                        block_infos['section'] = section
-
-                sub_text = text[code_delimiter_position + 3:]
-                if len(sub_text) > 0:
-                    try:
-                        find_space = sub_text.index(" ")
-                    except:
-                        find_space = int(1e10)
-                    try:
-                        find_return = sub_text.index("\n")
-                    except:
-                        find_return = int(1e10)
-                    next_index = min(find_return, find_space)
-                    if '{' in sub_text[:next_index]:
-                        next_index = 0
-                    start_pos = next_index
-                    
-                    if code_delimiter_position + 3 < len(text) and text[code_delimiter_position + 3] in ["\n", " ", "\t"]:
-                        block_infos["type"] = 'language-specific'
-                    else:
-                        block_infos["type"] = sub_text[:next_index]
-
-                    if index + 1 < len(indices):
-                        next_pos = indices[index + 1] - code_delimiter_position
-                        if next_pos - 3>0:
-                            if next_pos - 3 < len(sub_text) and sub_text[next_pos - 3] == "`":
-                                block_infos["content"] = sub_text[start_pos:next_pos - 3].strip()
-                                block_infos["is_complete"] = True
-                            else:
-                                block_infos["content"] = sub_text[start_pos:next_pos].strip()
-                                block_infos["is_complete"] = False
-                        
-                        if return_remaining_text:
-                            last_end = indices[index + 1] + 3
-                    else:
-                        block_infos["content"] = sub_text[start_pos:].strip()
-                        block_infos["is_complete"] = False
-                        
-                        if return_remaining_text:
-                            last_end = len(text)
-                    
-                    code_blocks.append(block_infos)
-                is_start = False
+            # Get code type if specified
+            code_type = ''
+            next_newline = remaining_text.find('\n', start_pos + 3)
+            if next_newline != -1:
+                potential_type = remaining_text[start_pos + 3:next_newline].strip()
+                if potential_type:
+                    code_type = potential_type
+                    start_pos = next_newline + 1
+                else:
+                    start_pos += 3
             else:
-                is_start = True
+                start_pos += 3
                 
-        if return_remaining_text:
-            # Add any remaining text after the last code block
-            if last_end < len(text):
-                text_parts.append(text[last_end:].strip())
-            # Join all non-code parts with newlines
-            text_without_blocks = '\n'.join(filter(None, text_parts))
-            return code_blocks, text_without_blocks
+            # Find matching end tag
+            tag_count = 1
+            pos = start_pos
+            content_start = start_pos
+            is_complete = False
             
-        return code_blocks
+            while pos < len(remaining_text):
+                if remaining_text[pos:pos + 3] == '```':
+                    tag_count -= 1
+                    if tag_count == 0:
+                        # Found matching end tag
+                        content = remaining_text[content_start:pos].strip()
+                        is_complete = True
+                        codes.append({
+                            'index': current_index,
+                            'file_name': file_name,
+                            'content': content,
+                            'type': code_type,
+                            'is_complete': True
+                        })
+                        remaining_text = remaining_text[pos + 3:]
+                        break
+                elif remaining_text[pos:pos + 3] == '```':
+                    tag_count += 1
+                pos += 1
+                
+            if not is_complete:
+                # Handle incomplete code block
+                content = remaining_text[content_start:].strip()
+                codes.append({
+                    'index': current_index,
+                    'file_name': file_name,
+                    'content': content,
+                    'type': code_type,
+                    'is_complete': False
+                })
+                remaining_text = ''
+                
+            current_index += 1
+        
+        if return_remaining_text:
+            return codes, remaining_text
+        return codes
+
 
 
     def build_and_execute_python_code(self,context, instructions, execution_function_signature, extra_imports=""):
