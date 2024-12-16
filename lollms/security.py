@@ -185,8 +185,9 @@ def sanitize_path(path: str, allow_absolute_path: bool = False, allow_current_fo
     if path is None:
         return path
 
-    # Normalize path to use forward slashes
-    path = path.replace('\\', '/')
+    if not allow_absolute_path:
+        # Normalize path to use forward slashes
+        path = path.replace('\\', '/')
     path = path.strip()
 
     if not allow_current_folder and path=="./":
