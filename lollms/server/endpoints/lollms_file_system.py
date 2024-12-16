@@ -107,7 +107,7 @@ def select_rag_database(client) -> Optional[Dict[str, Path]]:
 
         # Open the folder selection dialog
         dialog = QFileDialog()
-        dialog.setOption(QFileDialog.DontUseNativeDialog, True)
+        # dialog.setOption(QFileDialog.DontUseNativeDialog, True)
         dialog.setWindowFlag(Qt.WindowStaysOnTopHint, True)
         dialog.setWindowModality(Qt.ApplicationModal)
         dialog.raise_()
