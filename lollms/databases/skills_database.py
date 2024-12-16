@@ -23,7 +23,7 @@ class SkillsLibrary:
                 v = OpenAIVectorizer()
             elif self.config.rag_vectorizer == "ollama":
                 from lollmsvectordb.lollms_vectorizers.ollama_vectorizer import OllamaVectorizer
-                v = OllamaVectorizer()
+                v = OllamaVectorizer(self.config.rag_vectorizer_model, self.config.rag_service_url)
 
         else:
             from lollmsvectordb.lollms_vectorizers.semantic_vectorizer import SemanticVectorizer
