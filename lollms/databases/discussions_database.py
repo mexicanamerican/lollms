@@ -776,7 +776,7 @@ class Discussion:
         if len(self.text_files)>0:
             if self.lollms.config.rag_vectorizer=="semantic":
                 from lollmsvectordb.lollms_vectorizers.semantic_vectorizer import SemanticVectorizer
-                vectorizer = SemanticVectorizer(self.lollms.config.rag_vectorizer_model, self.config.rag_vectorizer_execute_remote_code)
+                vectorizer = SemanticVectorizer(self.lollms.config.rag_vectorizer_model, self.lollms.config.rag_vectorizer_execute_remote_code)
             elif self.lollms.config.rag_vectorizer=="tfidf":
                 from lollmsvectordb.lollms_vectorizers.tfidf_vectorizer import TFIDFVectorizer
                 vectorizer = TFIDFVectorizer()
