@@ -464,6 +464,7 @@ class AIPersonality:
         """
         return self.multichoice_question(question, ["no","yes"], context, max_answer_length, conditionning=conditionning)>0
 
+
     def multichoice_question(self, question: str, possible_answers:list, context:str = "", max_answer_length: int = 50, conditionning="", return_explanation=False) -> int:
         """
         Interprets a multi-choice question from a users response. This function expects only one choice as true. All other choices are considered false. If none are correct, returns -1.
@@ -477,43 +478,58 @@ class AIPersonality:
         Returns:
             int: Index of the selected option within the possible_ansers list. Or -1 if there was not match found among any of them.
         """
-        start_header_id_template    = self.config.start_header_id_template
-        end_header_id_template      = self.config.end_header_id_template
-        system_message_template     = self.config.system_message_template
-
         choices = "\n".join([f"{i}. {possible_answer}" for i, possible_answer in enumerate(possible_answers)])
         elements = [conditionning] if conditionning!="" else []
-        elements += [
-                f"{start_header_id_template}{system_message_template}{end_header_id_template}",
-                "Answer this multi choices question.",
-                "Answer with an id from the possible answers.",
-                "Do not answer with an id outside this possible answers.",
-        ]
         if context!="":
             elements+=[
-                       f"{start_header_id_template}context{end_header_id_template}",
+                        self.system_custom_header("context"),
                         f"{context}",
                     ]
         elements += [
-                f"{start_header_id_template}question{end_header_id_template}{question}",
-                f"{start_header_id_template}possible answers{end_header_id_template}",
+                "Answer this multi choices question about the context:\n",
+        ]
+        elements += [
+                self.system_custom_header("question"),
+                question,
+                self.system_custom_header("possible answers"),
                 f"{choices}",
         ]
-        elements += [f"{start_header_id_template}answer{end_header_id_template}"]
         prompt = self.build_prompt(elements)
-
-        gen = self.generate(prompt, max_answer_length, temperature=0.1, top_k=50, top_p=0.9, repeat_penalty=1.0, repeat_last_n=50, callback=self.sink).strip().replace("</s>","").replace("<s>","")
-        selection = gen.strip().split()[0].replace(",","").replace(".","")
-        self.print_prompt("Multi choice selection",prompt+gen)
+        code = self.generate_code(
+                                    prompt, 
+                                    self.image_files,"""{
+    "choice_index": [an int representing the index of the choice made]
+    "justification": "[Justify the choice]",
+}""",
+                                    max_size= max_answer_length, 
+                                    temperature=0.1,
+                                    top_k=50,
+                                    top_p=0.9,
+                                    repeat_penalty=1.0,
+                                    repeat_last_n=50,
+                                    callback=self.sink,
+                                    accept_all_if_no_code_tags_is_present=True
+                                )
         try:
-            if not return_explanation:
-                return int(selection)
+            if len(code)>0:
+                json_code = json.loads(code)
+                selection = json_code["choice_index"]
+                self.print_prompt("Multi choice selection",prompt+code)
+                try:
+                    if return_explanation:
+                        return int(selection), json_code["justification"]
+                    else:
+                        return int(selection)
+                except:
+                    ASCIIColors.cyan("Model failed to answer the question")
+                    return -1
             else:
-                return int(selection), gen
-        except:
-            ASCIIColors.cyan("Model failed to answer the question")
-            return -1
-
+                return -1
+        except Exception as ex:
+            if return_explanation:
+                return int(code.split('\n')[0]), ""
+            else:
+                return int(code.split('\n')[0])
     def multichoice_ranking(self, question: str, possible_answers:list, context:str = "", max_answer_length: int = 50, conditionning="") -> int:
         """
         Ranks answers for a question from best to worst. returns a list of integers
@@ -2392,15 +2408,19 @@ Don't forget to close the html code tag.
     @property
     def ai_full_header(self) -> str:
         """Get the start_header_id_template."""
-        return f"{self.start_user_header_id_template}{self.name}{self.end_user_header_id_template}"
+        return f"{self.start_ai_header_id_template}{self.name}{self.end_ai_header_id_template}"
 
     def system_custom_header(self, ai_name) -> str:
         """Get the start_header_id_template."""
         return f"{self.start_user_header_id_template}{ai_name}{self.end_user_header_id_template}"
 
-    def ai_custom_header(self, ai_name) -> str:
+    def user_custom_header(self, ai_name) -> str:
         """Get the start_header_id_template."""
         return f"{self.start_user_header_id_template}{ai_name}{self.end_user_header_id_template}"
+
+    def ai_custom_header(self, ai_name) -> str:
+        """Get the start_header_id_template."""
+        return f"{self.start_ai_header_id_template}{ai_name}{self.end_ai_header_id_template}"
 
 
     # ========================================== Helper methods ==========================================
@@ -4495,7 +4515,7 @@ transition-all duration-300 ease-in-out">
         Returns:
             bool: True if the user prompt is asking to generate an image, False otherwise.
         """
-        return self.multichoice_question(question, ["no","yes"], context, max_answer_length, conditionning=conditionning)>0
+        return self.personality.multichoice_question(question, ["no","yes"], context, max_answer_length, conditionning=conditionning)>0
 
     def multichoice_question(self, question: str, possible_answers:list, context:str = "", max_answer_length: int = 1024, conditionning="", return_justification=False) -> int:
         """
@@ -4510,52 +4530,7 @@ transition-all duration-300 ease-in-out">
         Returns:
             int: Index of the selected option within the possible_ansers list. Or -1 if there was not match found among any of them.
         """
-        choices = "\n".join([f"{i}. {possible_answer}" for i, possible_answer in enumerate(possible_answers)])
-        elements = [conditionning] if conditionning!="" else []
-        if context!="":
-            elements+=[
-                        self.system_custom_header("context"),
-                        f"{context}",
-                    ]
-        elements += [
-                "Answer this multi choices question about the context:\n",
-        ]
-        elements += [
-                self.system_custom_header("question"),
-                question,
-                self.system_custom_header("possible answers"),
-                f"{choices}",
-        ]
-        prompt = self.build_prompt(elements)
-
-        code = self.generate_code(
-                                    prompt, 
-                                    self.personality.image_files,"""{
-    "choice_index": [an int representing the index of the choice made]
-    "justification": "[Justify the choice]",
-}""",
-                                    max_size= max_answer_length, 
-                                    temperature=0.1,
-                                    top_k=50,
-                                    top_p=0.9,
-                                    repeat_penalty=1.0,
-                                    repeat_last_n=50,
-                                    callback=self.sink
-                                )
-        if len(code)>0:
-            json_code = json.loads(code)
-            selection = json_code["choice_index"]
-            self.print_prompt("Multi choice selection",prompt+code)
-            try:
-                if return_justification:
-                    return int(selection), json_code["justification"]
-                else:
-                    return int(selection)
-            except:
-                ASCIIColors.cyan("Model failed to answer the question")
-                return -1
-        else:
-            return -1
+        self.personality.multichoice_question(question, possible_answers, context, max_answer_length, conditionning, return_justification)
 
     def multichoice_ranking(self, question: str, possible_answers:list, context:str = "", max_answer_length: int = 50, conditionning="") -> int:
         """
