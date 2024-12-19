@@ -41,8 +41,7 @@ def install_whisper(data: Identification):
             return {"status":False,"error":"Service installation is blocked when the server is exposed outside for very obvious reasons!"}
 
         lollmsElfServer.ShowBlockingMessage("Installing whisper library\nPlease stand by")
-        from lollms.services.stt.whisper.lollms_whisper import install_whisper
-        install_whisper(lollmsElfServer)
+        from lollms.services.stt.whisper.lollms_whisper import LollmsWhisper
         ASCIIColors.success("Done")
         lollmsElfServer.HideBlockingMessage()
         return {"status":True}
