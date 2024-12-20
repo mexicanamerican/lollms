@@ -1284,9 +1284,9 @@ class LollmsApplication(LoLLMsCom):
 
                         if len(skills)>0:
                             if knowledge=="":
-                                knowledge=f"{self.system_custom_header(knowledge)}\n"
+                                knowledge=f"{self.system_custom_header('skills library knowledges')}\n"
                             for i,skill in enumerate(skills_detials):
-                                knowledge += self.system_custom_header(f"knowledge {i}") +f"\ntitle:\n{skill['title']}\ncontent:\n{skill['content']}\n"
+                                knowledge += "---\n"+ self.system_custom_header(f"knowledge {i}") +f"\ntitle:\n{skill['title']}\ncontent:\n{skill['content']}\n---\n"
                         self.personality.step_end("Adding skills")
                         self.personality.step_end("Querying skills library")
                     except Exception as ex:
