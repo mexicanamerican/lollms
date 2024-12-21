@@ -258,8 +258,8 @@ async def lollms_embed(request: LollmsEmbed):
 
     vdb = VectorDatabase("", vectorizer, None if elf_server.config.rag_vectorizer=="semantic" else elf_server.model if elf_server.model else TikTokenTokenizer(), n_neighbors=elf_server.config.rag_n_chunks)       
 
-    vector = vdb.vectorizer.vectorize(request.text)
-    return {"vector":vector}
+    vector = vdb.vectorizer.vectorize([request.text])
+    return {"vector":vector[0].tolist()}
 
 class LollmsGenerateRequest(BaseModel):
     model_config = ConfigDict(protected_namespaces=())    
