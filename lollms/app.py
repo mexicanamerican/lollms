@@ -1194,30 +1194,33 @@ class LollmsApplication(LoLLMsCom):
                 if (len(self.config.remote_databases) > 0) and not self.config.rag_deactivate:
                     for db in self.config.remote_databases:
                         parts = db.split("::")
-                        if len(parts)>=4:
-                            if parts[1]=="lightrag":
-                                from lollmsvectordb.database_clients.lightrag_client import LollmsLightRagConnector
-                                lc = LollmsLightRagConnector(parts[2])
-                                if discussion is None:
-                                    discussion = self.recover_discussion(client_id)
+                        if len(parts)>=4 and parts[-1]=="mounted":
+                            try:
+                                if parts[1]=="lightrag":
+                                    from lollmsvectordb.database_clients.lightrag_client import LollmsLightRagConnector
+                                    lc = LollmsLightRagConnector(parts[2])
+                                    if discussion is None:
+                                        discussion = self.recover_discussion(client_id)
 
-                                if documentation=="":
-                                    documentation=f"{self.separator_template}".join([
-                                        f"{self.separator_template}{self.start_header_id_template}important information{self.end_header_id_template}Utilize Documentation Data: Always refer to the provided documentation to answer user questions accurately.",
-                                        "Absence of Information: If the required information is not available in the documentation, inform the user that the requested information is not present in the documentation section.",
-                                        "Strict Adherence to Documentation: It is strictly prohibited to provide answers without concrete evidence from the documentation.",
-                                        "Cite Your Sources: After providing an answer, include the full path to the document where the information was found.",
-                                        f"{self.start_header_id_template}Documentation{self.end_header_id_template}"])
-                                    documentation += f"{self.separator_template}"
-                                if query is None:
-                                    if self.config.rag_build_keys_words:
-                                        self.personality.step_start("Building vector store query")
-                                        query = self.personality.fast_gen(f"{self.separator_template}{self.start_header_id_template}instruction: Read the discussion and rewrite the last prompt for someone who didn't read the entire discussion.\nDo not answer the prompt. Do not add explanations.{self.separator_template}{self.start_header_id_template}discussion:\n{discussion[-2048:]}{self.separator_template}{self.start_header_id_template}enhanced query: ", max_generation_size=256, show_progress=True, callback=self.personality.sink)
-                                        self.personality.step_end("Building vector store query")
-                                        ASCIIColors.cyan(f"Query: {query}")
-                                    else:
-                                        query = current_message.content
-                                documentation += lc.query(query)
+                                    if documentation=="":
+                                        documentation=f"{self.separator_template}".join([
+                                            f"{self.separator_template}{self.start_header_id_template}important information{self.end_header_id_template}Utilize Documentation Data: Always refer to the provided documentation to answer user questions accurately.",
+                                            "Absence of Information: If the required information is not available in the documentation, inform the user that the requested information is not present in the documentation section.",
+                                            "Strict Adherence to Documentation: It is strictly prohibited to provide answers without concrete evidence from the documentation.",
+                                            "Cite Your Sources: After providing an answer, include the full path to the document where the information was found.",
+                                            f"{self.start_header_id_template}Documentation{self.end_header_id_template}"])
+                                        documentation += f"{self.separator_template}"
+                                    if query is None:
+                                        if self.config.rag_build_keys_words:
+                                            self.personality.step_start("Building vector store query")
+                                            query = self.personality.fast_gen(f"{self.separator_template}{self.start_header_id_template}instruction: Read the discussion and rewrite the last prompt for someone who didn't read the entire discussion.\nDo not answer the prompt. Do not add explanations.{self.separator_template}{self.start_header_id_template}discussion:\n{discussion[-2048:]}{self.separator_template}{self.start_header_id_template}enhanced query: ", max_generation_size=256, show_progress=True, callback=self.personality.sink)
+                                            self.personality.step_end("Building vector store query")
+                                            ASCIIColors.cyan(f"Query: {query}")
+                                        else:
+                                            query = current_message.content
+                                    documentation += lc.query(query)
+                            except Exception as ex:
+                                trace_exception(ex)
 
                 if (len(client.discussion.text_files) > 0) and client.discussion.vectorizer is not None:
                     if not self.config.rag_deactivate:
