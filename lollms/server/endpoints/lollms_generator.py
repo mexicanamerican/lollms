@@ -27,7 +27,7 @@ import json
 from enum import Enum
 import base64
 from datetime import datetime
-
+import pipmaster as pm
 
 def _generate_id(length=10):
     letters_and_digits = string.ascii_letters + string.digits
@@ -220,6 +220,10 @@ async def lollms_generate(request: LollmsGenerateRequest):
                                             )
                 completion_tokens = len(elf_server.binding.tokenize(reception_manager.reception_buffer))
                 ASCIIColors.yellow(f"Generated: {completion_tokens} tokens")
+                if elf_server.config.debug:
+                    ASCIIColors.yellow("Output")        
+                    ASCIIColors.yellow(reception_manager.reception_buffer)        
+
                 return PlainTextResponse(reception_manager.reception_buffer)
         else:
             return None
@@ -228,7 +232,34 @@ async def lollms_generate(request: LollmsGenerateRequest):
         elf_server.error(ex)
         return {"status":False,"error":str(ex)}
 
+class LollmsEmbed(BaseModel):
+    text:str
 
+@router.post("/lollms_embed")
+async def lollms_embed(request: LollmsEmbed):
+    if not pm.is_installed ("lollmsvectordb"):
+        pm.install("lollmsvectordb")
+    
+    from lollmsvectordb import VectorDatabase
+    from lollmsvectordb.text_document_loader import TextDocumentsLoader
+    from lollmsvectordb.lollms_tokenizers.tiktoken_tokenizer import TikTokenTokenizer
+    if elf_server.config.rag_vectorizer=="semantic":
+        from lollmsvectordb.lollms_vectorizers.semantic_vectorizer import SemanticVectorizer
+        vectorizer = SemanticVectorizer(elf_server.config.rag_vectorizer_model)
+    elif elf_server.config.rag_vectorizer=="tfidf":
+        from lollmsvectordb.lollms_vectorizers.tfidf_vectorizer import TFIDFVectorizer
+        vectorizer = TFIDFVectorizer()
+    elif elf_server.config.rag_vectorizer=="openai":
+        from lollmsvectordb.lollms_vectorizers.openai_vectorizer import OpenAIVectorizer
+        vectorizer = OpenAIVectorizer(elf_server.config.rag_vectorizer_model, elf_server.config.rag_vectorizer_openai_key)
+    elif elf_server.config.rag_vectorizer=="ollama":
+        from lollmsvectordb.lollms_vectorizers.ollama_vectorizer import OllamaVectorizer
+        vectorizer = OllamaVectorizer(elf_server.config.rag_vectorizer_model, elf_server.config.rag_service_url)
+
+    vdb = VectorDatabase("", vectorizer, None if elf_server.config.rag_vectorizer=="semantic" else elf_server.model if elf_server.model else TikTokenTokenizer(), n_neighbors=elf_server.config.rag_n_chunks)       
+
+    vector = vdb.vectorizer.vectorize(request.text)
+    return {"vector":vector}
 
 class LollmsGenerateRequest(BaseModel):
     model_config = ConfigDict(protected_namespaces=())    
