@@ -282,7 +282,7 @@ def toggle_mount_rag_database(database_infos: MountDatabase):
     if not parts[-1]=="mounted":
         def process():
             try:
-                if len(parts)==3 and parts[-1]!="mounted":
+                if len(parts)==3:
                     lollmsElfServer.ShowBlockingMessage(f"Mounting database {parts[0]}")
                     lollmsElfServer.config.remote_databases[index] = lollmsElfServer.config.remote_databases[index] + "::mounted"
                     lollmsElfServer.config.save_config()
@@ -322,10 +322,15 @@ def toggle_mount_rag_database(database_infos: MountDatabase):
         lollmsElfServer.rag_thread = threading.Thread(target=process)
         lollmsElfServer.rag_thread.start()
     else:
-        # Unmount the database faster than a cat jumps off a hot stove!
-        lollmsElfServer.config.rag_databases[index] = lollmsElfServer.config.rag_databases[index].replace("::mounted", "")
-        lollmsElfServer.active_rag_dbs = [db for db in lollmsElfServer.active_rag_dbs if db["name"] != database_infos.database_name]
-        lollmsElfServer.config.save_config()
+        if len(parts)==4:
+            # Unmount the database faster than a cat jumps off a hot stove!
+            lollmsElfServer.config.remote_databases[index] = lollmsElfServer.config.remote_databases[index].replace("::mounted", "")
+            lollmsElfServer.config.save_config()
+        else:
+            # Unmount the database faster than a cat jumps off a hot stove!
+            lollmsElfServer.config.rag_databases[index] = lollmsElfServer.config.rag_databases[index].replace("::mounted", "")
+            lollmsElfServer.active_rag_dbs = [db for db in lollmsElfServer.active_rag_dbs if db["name"] != database_infos.database_name]
+            lollmsElfServer.config.save_config()
 
 
 @router.post("/vectorize_folder")
