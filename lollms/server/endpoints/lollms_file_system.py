@@ -217,7 +217,7 @@ def find_rag_database_by_name(entries: List[str], name: str) -> Optional[str]:
             entry_name = entry
             if entry_name == name:
                 return i, entry_path
-    return None
+    return -1,""
 # ----------------------------------- Personal files -----------------------------------------
 class SelectDatabase(BaseModel):
     client_id: str
@@ -274,38 +274,47 @@ def toggle_mount_rag_database(database_infos: MountDatabase):
     """ 
     client = check_access(lollmsElfServer, database_infos.client_id)
     index, path = find_rag_database_by_name(lollmsElfServer.config.rag_databases,database_infos.database_name)
-    parts = lollmsElfServer.config.rag_databases[index].split("::")
+    if index<0:
+        index, path = find_rag_database_by_name(lollmsElfServer.config.remote_databases,database_infos.database_name)
+        parts = lollmsElfServer.config.remote_databases[index].split("::")
+    else:
+        parts = lollmsElfServer.config.rag_databases[index].split("::")
     if not parts[-1]=="mounted":
         def process():
             try:
-                lollmsElfServer.ShowBlockingMessage(f"Mounting database {parts[0]}")
-                lollmsElfServer.config.rag_databases[index] = lollmsElfServer.config.rag_databases[index] + "::mounted"
-                if not PackageManager.check_package_installed_with_version("lollmsvectordb","0.6.0"):
-                    PackageManager.install_or_update("lollmsvectordb")
-                
-                from lollmsvectordb import VectorDatabase
-                from lollmsvectordb.text_document_loader import TextDocumentsLoader
-                from lollmsvectordb.lollms_tokenizers.tiktoken_tokenizer import TikTokenTokenizer
+                if len(parts)==3 and parts[-1]!="mounted":
+                    lollmsElfServer.ShowBlockingMessage(f"Mounting database {parts[0]}")
+                    lollmsElfServer.config.remote_databases[index] = lollmsElfServer.config.remote_databases[index] + "::mounted"
+                    lollmsElfServer.config.save_config()
+                    lollmsElfServer.info(f"Database {database_infos.database_name} mounted succcessfully")
+                    lollmsElfServer.HideBlockingMessage()
+                else:
+                    lollmsElfServer.ShowBlockingMessage(f"Mounting database {parts[0]}")
+                    lollmsElfServer.config.rag_databases[index] = lollmsElfServer.config.rag_databases[index] + "::mounted"
+                    
+                    from lollmsvectordb import VectorDatabase
+                    from lollmsvectordb.text_document_loader import TextDocumentsLoader
+                    from lollmsvectordb.lollms_tokenizers.tiktoken_tokenizer import TikTokenTokenizer
 
-                if lollmsElfServer.config.rag_vectorizer == "semantic":
-                    from lollmsvectordb.lollms_vectorizers.semantic_vectorizer import SemanticVectorizer
-                    v = SemanticVectorizer(lollmsElfServer.config.rag_vectorizer_model, lollmsElfServer.config.rag_vectorizer_execute_remote_code)
-                elif lollmsElfServer.config.rag_vectorizer == "tfidf":
-                    from lollmsvectordb.lollms_vectorizers.tfidf_vectorizer import TFIDFVectorizer
-                    v = TFIDFVectorizer()
-                elif lollmsElfServer.config.rag_vectorizer == "openai":
-                    from lollmsvectordb.lollms_vectorizers.openai_vectorizer import OpenAIVectorizer
-                    v = OpenAIVectorizer(lollmsElfServer.config.rag_vectorizer_openai_key)
-                elif lollmsElfServer.config.rag_vectorizer == "ollama":
-                    from lollmsvectordb.lollms_vectorizers.ollama_vectorizer import OllamaVectorizer
-                    v = OllamaVectorizer(lollmsElfServer.config.rag_vectorizer_model, lollmsElfServer.config.rag_service_url)
+                    if lollmsElfServer.config.rag_vectorizer == "semantic":
+                        from lollmsvectordb.lollms_vectorizers.semantic_vectorizer import SemanticVectorizer
+                        v = SemanticVectorizer(lollmsElfServer.config.rag_vectorizer_model, lollmsElfServer.config.rag_vectorizer_execute_remote_code)
+                    elif lollmsElfServer.config.rag_vectorizer == "tfidf":
+                        from lollmsvectordb.lollms_vectorizers.tfidf_vectorizer import TFIDFVectorizer
+                        v = TFIDFVectorizer()
+                    elif lollmsElfServer.config.rag_vectorizer == "openai":
+                        from lollmsvectordb.lollms_vectorizers.openai_vectorizer import OpenAIVectorizer
+                        v = OpenAIVectorizer(lollmsElfServer.config.rag_vectorizer_openai_key)
+                    elif lollmsElfServer.config.rag_vectorizer == "ollama":
+                        from lollmsvectordb.lollms_vectorizers.ollama_vectorizer import OllamaVectorizer
+                        v = OllamaVectorizer(lollmsElfServer.config.rag_vectorizer_model, lollmsElfServer.config.rag_service_url)
 
 
-                vdb = VectorDatabase(Path(path)/f"{database_infos.database_name}.sqlite", v, lollmsElfServer.model if lollmsElfServer.model else TikTokenTokenizer(), chunk_size=lollmsElfServer.config.rag_chunk_size, clean_chunks=lollmsElfServer.config.rag_clean_chunks, n_neighbors=lollmsElfServer.config.rag_n_chunks)       
-                lollmsElfServer.active_rag_dbs.append({"name":database_infos.database_name,"path":path,"vectorizer":vdb})
-                lollmsElfServer.config.save_config()
-                lollmsElfServer.info(f"Database {database_infos.database_name} mounted succcessfully")
-                lollmsElfServer.HideBlockingMessage()
+                    vdb = VectorDatabase(Path(path)/f"{database_infos.database_name}.sqlite", v, lollmsElfServer.model if lollmsElfServer.model else TikTokenTokenizer(), chunk_size=lollmsElfServer.config.rag_chunk_size, clean_chunks=lollmsElfServer.config.rag_clean_chunks, n_neighbors=lollmsElfServer.config.rag_n_chunks)       
+                    lollmsElfServer.active_rag_dbs.append({"name":database_infos.database_name,"path":path,"vectorizer":vdb})
+                    lollmsElfServer.config.save_config()
+                    lollmsElfServer.info(f"Database {database_infos.database_name} mounted succcessfully")
+                    lollmsElfServer.HideBlockingMessage()
             except Exception as ex:
                 trace_exception(ex)
                 lollmsElfServer.HideBlockingMessage()

@@ -1191,7 +1191,7 @@ class LollmsApplication(LoLLMsCom):
                             })
                             documentation += document_infos
 
-                if (len(self.config.remote_databases) > 0) and not not self.config.rag_deactivate:
+                if (len(self.config.remote_databases) > 0) and not self.config.rag_deactivate:
                     for db in self.config.remote_databases:
                         parts = db.split("::")
                         if len(parts>=4):
