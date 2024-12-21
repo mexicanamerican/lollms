@@ -1194,7 +1194,7 @@ class LollmsApplication(LoLLMsCom):
                 if (len(self.config.remote_databases) > 0) and not self.config.rag_deactivate:
                     for db in self.config.remote_databases:
                         parts = db.split("::")
-                        if len(parts>=4):
+                        if len(parts)>=4:
                             if parts[1]=="lightrag":
                                 from lollmsvectordb.database_clients.lightrag_client import LollmsLightRagConnector
                                 lc = LollmsLightRagConnector(parts[2])
