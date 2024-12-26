@@ -1204,11 +1204,12 @@ class LollmsApplication(LoLLMsCom):
 
                                     if documentation=="":
                                         documentation=f"{self.separator_template}".join([
-                                            f"{self.separator_template}{self.start_header_id_template}important information{self.end_header_id_template}Utilize Documentation Data: Always refer to the provided documentation to answer user questions accurately.",
+                                            f"{self.system_custom_header('important information')}",
+                                            "Utilize Documentation Data: Always refer to the provided documentation to answer user questions accurately.",
                                             "Absence of Information: If the required information is not available in the documentation, inform the user that the requested information is not present in the documentation section.",
                                             "Strict Adherence to Documentation: It is strictly prohibited to provide answers without concrete evidence from the documentation.",
                                             "Cite Your Sources: After providing an answer, include the full path to the document where the information was found.",
-                                            f"{self.start_header_id_template}Documentation{self.end_header_id_template}"])
+                                            f"{self.system_custom_header('Documentation')}"])
                                         documentation += f"{self.separator_template}"
                                     if query is None:
                                         if self.config.rag_build_keys_words:
@@ -1229,11 +1230,13 @@ class LollmsApplication(LoLLMsCom):
 
                         if documentation=="":
                             documentation=f"{self.separator_template}".join([
-                                f"{self.separator_template}{self.start_header_id_template}important information{self.end_header_id_template}Utilize Documentation Data: Always refer to the provided documentation to answer user questions accurately.",
-                                "Absence of Information: If the required information is not available in the documentation, inform the user that the requested information is not present in the documentation section.",
-                                "Strict Adherence to Documentation: It is strictly prohibited to provide answers without concrete evidence from the documentation.",
-                                "Cite Your Sources: After providing an answer, include the full path to the document where the information was found.",
-                                f"{self.start_header_id_template}Documentation{self.end_header_id_template}"])
+                                            f"{self.system_custom_header('important information')}",
+                                            "Utilize Documentation Data: Always refer to the provided documentation to answer user questions accurately.",
+                                            "Absence of Information: If the required information is not available in the documentation, inform the user that the requested information is not present in the documentation section.",
+                                            "Strict Adherence to Documentation: It is strictly prohibited to provide answers without concrete evidence from the documentation.",
+                                            "Cite Your Sources: After providing an answer, include the full path to the document where the information was found.",
+                                            f"{self.system_custom_header('Documentation')}"])
+
                             documentation += f"{self.separator_template}"
 
                         if query is None:
