@@ -514,7 +514,7 @@ class AIPersonality:
             if len(code)>0:
                 json_code = json.loads(code)
                 selection = json_code["choice_index"]
-                self.print_prompt("Multi choice selection",prompt+code)
+                self.print_prompt("Multi choice selection",prompt+"\n!@>assistant:\n"+code)
                 try:
                     if return_explanation:
                         return int(selection), json_code["justification"]
@@ -792,6 +792,66 @@ The generated code must be placed inside the html code tag.
             return codes, response_full
         else:
             return codes
+        
+    def generate_custom_code(   self,
+                                full_prompt,
+                                images=[],
+                                max_size = None,  
+                                temperature = None, 
+                                top_k = None, 
+                                top_p=None, 
+                                repeat_penalty=None, 
+                                repeat_last_n=None, 
+                                callback=None, 
+                                debug=None, 
+                                return_full_generated_code=False, 
+                                accept_all_if_no_code_tags_is_present=False, 
+                                max_continues=5                             
+                             ):
+        if len(self.image_files)>0:
+            response = self.generate_with_images(full_prompt, self.image_files, max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug)
+        elif  len(images)>0:
+            response = self.generate_with_images(full_prompt, images, max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug)
+        else:
+            response = self.generate(full_prompt, max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug)
+        response_full += response
+        if debug:
+            ASCIIColors.green("Response")
+            ASCIIColors.green(response_full)
+        codes = self.extract_code_blocks(response)
+        if len(codes)==0 and accept_all_if_no_code_tags_is_present:
+            if return_full_generated_code:
+                return response, response_full
+            else:
+                return response
+        if len(codes)>0:
+            if not codes[-1]["is_complete"]:
+                code = "\n".join(codes[-1]["content"].split("\n")[:-1])
+                nb_continues = 0
+                while not codes[-1]["is_complete"] and nb_continues<max_continues:
+                    response = self.generate(full_prompt+code+self.user_full_header+"continue the code. Start from last line and continue the code. Put the code inside a markdown code tag."+self.separator_template+self.ai_full_header, max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug)
+                    response_full += response
+                    codes = self.extract_code_blocks(response)
+                    if len(codes)==0:
+                        break
+                    else:
+                        if not codes[-1]["is_complete"]:
+                            code +="\n"+ "\n".join(codes[-1]["content"].split("\n")[:-1])
+                        else:
+                            code +="\n"+ "\n".join(codes[-1]["content"].split("\n"))
+                    nb_continues += 1
+            else:
+                code = codes[-1]["content"]
+            
+            if return_full_generated_code:
+                return code, response_full
+            else:
+                return code
+        else:
+            if return_full_generated_code:
+                return None, None
+            else:
+                return None
     
     def generate_code(
                         self, 
@@ -4530,7 +4590,7 @@ transition-all duration-300 ease-in-out">
         Returns:
             int: Index of the selected option within the possible_ansers list. Or -1 if there was not match found among any of them.
         """
-        self.personality.multichoice_question(question, possible_answers, context, max_answer_length, conditionning, return_justification)
+        return self.personality.multichoice_question(question, possible_answers, context, max_answer_length, conditionning, return_justification)
 
     def multichoice_ranking(self, question: str, possible_answers:list, context:str = "", max_answer_length: int = 50, conditionning="") -> int:
         """
@@ -4547,7 +4607,6 @@ transition-all duration-300 ease-in-out">
         """
         start_header_id_template    = self.config.start_header_id_template
         end_header_id_template      = self.config.end_header_id_template
-        system_message_template     = self.config.system_message_template
 
         choices = "\n".join([f"{i}. {possible_answer}" for i, possible_answer in enumerate(possible_answers)])
         elements = [conditionning] if conditionning!="" else []
@@ -4668,6 +4727,7 @@ transition-all duration-300 ease-in-out">
 
     def ask_user_multichoice_question(self, question, choices, default=None):
         try:
+            from PyQt5.QtWidgets import QLabel, QPushButton
             app = QApplication(sys.argv)
             window = QWidget()
             layout = QVBoxLayout()
