@@ -808,12 +808,14 @@ The generated code must be placed inside the html code tag.
                                 accept_all_if_no_code_tags_is_present=False, 
                                 max_continues=5                             
                              ):
+        self.print_prompt("custom code generation", full_prompt)
+        response_full=""
         if len(self.image_files)>0:
-            response = self.generate_with_images(full_prompt, self.image_files, max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug)
+            response = self.generate_with_images(full_prompt, self.image_files, max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug,callback=self.sink)
         elif  len(images)>0:
-            response = self.generate_with_images(full_prompt, images, max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug)
+            response = self.generate_with_images(full_prompt, images, max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug,callback=self.sink)
         else:
-            response = self.generate(full_prompt, max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug)
+            response = self.generate(full_prompt, max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug,callback=self.sink)
         response_full += response
         if debug:
             ASCIIColors.green("Response")
