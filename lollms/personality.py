@@ -5345,15 +5345,19 @@ fetch('/open_file', {
     @property
     def ai_full_header(self) -> str:
         """Get the start_header_id_template."""
-        return f"{self.start_user_header_id_template}{self.personality.name}{self.end_user_header_id_template}"
+        return f"{self.start_ai_header_id_template}{self.personality.name}{self.end_ai_header_id_template}"
 
     def system_custom_header(self, ai_name) -> str:
+        """Get the start_header_id_template."""
+        return f"{self.start_header_id_template}{ai_name}{self.end_user_header_id_template}"
+
+    def user_custom_header(self, ai_name) -> str:
         """Get the start_header_id_template."""
         return f"{self.start_user_header_id_template}{ai_name}{self.end_user_header_id_template}"
 
     def ai_custom_header(self, ai_name) -> str:
         """Get the start_header_id_template."""
-        return f"{self.start_user_header_id_template}{ai_name}{self.end_user_header_id_template}"
+        return f"{self.start_ai_header_id_template}{ai_name}{self.end_ai_header_id_template}"
 
 
 class AIPersonalityInstaller:
