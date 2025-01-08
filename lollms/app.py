@@ -319,39 +319,54 @@ class LollmsApplication(LoLLMsCom):
 
     def get_uploads_path(self, client_id):
         return self.lollms_paths.personal_uploads_path
-    
     def load_rag_dbs(self):
         self.active_rag_dbs = []
         for rag_db in self.config.rag_databases:
-            parts = rag_db.split("::")
-            db_name = parts[0]
-            if parts[-1]=="mounted":
-                try:
-                    if not PackageManager.check_package_installed("lollmsvectordb"):
-                        PackageManager.install_package("lollmsvectordb")
-                    
+            if rag_db['mounted']:
+                try:                    
                     from lollmsvectordb import VectorDatabase
                     from lollmsvectordb.text_document_loader import TextDocumentsLoader
                     from lollmsvectordb.lollms_tokenizers.tiktoken_tokenizer import TikTokenTokenizer
-                    if self.config.rag_vectorizer=="semantic":
+
+                    # Vectorizer selection
+                    if self.config.rag_vectorizer == "semantic":
                         from lollmsvectordb.lollms_vectorizers.semantic_vectorizer import SemanticVectorizer
                         vectorizer = SemanticVectorizer(self.config.rag_vectorizer_model)
-                    elif self.config.rag_vectorizer=="tfidf":
+                    elif self.config.rag_vectorizer == "tfidf":
                         from lollmsvectordb.lollms_vectorizers.tfidf_vectorizer import TFIDFVectorizer
                         vectorizer = TFIDFVectorizer()
-                    elif self.config.rag_vectorizer=="openai":
+                    elif self.config.rag_vectorizer == "openai":
                         from lollmsvectordb.lollms_vectorizers.openai_vectorizer import OpenAIVectorizer
-                        vectorizer = OpenAIVectorizer(self.config.rag_vectorizer_model, self.config.rag_vectorizer_openai_key)
-                    elif self.config.rag_vectorizer=="ollama":
+                        vectorizer = OpenAIVectorizer(
+                            self.config.rag_vectorizer_model,
+                            self.config.rag_vectorizer_openai_key
+                        )
+                    elif self.config.rag_vectorizer == "ollama":
                         from lollmsvectordb.lollms_vectorizers.ollama_vectorizer import OllamaVectorizer
-                        vectorizer = OllamaVectorizer(self.config.rag_vectorizer_model, self.config.rag_service_url)
+                        vectorizer = OllamaVectorizer(
+                            self.config.rag_vectorizer_model,
+                            self.config.rag_service_url
+                        )
 
-                    vdb = VectorDatabase(Path(parts[1])/f"{db_name}.sqlite", vectorizer, None if self.config.rag_vectorizer=="semantic" else self.model if self.model else TikTokenTokenizer(), n_neighbors=self.config.rag_n_chunks)       
-                    self.active_rag_dbs.append({"name":parts[0],"path":parts[1],"vectorizer":vdb})
+                    # Create database path and initialize VectorDatabase
+                    db_path = Path(rag_db['path']) / f"{rag_db['alias']}.sqlite"
+                    vdb = VectorDatabase(
+                        db_path,
+                        vectorizer,
+                        None if self.config.rag_vectorizer == "semantic" else self.model if self.model else TikTokenTokenizer(),
+                        n_neighbors=self.config.rag_n_chunks
+                    )       
+
+                    # Add to active databases
+                    self.active_rag_dbs.append({
+                        "name": rag_db['alias'],
+                        "path": rag_db['path'],
+                        "vectorizer": vdb
+                    })
+
                 except Exception as ex:
                     trace_exception(ex)
-                    ASCIIColors.error(f"Couldn't load "+str(Path(parts[1])/f"{db_name}.sqlite")+" consider revectorizing it")
-
+                    ASCIIColors.error(f"Couldn't load {db_path} consider revectorizing it")
     def start_servers(self):
 
         ASCIIColors.yellow("* - * - * - Starting services - * - * - *")
@@ -954,7 +969,9 @@ class LollmsApplication(LoLLMsCom):
             conditionning = self.personality._personality_conditioning
 
         if len(conditionning)>0:
-            conditionning =  self.start_header_id_template + system_message_template + self.end_header_id_template + self.personality.replace_keys(conditionning, self.personality.conditionning_commands) + ("" if conditionning[-1]==self.separator_template else self.separator_template)
+            if type(conditionning) is list:
+                conditionning = "\n".join(conditionning)
+            conditionning =  self.system_full_header + self.personality.replace_keys(conditionning, self.personality.conditionning_commands) + ("" if conditionning[-1]==self.separator_template else self.separator_template)
 
         # Check if there are document files to add to the prompt
         internet_search_results = ""
@@ -995,16 +1012,10 @@ class LollmsApplication(LoLLMsCom):
                 if self.config.internet_activate_search_decision:
                     self.personality.step_start(f"Requesting if {self.personality.name} needs to search internet to answer the user")
                     q = f"{self.separator_template}".join([
-                        f"{self.system_custom_header('discussion')}",
-                        f"{discussion[-2048:]}",  # Use the last 2048 characters of the discussion for context
                         self.system_full_header,
-                        f"You are a sophisticated web search query builder. Your task is to help the user by crafting a precise and concise web search query based on their request.",
-                        f"Carefully read the discussion and generate a web search query that will retrieve the most relevant information to answer the last message from {self.config.user_name}.",
-                        f"Do not answer the prompt directly. Do not provide explanations or additional information.",
-                        f"{self.system_custom_header('current date')}{datetime.now()}",
-                        f"{self.ai_custom_header('websearch query')}"
+                        f"Do you need internet search to answer the user prompt?"
                     ])
-                    need = not self.personality.yes_no(q, discussion)
+                    need = not self.personality.yes_no(q, self.user_custom_header("user") + current_message)
                     self.personality.step_end(f"Requesting if {self.personality.name} needs to search internet to answer the user")
                     self.personality.step("Yes" if need else "No")
                 else:
@@ -1193,35 +1204,55 @@ class LollmsApplication(LoLLMsCom):
 
                 if (len(self.config.remote_databases) > 0) and not self.config.rag_deactivate:
                     for db in self.config.remote_databases:
-                        parts = db.split("::")
-                        if len(parts)>=4 and parts[-1]=="mounted":
+                        # Check if database is mounted
+                        if db['mounted']:
                             try:
-                                if parts[1]=="lightrag":
+                                if db['type'] == "lightrag":
                                     from lollmsvectordb.database_clients.lightrag_client import LollmsLightRagConnector
-                                    lc = LollmsLightRagConnector(parts[2])
+                                    lc = LollmsLightRagConnector(db['url'], db['key'])
+                                    
+                                    # Recover or initialize discussion
                                     if discussion is None:
                                         discussion = self.recover_discussion(client_id)
 
-                                    if documentation=="":
-                                        documentation=f"{self.separator_template}".join([
+                                    # Build documentation if empty
+                                    if documentation == "":
+                                        documentation = f"{self.separator_template}".join([
                                             f"{self.system_custom_header('important information')}",
                                             "Utilize Documentation Data: Always refer to the provided documentation to answer user questions accurately.",
                                             "Absence of Information: If the required information is not available in the documentation, inform the user that the requested information is not present in the documentation section.",
                                             "Strict Adherence to Documentation: It is strictly prohibited to provide answers without concrete evidence from the documentation.",
                                             "Cite Your Sources: After providing an answer, include the full path to the document where the information was found.",
-                                            f"{self.system_custom_header('Documentation')}"])
+                                            f"{self.system_custom_header('Documentation')}"
+                                        ])
                                         documentation += f"{self.separator_template}"
+
+                                    # Process query
                                     if query is None:
                                         if self.config.rag_build_keys_words:
                                             self.personality.step_start("Building vector store query")
-                                            query = self.personality.fast_gen(f"{self.separator_template}{self.start_header_id_template}instruction: Read the discussion and rewrite the last prompt for someone who didn't read the entire discussion.\nDo not answer the prompt. Do not add explanations.{self.separator_template}{self.start_header_id_template}discussion:\n{discussion[-2048:]}{self.separator_template}{self.start_header_id_template}enhanced query: ", max_generation_size=256, show_progress=True, callback=self.personality.sink)
+                                            query = self.personality.fast_gen(
+                                                f"{self.separator_template}"
+                                                f"{self.start_header_id_template}instruction: Read the discussion and rewrite the last prompt for someone who didn't read the entire discussion.\n"
+                                                f"Do not answer the prompt. Do not add explanations."
+                                                f"{self.separator_template}"
+                                                f"{self.start_header_id_template}discussion:\n{discussion[-2048:]}"
+                                                f"{self.separator_template}"
+                                                f"{self.start_header_id_template}enhanced query: ",
+                                                max_generation_size=256,
+                                                show_progress=True,
+                                                callback=self.personality.sink
+                                            )
                                             self.personality.step_end("Building vector store query")
                                             ASCIIColors.cyan(f"Query: {query}")
                                         else:
                                             query = current_message.content
+                                    
                                     documentation += lc.query(query)
+                                    
                             except Exception as ex:
                                 trace_exception(ex)
+
 
                 if (len(client.discussion.text_files) > 0) and client.discussion.vectorizer is not None:
                     if not self.config.rag_deactivate:
@@ -1628,7 +1659,11 @@ class LollmsApplication(LoLLMsCom):
         """Get the start_header_id_template."""
         return f"{self.start_user_header_id_template}{ai_name}{self.end_user_header_id_template}"
 
-    def ai_custom_header(self, ai_name) -> str:
+    def user_custom_header(self, ai_name) -> str:
         """Get the start_header_id_template."""
         return f"{self.start_user_header_id_template}{ai_name}{self.end_user_header_id_template}"
+
+    def ai_custom_header(self, ai_name) -> str:
+        """Get the start_header_id_template."""
+        return f"{self.start_ai_header_id_template}{ai_name}{self.end_ai_header_id_template}"
 

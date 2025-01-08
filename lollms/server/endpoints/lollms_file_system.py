@@ -133,8 +133,6 @@ def select_rag_database(client) -> Optional[Dict[str, Path]]:
                 if ok and db_name:
                     try:
                         lollmsElfServer.ShowBlockingMessage("Adding a new database.")
-                        if not PackageManager.check_package_installed_with_version("lollmsvectordb","0.6.0"):
-                            PackageManager.install_or_update("lollmsvectordb")
                         
                         from lollmsvectordb import VectorDatabase
                         from lollmsvectordb.text_document_loader import TextDocumentsLoader
@@ -193,31 +191,41 @@ def select_rag_database(client) -> Optional[Dict[str, Path]]:
         return None
 
 
+from typing import List, Optional, Tuple, Union, Dict
+from typing import List, Tuple, Dict, Union
 
-def find_rag_database_by_name(entries: List[str], name: str) -> Optional[str]:
+def find_rag_database_by_name(entries: List[Dict[str, Union[str, bool]]], name: str) -> Tuple[int, str]:
     """
-    Finds an entry in the list by its name.
+    Finds a database entry in the list by its name.
 
     Args:
-        entries (List[str]): The list of entries in the form 'name::path'.
-        name (str): The name to search for.
+        entries (List[Dict]): The list of database entries as dictionaries with structure:
+            {
+                'alias': str,
+                'type': str,
+                'url': str,
+                'key': str,
+                'mounted': bool
+            }
+        name (str): The name to search for
 
     Returns:
-        Optional[str]: The entry if found, otherwise None.
+        Tuple[int, str]: A tuple containing:
+            - index of the found entry (-1 if not found)
+            - path/url of the database ("" if not found)
     """
     ASCIIColors.green("find_rag_database_by_name:")
+    
     for i, entry in enumerate(entries):
-        ASCIIColors.green(entry)
-        parts = entry.split('::')
-        if len(parts)>1:
-            entry_name, entry_path = parts[0], parts[1]
-            if entry_name == name:
-                return i, entry_path
-        else:
-            entry_name = entry
-            if entry_name == name:
-                return i, entry_path
-    return -1,""
+        ASCIIColors.green(str(entry))
+        
+        if entry['alias'] == name:
+            # For remote databases, return the URL, for local ones return the type
+            return i, entry.get('url', '') or entry.get('type', '')
+    
+    return -1, ""
+
+
 # ----------------------------------- Personal files -----------------------------------------
 class SelectDatabase(BaseModel):
     client_id: str
@@ -273,32 +281,38 @@ def toggle_mount_rag_database(database_infos: MountDatabase):
     Selects and names a database 
     """ 
     client = check_access(lollmsElfServer, database_infos.client_id)
-    index, path = find_rag_database_by_name(lollmsElfServer.config.rag_databases,database_infos.database_name)
-    if index<0:
-        index, path = find_rag_database_by_name(lollmsElfServer.config.remote_databases,database_infos.database_name)
-        parts = lollmsElfServer.config.remote_databases[index].split("::")
+    index, path = find_rag_database_by_name(lollmsElfServer.config.rag_databases, database_infos.database_name)
+    
+    if index < 0:
+        # Check remote databases
+        index, path = find_rag_database_by_name(lollmsElfServer.config.remote_databases, database_infos.database_name)
+        db_entry = lollmsElfServer.config.remote_databases[index]
     else:
-        parts = lollmsElfServer.config.rag_databases[index].split("::")
-    if not parts[-1]=="mounted":
+        # Local database
+        db_entry = lollmsElfServer.config.rag_databases[index]
+
+    if not db_entry['mounted']:
         def process():
             try:
-                if len(parts)==3:
-                    lollmsElfServer.ShowBlockingMessage(f"Mounting database {parts[0]}")
-                    lollmsElfServer.config.remote_databases[index] = lollmsElfServer.config.remote_databases[index] + "::mounted"
+                if not db_entry['is_local']:  # Remote database
+                    lollmsElfServer.ShowBlockingMessage(f"Mounting database {db_entry['alias']}")
+                    lollmsElfServer.config.remote_databases[index]['mounted'] = True
                     lollmsElfServer.config.save_config()
-                    lollmsElfServer.info(f"Database {database_infos.database_name} mounted succcessfully")
+                    lollmsElfServer.info(f"Database {database_infos.database_name} mounted successfully")
                     lollmsElfServer.HideBlockingMessage()
-                else:
-                    lollmsElfServer.ShowBlockingMessage(f"Mounting database {parts[0]}")
-                    lollmsElfServer.config.rag_databases[index] = lollmsElfServer.config.rag_databases[index] + "::mounted"
+                else:  # Local database
+                    lollmsElfServer.ShowBlockingMessage(f"Mounting database {db_entry['alias']}")
+                    lollmsElfServer.config.rag_databases[index]['mounted'] = True
                     
                     from lollmsvectordb import VectorDatabase
                     from lollmsvectordb.text_document_loader import TextDocumentsLoader
                     from lollmsvectordb.lollms_tokenizers.tiktoken_tokenizer import TikTokenTokenizer
 
+                    # Vectorizer selection logic
                     if lollmsElfServer.config.rag_vectorizer == "semantic":
                         from lollmsvectordb.lollms_vectorizers.semantic_vectorizer import SemanticVectorizer
-                        v = SemanticVectorizer(lollmsElfServer.config.rag_vectorizer_model, lollmsElfServer.config.rag_vectorizer_execute_remote_code)
+                        v = SemanticVectorizer(lollmsElfServer.config.rag_vectorizer_model, 
+                                            lollmsElfServer.config.rag_vectorizer_execute_remote_code)
                     elif lollmsElfServer.config.rag_vectorizer == "tfidf":
                         from lollmsvectordb.lollms_vectorizers.tfidf_vectorizer import TFIDFVectorizer
                         v = TFIDFVectorizer()
@@ -307,13 +321,24 @@ def toggle_mount_rag_database(database_infos: MountDatabase):
                         v = OpenAIVectorizer(lollmsElfServer.config.rag_vectorizer_openai_key)
                     elif lollmsElfServer.config.rag_vectorizer == "ollama":
                         from lollmsvectordb.lollms_vectorizers.ollama_vectorizer import OllamaVectorizer
-                        v = OllamaVectorizer(lollmsElfServer.config.rag_vectorizer_model, lollmsElfServer.config.rag_service_url)
+                        v = OllamaVectorizer(lollmsElfServer.config.rag_vectorizer_model, 
+                                          lollmsElfServer.config.rag_service_url)
 
-
-                    vdb = VectorDatabase(Path(path)/f"{database_infos.database_name}.sqlite", v, lollmsElfServer.model if lollmsElfServer.model else TikTokenTokenizer(), chunk_size=lollmsElfServer.config.rag_chunk_size, clean_chunks=lollmsElfServer.config.rag_clean_chunks, n_neighbors=lollmsElfServer.config.rag_n_chunks)       
-                    lollmsElfServer.active_rag_dbs.append({"name":database_infos.database_name,"path":path,"vectorizer":vdb})
+                    vdb = VectorDatabase(
+                        Path(path)/f"{database_infos.database_name}.sqlite",
+                        v,
+                        lollmsElfServer.model if lollmsElfServer.model else TikTokenTokenizer(),
+                        chunk_size=lollmsElfServer.config.rag_chunk_size,
+                        clean_chunks=lollmsElfServer.config.rag_clean_chunks,
+                        n_neighbors=lollmsElfServer.config.rag_n_chunks
+                    )       
+                    lollmsElfServer.active_rag_dbs.append({
+                        "name": database_infos.database_name,
+                        "path": path,
+                        "vectorizer": vdb
+                    })
                     lollmsElfServer.config.save_config()
-                    lollmsElfServer.info(f"Database {database_infos.database_name} mounted succcessfully")
+                    lollmsElfServer.info(f"Database {database_infos.database_name} mounted successfully")
                     lollmsElfServer.HideBlockingMessage()
             except Exception as ex:
                 trace_exception(ex)
@@ -322,15 +347,18 @@ def toggle_mount_rag_database(database_infos: MountDatabase):
         lollmsElfServer.rag_thread = threading.Thread(target=process)
         lollmsElfServer.rag_thread.start()
     else:
-        if len(parts)==4:
-            # Unmount the database faster than a cat jumps off a hot stove!
-            lollmsElfServer.config.remote_databases[index] = lollmsElfServer.config.remote_databases[index].replace("::mounted", "")
+        # Unmounting logic
+        if isinstance(db_entry, dict):  # Remote database
+            lollmsElfServer.config.remote_databases[index]['mounted'] = False
             lollmsElfServer.config.save_config()
-        else:
-            # Unmount the database faster than a cat jumps off a hot stove!
-            lollmsElfServer.config.rag_databases[index] = lollmsElfServer.config.rag_databases[index].replace("::mounted", "")
-            lollmsElfServer.active_rag_dbs = [db for db in lollmsElfServer.active_rag_dbs if db["name"] != database_infos.database_name]
+        else:  # Local database
+            lollmsElfServer.config.rag_databases[index]['mounted'] = False
+            lollmsElfServer.active_rag_dbs = [
+                db for db in lollmsElfServer.active_rag_dbs 
+                if db["name"] != database_infos.database_name
+            ]
             lollmsElfServer.config.save_config()
+
 
 
 @router.post("/vectorize_folder")
@@ -359,8 +387,6 @@ async def vectorize_folder(database_infos: FolderInfos):
         
         try:
             lollmsElfServer.ShowBlockingMessage("Revectorizing the database.")
-            if not PackageManager.check_package_installed_with_version("lollmsvectordb","0.6.0"):
-                PackageManager.install_or_update("lollmsvectordb")
             
             from lollmsvectordb.lollms_vectorizers.semantic_vectorizer import SemanticVectorizer
             from lollmsvectordb import VectorDatabase
