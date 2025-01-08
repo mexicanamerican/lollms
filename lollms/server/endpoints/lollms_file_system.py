@@ -232,7 +232,7 @@ class SelectDatabase(BaseModel):
 
 class FolderInfos(BaseModel):
     client_id: str
-    db_path: str
+    rag_database: dict
 
 
 class MountDatabase(BaseModel):
@@ -348,7 +348,7 @@ def toggle_mount_rag_database(database_infos: MountDatabase):
         lollmsElfServer.rag_thread.start()
     else:
         # Unmounting logic
-        if isinstance(db_entry, dict):  # Remote database
+        if not db_entry['is_local']:  # Remote database
             lollmsElfServer.config.remote_databases[index]['mounted'] = False
             lollmsElfServer.config.save_config()
         else:  # Local database
@@ -360,6 +360,18 @@ def toggle_mount_rag_database(database_infos: MountDatabase):
             lollmsElfServer.config.save_config()
 
 
+@router.post("/upload_files_2_rag_db")
+async def upload_files_2_rag_db(database_infos: FolderInfos):
+    client = check_access(lollmsElfServer, database_infos.client_id)
+    index, path = find_rag_database_by_name(lollmsElfServer.config.rag_databases, database_infos.database_name)
+    
+    if index < 0:
+        # Check remote databases
+        index, path = find_rag_database_by_name(lollmsElfServer.config.remote_databases, database_infos.database_name)
+        db_entry = lollmsElfServer.config.remote_databases[index]
+    else:
+        # Local database
+        db_entry = lollmsElfServer.config.rag_databases[index]
 
 @router.post("/vectorize_folder")
 async def vectorize_folder(database_infos: FolderInfos):
@@ -368,10 +380,9 @@ async def vectorize_folder(database_infos: FolderInfos):
     """ 
     client = check_access(lollmsElfServer, database_infos.client_id)
     def process():
-        if "::" in database_infos.db_path:
-            parts = database_infos.db_path.split("::")
-            db_name = parts[0]
-            folder_path = sanitize_path(parts[1], True) 
+        if database_infos.rag_database["alias"]:
+            db_name = database_infos.rag_database["alias"]
+            folder_path = sanitize_path( database_infos.rag_database["path"], True) 
         else:
             # Create a QApplication instance
             app = QApplication.instance()
@@ -380,7 +391,7 @@ async def vectorize_folder(database_infos: FolderInfos):
             
             # Ask for the database name
             db_name, ok = QInputDialog.getText(None, "Database Name", "Please enter the database name:")
-            folder_path = database_infos.db_path
+            folder_path = sanitize_path( database_infos.rag_database["path"], True) 
             
             if not ok or not db_name:
                 return
