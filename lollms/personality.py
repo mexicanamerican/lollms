@@ -4258,75 +4258,78 @@ transition-all duration-300 ease-in-out">
             return None
 
     @staticmethod
-    def update_code(original_code, query_string):
+    def update_code(original_content: str, original_code: str, new_code: str) -> str:
         """
-        Updates the given code based on the provided query string.
-        The query string can contain two types of modifications:
-        1. FULL_REWRITE: Completely replaces the original code with the new code.
-        2. REPLACE: Replaces specific code snippets within the original code.
-
+        Updates the original content by replacing the original code snippet with the new code.
+        
         Args:
-            original_code (str): The original code to be updated.
-            query_string (str): The string containing the update instructions.
-
+            original_content (str): The complete source code content
+            original_code (str): The code snippet to be replaced
+            new_code (str): The new code snippet to insert
+        
         Returns:
-            dict: An object with the following properties:
-                - updatedCode: The updated code.
-                - modifications: A list of dicts representing the changes made, each with properties 'oldCode' and 'newCode'.
-                - hasQuery: A boolean indicating whether the queryString contained any valid queries.
+            str: Updated content with the replacement made
+            
+        Raises:
+            ValueError: If the original code snippet is not found in the content
+                    or if multiple matches are found
         """
-        queries = query_string.split('# REPLACE\n')
-        updated_code = original_code
-        modifications = []
+        # Normalize line endings and strip whitespace from search pattern
+        original_code = original_code.strip()
+        new_code = new_code.strip()
+        
+        # If any of the inputs are empty, raise an error
+        if not original_content or not original_code:
+            raise ValueError("Original content and code snippet cannot be empty")
 
-        # Check if there's a FULL_REWRITE first
-        full_rewrite_start = query_string.find('# FULL_REWRITE ')
-        if full_rewrite_start != -1:
-            new_code = query_string[full_rewrite_start + 14:].strip()
-            updated_code = new_code
-            modifications.append({
-                'oldCode': original_code,
-                'newCode': new_code
-            })
-            return {
-                'updatedCode': updated_code,
-                'modifications': modifications,
-                'hasQuery': True
-            }
+        # Find all occurrences of the original code
+        # Using splitlines() and join to normalize line endings
+        normalized_content = '\n'.join(original_content.splitlines())
+        normalized_code = '\n'.join(original_code.splitlines())
+        
+        # Split content into lines for more precise matching
+        content_lines = normalized_content.splitlines()
+        code_lines = normalized_code.splitlines()
+        
+        # Find matches
+        matches = []
+        for i in range(len(content_lines) - len(code_lines) + 1):
+            content_slice = '\n'.join(content_lines[i:i + len(code_lines)])
+            if content_slice.strip() == normalized_code.strip():
+                matches.append(i)
+        
+        # Check number of matches
+        if not matches:
+            raise ValueError("Original code snippet not found in content")
+        if len(matches) > 1:
+            raise ValueError("Multiple matches found for the original code snippet")
+        
+        # Perform the replacement
+        start_line = matches[0]
+        end_line = start_line + len(code_lines)
+        
+        # Preserve original indentation
+        first_line = content_lines[start_line]
+        indentation = ''
+        for char in first_line:
+            if char in (' ', '\t'):
+                indentation += char
+            else:
+                break
+        
+        # Apply indentation to new code
+        new_code_lines = [indentation + line if line.strip() else line 
+                        for line in new_code.splitlines()]
+        
+        # Combine everything together
+        updated_lines = (
+            content_lines[:start_line] +
+            new_code_lines +
+            content_lines[end_line:]
+        )
+        
+        return '\n'.join(updated_lines)
 
-        if len(queries) == 1 and queries[0].strip() == '':
-            print("No queries detected")
-            return {
-                'updatedCode': updated_code,
-                'modifications': [],
-                'hasQuery': False
-            }
-
-        for query in queries:
-            if query.strip() == '':
-                continue
-
-            original_code_start = query.find('# ORIGINAL\n') + 11
-            original_code_end = query.find('\n# SET\n')
-            old_code = query[original_code_start:original_code_end]
-
-            new_code_start = query.find('# SET\n') + 6
-            new_code = query[new_code_start:]
-
-            modification = {
-                'oldCode': old_code.strip(),
-                'newCode': new_code.strip()
-            }
-            modifications.append(modification)
-
-            updated_code = updated_code.replace(old_code, new_code.strip())
-
-        print("New code", updated_code)
-        return {
-            'updatedCode': updated_code,
-            'modifications': modifications,
-            'hasQuery': True
-        }
 
     def make_title(self, prompt, max_title_length: int = 50):
         """
@@ -4459,7 +4462,46 @@ transition-all duration-300 ease-in-out">
         
         return updated_content, True  # Section updated successfully
 
-    def extract_code_blocks(text: str, return_remaining_text: bool = False) -> Union[List[dict], Tuple[List[dict], str]]:
+
+    def parse_code_replacement(self, input_text: str) -> tuple[str, str]:
+        """
+        Parses a code replacement string format and extracts original and new code segments.
+        
+        Args:
+            input_text (str): Input text in the format:
+                            # REPLACE
+                            # ORIGINAL
+                            <old_code>
+                            # SET
+                            <new_code_snippet>
+        
+        Returns:
+            tuple[str, str]: A tuple containing (original_code, new_code)
+                            Both strings are stripped of leading/trailing whitespace
+        
+        Raises:
+            ValueError: If the input format is invalid or markers are missing
+        """
+        # Split the text into lines
+        lines = input_text.strip().split('\n')
+        
+        try:
+            # Find marker positions
+            original_marker = next(i for i, line in enumerate(lines) if line.strip() == "# ORIGINAL")
+            set_marker = next(i for i, line in enumerate(lines) if line.strip() == "# SET")
+            
+            # Extract code segments
+            original_code = '\n'.join(lines[original_marker + 1:set_marker]).strip()
+            new_code = '\n'.join(lines[set_marker + 1:]).strip()
+            
+            return original_code, new_code
+            
+        except StopIteration:
+            raise ValueError("Invalid format: Missing required markers (# ORIGINAL or # SET)")
+
+
+
+    def extract_code_blocks(self, text: str, return_remaining_text: bool = False) -> Union[List[dict], Tuple[List[dict], str]]:
         codes = []
         remaining_text = text
         current_index = 0
