@@ -4257,10 +4257,11 @@ transition-all duration-300 ease-in-out">
         else:
             return None
 
+
     @staticmethod
-    def update_code(original_content: str, original_code: str, new_code: str) -> str:
+    def update_code_with_best_match(original_content: str, original_code: str, new_code: str) -> str:
         """
-        Updates the original content by replacing the original code snippet with the new code.
+        Updates the original content by replacing the best-matching code snippet with the new code.
         
         Args:
             original_content (str): The complete source code content
@@ -4271,45 +4272,53 @@ transition-all duration-300 ease-in-out">
             str: Updated content with the replacement made
             
         Raises:
-            ValueError: If the original code snippet is not found in the content
-                    or if multiple matches are found
+            ValueError: If no sufficiently close match is found
         """
-        # Normalize line endings and strip whitespace from search pattern
+        if not pm.is_installed("difflib"):
+            pm.install("difflib")
+
+        import difflib
+        # Normalize line endings and strip whitespace from inputs
         original_code = original_code.strip()
         new_code = new_code.strip()
         
         # If any of the inputs are empty, raise an error
         if not original_content or not original_code:
             raise ValueError("Original content and code snippet cannot be empty")
-
-        # Find all occurrences of the original code
-        # Using splitlines() and join to normalize line endings
-        normalized_content = '\n'.join(original_content.splitlines())
-        normalized_code = '\n'.join(original_code.splitlines())
         
-        # Split content into lines for more precise matching
-        content_lines = normalized_content.splitlines()
-        code_lines = normalized_code.splitlines()
+        # Split content into lines for better matching
+        content_lines = original_content.splitlines()
+        code_lines = original_code.splitlines()
         
-        # Find matches
-        matches = []
+        # Join lines to create a normalized version of the original code
+        normalized_code = '\n'.join(code_lines)
+        
+        # Find the best match using difflib
+        best_match = None
+        best_match_ratio = 0
+        best_match_start = None
+        best_match_end = None
+        
         for i in range(len(content_lines) - len(code_lines) + 1):
+            # Extract a slice of the content to compare
             content_slice = '\n'.join(content_lines[i:i + len(code_lines)])
-            if content_slice.strip() == normalized_code.strip():
-                matches.append(i)
+            
+            # Calculate similarity ratio
+            match_ratio = difflib.SequenceMatcher(None, content_slice.strip(), normalized_code.strip()).ratio()
+            
+            # Update the best match if this one is better
+            if match_ratio > best_match_ratio:
+                best_match = content_slice
+                best_match_ratio = match_ratio
+                best_match_start = i
+                best_match_end = i + len(code_lines)
         
-        # Check number of matches
-        if not matches:
-            raise ValueError("Original code snippet not found in content")
-        if len(matches) > 1:
-            raise ValueError("Multiple matches found for the original code snippet")
-        
-        # Perform the replacement
-        start_line = matches[0]
-        end_line = start_line + len(code_lines)
+        # Check if a sufficiently close match was found
+        if best_match is None or best_match_ratio < 0.8:  # Threshold for similarity
+            raise ValueError("No sufficiently close match found for the original code snippet")
         
         # Preserve original indentation
-        first_line = content_lines[start_line]
+        first_line = content_lines[best_match_start]
         indentation = ''
         for char in first_line:
             if char in (' ', '\t'):
@@ -4323,12 +4332,13 @@ transition-all duration-300 ease-in-out">
         
         # Combine everything together
         updated_lines = (
-            content_lines[:start_line] +
+            content_lines[:best_match_start] +
             new_code_lines +
-            content_lines[end_line:]
+            content_lines[best_match_end:]
         )
         
         return '\n'.join(updated_lines)
+
 
 
     def make_title(self, prompt, max_title_length: int = 50):
