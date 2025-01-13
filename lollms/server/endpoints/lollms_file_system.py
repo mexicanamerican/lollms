@@ -175,13 +175,13 @@ def select_rag_database(client) -> Optional[Dict[str, Path]]:
                             vdb.build_index()
                             ASCIIColors.success("OK")
                         lollmsElfServer.HideBlockingMessage()
-                        run_async(partial(lollmsElfServer.sio.emit,'rag_db_added', {"database_name": db_name, "database_path": str(folder_path)}, to=client.client_id))
+                        run_async(partial(lollmsElfServer.sio.emit,'rag_db_added', {"datalake_name": db_name, "path": str(folder_path)}, to=client.client_id))
 
                     except Exception as ex:
                         trace_exception(ex)
                         lollmsElfServer.HideBlockingMessage()
                     
-                    return {"database_name": db_name, "database_path": Path(folder_path)}
+                    return {"datalake_name": db_name, "database_path": Path(folder_path)}
                 else:
                     return None
             else:
@@ -221,7 +221,7 @@ def find_rag_database_by_name(entries: List[Dict[str, Union[str, bool]]], name: 
         
         if entry['alias'] == name:
             # For remote databases, return the URL, for local ones return the type
-            return i, entry.get('url', '') or entry.get('type', '')
+            return i, entry
     
     return -1, ""
 
@@ -237,7 +237,7 @@ class FolderInfos(BaseModel):
 
 class MountDatabase(BaseModel):
     client_id: str
-    database_name:str
+    datalake_name:str
 
 
 class FolderOpenRequest(BaseModel):
@@ -281,65 +281,66 @@ def toggle_mount_rag_database(database_infos: MountDatabase):
     Selects and names a database 
     """ 
     client = check_access(lollmsElfServer, database_infos.client_id)
-    index, path = find_rag_database_by_name(lollmsElfServer.config.rag_databases, database_infos.database_name)
+    index, db_entry = find_rag_database_by_name(lollmsElfServer.config.datalakes, database_infos.datalake_name)
     
-    if index < 0:
-        # Check remote databases
-        index, path = find_rag_database_by_name(lollmsElfServer.config.remote_databases, database_infos.database_name)
-        db_entry = lollmsElfServer.config.remote_databases[index]
-    else:
-        # Local database
-        db_entry = lollmsElfServer.config.rag_databases[index]
 
     if not db_entry['mounted']:
         def process():
             try:
-                if not db_entry['is_local']:  # Remote database
+                if db_entry['type']=="lightrag":
                     lollmsElfServer.ShowBlockingMessage(f"Mounting database {db_entry['alias']}")
-                    lollmsElfServer.config.remote_databases[index]['mounted'] = True
-                    lollmsElfServer.config.save_config()
-                    lollmsElfServer.info(f"Database {database_infos.database_name} mounted successfully")
-                    lollmsElfServer.HideBlockingMessage()
-                else:  # Local database
-                    lollmsElfServer.ShowBlockingMessage(f"Mounting database {db_entry['alias']}")
-                    lollmsElfServer.config.rag_databases[index]['mounted'] = True
-                    
-                    from lollmsvectordb import VectorDatabase
-                    from lollmsvectordb.text_document_loader import TextDocumentsLoader
-                    from lollmsvectordb.lollms_tokenizers.tiktoken_tokenizer import TikTokenTokenizer
-
-                    # Vectorizer selection logic
-                    if lollmsElfServer.config.rag_vectorizer == "semantic":
-                        from lollmsvectordb.lollms_vectorizers.semantic_vectorizer import SemanticVectorizer
-                        v = SemanticVectorizer(lollmsElfServer.config.rag_vectorizer_model, 
-                                            lollmsElfServer.config.rag_vectorizer_execute_remote_code)
-                    elif lollmsElfServer.config.rag_vectorizer == "tfidf":
-                        from lollmsvectordb.lollms_vectorizers.tfidf_vectorizer import TFIDFVectorizer
-                        v = TFIDFVectorizer()
-                    elif lollmsElfServer.config.rag_vectorizer == "openai":
-                        from lollmsvectordb.lollms_vectorizers.openai_vectorizer import OpenAIVectorizer
-                        v = OpenAIVectorizer(lollmsElfServer.config.rag_vectorizer_openai_key)
-                    elif lollmsElfServer.config.rag_vectorizer == "ollama":
-                        from lollmsvectordb.lollms_vectorizers.ollama_vectorizer import OllamaVectorizer
-                        v = OllamaVectorizer(lollmsElfServer.config.rag_vectorizer_model, 
-                                          lollmsElfServer.config.rag_service_url)
-
-                    vdb = VectorDatabase(
-                        Path(path)/f"{database_infos.database_name}.sqlite",
-                        v,
-                        lollmsElfServer.model if lollmsElfServer.model else TikTokenTokenizer(),
-                        chunk_size=lollmsElfServer.config.rag_chunk_size,
-                        clean_chunks=lollmsElfServer.config.rag_clean_chunks,
-                        n_neighbors=lollmsElfServer.config.rag_n_chunks
-                    )       
-                    lollmsElfServer.active_rag_dbs.append({
-                        "name": database_infos.database_name,
-                        "path": path,
-                        "vectorizer": vdb
+                    from lollmsvectordb.database_clients.lightrag_client import LollmsLightRagConnector
+                    lr = LollmsLightRagConnector(db_entry['url'], db_entry['key'])
+                    lollmsElfServer.config.datalakes[index]['mounted'] = True
+                    lollmsElfServer.active_datalakes.append(lollmsElfServer.config.datalakes[index] | {
+                        "binding": lr
                     })
                     lollmsElfServer.config.save_config()
-                    lollmsElfServer.info(f"Database {database_infos.database_name} mounted successfully")
+                    lollmsElfServer.info(f"Datalake {database_infos.datalake_name} mounted successfully")
                     lollmsElfServer.HideBlockingMessage()
+                if db_entry['type']=="lollmsvectordb":
+                    lollmsElfServer.ShowBlockingMessage(f"Mounting database {db_entry['alias']}")
+                    try:
+                        from lollmsvectordb import VectorDatabase
+                        from lollmsvectordb.text_document_loader import TextDocumentsLoader
+                        from lollmsvectordb.lollms_tokenizers.tiktoken_tokenizer import TikTokenTokenizer
+
+                        # Vectorizer selection logic
+                        if lollmsElfServer.config.rag_vectorizer == "semantic":
+                            from lollmsvectordb.lollms_vectorizers.semantic_vectorizer import SemanticVectorizer
+                            v = SemanticVectorizer(lollmsElfServer.config.rag_vectorizer_model, 
+                                                lollmsElfServer.config.rag_vectorizer_execute_remote_code)
+                        elif lollmsElfServer.config.rag_vectorizer == "tfidf":
+                            from lollmsvectordb.lollms_vectorizers.tfidf_vectorizer import TFIDFVectorizer
+                            v = TFIDFVectorizer()
+                        elif lollmsElfServer.config.rag_vectorizer == "openai":
+                            from lollmsvectordb.lollms_vectorizers.openai_vectorizer import OpenAIVectorizer
+                            v = OpenAIVectorizer(lollmsElfServer.config.rag_vectorizer_openai_key)
+                        elif lollmsElfServer.config.rag_vectorizer == "ollama":
+                            from lollmsvectordb.lollms_vectorizers.ollama_vectorizer import OllamaVectorizer
+                            v = OllamaVectorizer(lollmsElfServer.config.rag_vectorizer_model, 
+                                            lollmsElfServer.config.rag_service_url)
+
+                        vdb = VectorDatabase(
+                            Path(db_entry['path'])/f"{database_infos.datalake_name}.sqlite",
+                            v,
+                            lollmsElfServer.model if lollmsElfServer.model else TikTokenTokenizer(),
+                            chunk_size=lollmsElfServer.config.rag_chunk_size,
+                            clean_chunks=lollmsElfServer.config.rag_clean_chunks,
+                            n_neighbors=lollmsElfServer.config.rag_n_chunks
+                        )       
+                        lollmsElfServer.config.datalakes[index]['mounted'] = True
+                        lollmsElfServer.active_datalakes.append(lollmsElfServer.config.datalakes[index] | {
+                            "binding": vdb
+                        })
+                        lollmsElfServer.config.save_config()
+                        lollmsElfServer.info(f"Database {database_infos.datalake_name} mounted successfully")
+                        lollmsElfServer.HideBlockingMessage()
+                    except Exception as ex:
+                        trace_exception(ex)
+                        lollmsElfServer.error(f"Database {database_infos.datalake_name} couldn't be mounted!!\n{ex}\nTry reindexing the database.")
+                        lollmsElfServer.HideBlockingMessage()
+
             except Exception as ex:
                 trace_exception(ex)
                 lollmsElfServer.HideBlockingMessage()
@@ -348,30 +349,36 @@ def toggle_mount_rag_database(database_infos: MountDatabase):
         lollmsElfServer.rag_thread.start()
     else:
         # Unmounting logic
-        if not db_entry['is_local']:  # Remote database
-            lollmsElfServer.config.remote_databases[index]['mounted'] = False
-            lollmsElfServer.config.save_config()
-        else:  # Local database
-            lollmsElfServer.config.rag_databases[index]['mounted'] = False
-            lollmsElfServer.active_rag_dbs = [
-                db for db in lollmsElfServer.active_rag_dbs 
-                if db["name"] != database_infos.database_name
+        if db_entry['type']=="lightrag":
+            lollmsElfServer.config.datalakes[index]['mounted'] = False
+            lollmsElfServer.active_datalakes = [
+                db for db in lollmsElfServer.active_datalakes 
+                if db["alias"] != database_infos.datalake_name
             ]
             lollmsElfServer.config.save_config()
+            lollmsElfServer.info(f"Datalake {database_infos.datalake_name} unmounted successfully")
+        elif db_entry['type']=="lollmsvectordb":
+            lollmsElfServer.config.datalakes[index]['mounted'] = False
+            lollmsElfServer.active_datalakes = [
+                db for db in lollmsElfServer.active_datalakes 
+                if db["alias"] != database_infos.datalake_name
+            ]
+            lollmsElfServer.config.save_config()
+            lollmsElfServer.info(f"Datalake {database_infos.datalake_name} unmounted successfully")
 
 
 @router.post("/upload_files_2_rag_db")
 async def upload_files_2_rag_db(database_infos: FolderInfos):
     client = check_access(lollmsElfServer, database_infos.client_id)
-    index, path = find_rag_database_by_name(lollmsElfServer.config.rag_databases, database_infos.database_name)
+    index, path = find_rag_database_by_name(lollmsElfServer.config.datalakes, database_infos.datalake_name)
     
     if index < 0:
         # Check remote databases
-        index, path = find_rag_database_by_name(lollmsElfServer.config.remote_databases, database_infos.database_name)
-        db_entry = lollmsElfServer.config.remote_databases[index]
+        index, path = find_rag_database_by_name(lollmsElfServer.config.datalakes, database_infos.datalake_name)
+        db_entry = lollmsElfServer.config.datalakes[index]
     else:
         # Local database
-        db_entry = lollmsElfServer.config.rag_databases[index]
+        db_entry = lollmsElfServer.config.datalakes[index]
 
 @router.post("/vectorize_folder")
 async def vectorize_folder(database_infos: FolderInfos):
@@ -443,7 +450,7 @@ async def vectorize_folder(database_infos: FolderInfos):
                 vdb.build_index()
                 ASCIIColors.success("OK")
             lollmsElfServer.HideBlockingMessage()
-            run_async(partial(lollmsElfServer.sio.emit,'rag_db_added', {"database_name": db_name, "database_path": str(folder_path)}, to=client.client_id))
+            run_async(partial(lollmsElfServer.sio.emit,'rag_db_added', {"datalake_name": db_name, "path": str(folder_path)}, to=client.client_id))
 
         except Exception as ex:
             trace_exception(ex)

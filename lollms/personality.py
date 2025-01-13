@@ -262,7 +262,6 @@ class AIPersonality:
             context_details["conditionning"],
             context_details["internet_search_results"],
             context_details["documentation"],
-            context_details["knowledge"],
             context_details["user_description"],
             context_details["discussion_messages"],
             context_details["positive_boost"],
@@ -3759,12 +3758,6 @@ class APScript(StateMachine):
             ]))
             sacrifice_id += 1
 
-        if context_details["knowledge"] and "knowledge" not in suppress:
-            full_context.append( self.separator_template.join([
-                self.system_custom_header("knowledge"),
-                context_details["knowledge"]
-            ]))
-            sacrifice_id += 1
 
         if context_details["user_description"] and "user_description" not in suppress:
             full_context.append( self.separator_template.join([

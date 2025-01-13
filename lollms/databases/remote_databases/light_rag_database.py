@@ -1,7 +1,7 @@
 import requests
 from typing import Optional, Any, List, Dict
 from enum import Enum
-from lollms.databases.remote_databases.lollms_database import LollmsDatabase
+from lollms.databases.datalakes.lollms_database import LollmsDatabase
 
 class SearchMode(str, Enum):
     naive = "naive"

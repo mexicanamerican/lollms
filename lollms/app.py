@@ -319,54 +319,61 @@ class LollmsApplication(LoLLMsCom):
 
     def get_uploads_path(self, client_id):
         return self.lollms_paths.personal_uploads_path
+    
     def load_rag_dbs(self):
-        self.active_rag_dbs = []
-        for rag_db in self.config.rag_databases:
+        ASCIIColors.info("Loading RAG datalakes")
+        self.active_datalakes = []
+        for rag_db in self.config.datalakes:
             if rag_db['mounted']:
-                try:                    
-                    from lollmsvectordb import VectorDatabase
-                    from lollmsvectordb.text_document_loader import TextDocumentsLoader
-                    from lollmsvectordb.lollms_tokenizers.tiktoken_tokenizer import TikTokenTokenizer
+                if rag_db['type']=='lollmsvectordb':
+                    try:                    
+                        from lollmsvectordb import VectorDatabase
+                        from lollmsvectordb.text_document_loader import TextDocumentsLoader
+                        from lollmsvectordb.lollms_tokenizers.tiktoken_tokenizer import TikTokenTokenizer
 
-                    # Vectorizer selection
-                    if self.config.rag_vectorizer == "semantic":
-                        from lollmsvectordb.lollms_vectorizers.semantic_vectorizer import SemanticVectorizer
-                        vectorizer = SemanticVectorizer(self.config.rag_vectorizer_model)
-                    elif self.config.rag_vectorizer == "tfidf":
-                        from lollmsvectordb.lollms_vectorizers.tfidf_vectorizer import TFIDFVectorizer
-                        vectorizer = TFIDFVectorizer()
-                    elif self.config.rag_vectorizer == "openai":
-                        from lollmsvectordb.lollms_vectorizers.openai_vectorizer import OpenAIVectorizer
-                        vectorizer = OpenAIVectorizer(
-                            self.config.rag_vectorizer_model,
-                            self.config.rag_vectorizer_openai_key
+                        # Vectorizer selection
+                        if self.config.rag_vectorizer == "semantic":
+                            from lollmsvectordb.lollms_vectorizers.semantic_vectorizer import SemanticVectorizer
+                            vectorizer = SemanticVectorizer(self.config.rag_vectorizer_model)
+                        elif self.config.rag_vectorizer == "tfidf":
+                            from lollmsvectordb.lollms_vectorizers.tfidf_vectorizer import TFIDFVectorizer
+                            vectorizer = TFIDFVectorizer()
+                        elif self.config.rag_vectorizer == "openai":
+                            from lollmsvectordb.lollms_vectorizers.openai_vectorizer import OpenAIVectorizer
+                            vectorizer = OpenAIVectorizer(
+                                self.config.rag_vectorizer_model,
+                                self.config.rag_vectorizer_openai_key
+                            )
+                        elif self.config.rag_vectorizer == "ollama":
+                            from lollmsvectordb.lollms_vectorizers.ollama_vectorizer import OllamaVectorizer
+                            vectorizer = OllamaVectorizer(
+                                self.config.rag_vectorizer_model,
+                                self.config.rag_service_url
+                            )
+
+                        # Create database path and initialize VectorDatabase
+                        db_path = Path(rag_db['path']) / f"{rag_db['alias']}.sqlite"
+                        vdb = VectorDatabase(
+                            db_path,
+                            vectorizer,
+                            None if self.config.rag_vectorizer == "semantic" else self.model if self.model else TikTokenTokenizer(),
+                            n_neighbors=self.config.rag_n_chunks
+                        )       
+
+                        # Add to active databases
+                        self.active_datalakes.append(
+                            rag_db | {"binding": vdb}
                         )
-                    elif self.config.rag_vectorizer == "ollama":
-                        from lollmsvectordb.lollms_vectorizers.ollama_vectorizer import OllamaVectorizer
-                        vectorizer = OllamaVectorizer(
-                            self.config.rag_vectorizer_model,
-                            self.config.rag_service_url
-                        )
 
-                    # Create database path and initialize VectorDatabase
-                    db_path = Path(rag_db['path']) / f"{rag_db['alias']}.sqlite"
-                    vdb = VectorDatabase(
-                        db_path,
-                        vectorizer,
-                        None if self.config.rag_vectorizer == "semantic" else self.model if self.model else TikTokenTokenizer(),
-                        n_neighbors=self.config.rag_n_chunks
-                    )       
-
-                    # Add to active databases
-                    self.active_rag_dbs.append({
-                        "name": rag_db['alias'],
-                        "path": rag_db['path'],
-                        "vectorizer": vdb
-                    })
-
-                except Exception as ex:
-                    trace_exception(ex)
-                    ASCIIColors.error(f"Couldn't load {db_path} consider revectorizing it")
+                    except Exception as ex:
+                        trace_exception(ex)
+                        ASCIIColors.error(f"Couldn't load {db_path} consider revectorizing it")
+                elif rag_db['type']=='lightrag':
+                    from lollmsvectordb.database_clients.lightrag_client import LollmsLightRagConnector
+                    lr = LollmsLightRagConnector(rag_db['url'], rag_db['key'])
+                    self.active_datalakes.append(
+                            rag_db | {"binding": lr}
+                    )
     def start_servers(self):
 
         ASCIIColors.yellow("* - * - * - Starting services - * - * - *")
@@ -928,7 +935,6 @@ class LollmsApplication(LoLLMsCom):
         start_ai_header_id_template     = self.config.start_ai_header_id_template
         end_ai_header_id_template       = self.config.end_ai_header_id_template
 
-        system_message_template     = self.config.system_message_template
 
         if self.personality.callback is None:
             self.personality.callback = partial(self.process_data, client_id=client_id)
@@ -977,8 +983,6 @@ class LollmsApplication(LoLLMsCom):
         internet_search_results = ""
         internet_search_infos = []
         documentation = ""
-        knowledge = ""
-        knowledge_infos = {"titles":[],"contents":[]}
 
 
         # boosting information
@@ -1006,6 +1010,114 @@ class LollmsApplication(LoLLMsCom):
         discussion = None
         if generation_type != "simple_question":
 
+            # Standard RAG
+            if not self.personality.ignore_discussion_documents_rag:
+                if self.personality.persona_data_vectorizer or len(self.active_datalakes) > 0 or ((len(client.discussion.text_files) > 0) and client.discussion.vectorizer is not None) or self.config.activate_skills_lib:
+                    #Prepare query
+
+                    # Recover or initialize discussion
+                    if discussion is None:
+                        discussion = self.recover_discussion(client_id)
+
+                    # Build documentation if empty
+                    if documentation == "":
+                        documentation = f"{self.separator_template}".join([
+                            f"{self.system_custom_header('important information')}",
+                            "Utilize Documentation Data: Always refer to the provided documentation to answer user questions accurately.",
+                            "Absence of Information: If the required information is not available in the documentation, inform the user that the requested information is not present in the documentation section.",
+                            "Strict Adherence to Documentation: It is strictly prohibited to provide answers without concrete evidence from the documentation.",
+                            "Cite Your Sources: After providing an answer, include the full path to the document where the information was found.",
+                            f"{self.system_custom_header('Documentation')}"
+                        ])
+                        documentation += f"{self.separator_template}"
+
+                    # Process query
+                    if self.config.rag_build_keys_words:
+                        self.personality.step_start("Building vector store query")
+                        query = self.personality.fast_gen(
+                            f"{self.separator_template}"
+                            f"{self.system_custom_header('instruction')} Read the discussion and rewrite the last prompt for someone who didn't read the entire discussion.\n"
+                            f"Do not answer the prompt. Do not add explanations."
+                            f"{self.separator_template}"
+                            f"{self.system_custom_header('discussion')}'\n{discussion[-2048:]}"
+                            f"{self.separator_template}"
+                            f"{self.ai_custom_header('enhanced query')}",
+                            max_generation_size=256,
+                            show_progress=True,
+                            callback=self.personality.sink
+                        )
+                        self.personality.step_end("Building vector store query")
+                        ASCIIColors.cyan(f"Query: {query}")
+                    else:
+                        query = current_message.content
+
+                    # RAGs
+                    if len(self.active_datalakes) > 0:
+                        recovered_ids=[[] for _ in range(len(self.active_datalakes))]
+                        for i,db in enumerate(self.active_datalakes):
+                            if db['mounted']:
+                                try:
+                                    if db["type"]=="lollmsvectordb":
+                                        from lollmsvectordb.vector_database import VectorDatabase
+                                        binding:VectorDatabase = db["binding"]
+
+                                        r=binding.search(query, self.config.rag_n_chunks, recovered_ids[i])
+                                        recovered_ids[i]+=[rg.chunk_id for rg in r]
+                                        if self.config.rag_activate_multi_hops:
+                                            r = [rg for rg in r if self.personality.verify_rag_entry(query, rg.text)]
+                                        documentation += "\n".join(["## chunk" + research_result.text  for research_result in r])+"\n"
+                                    elif db["type"]=="lightrag":
+                                        try:
+                                            from lollmsvectordb.database_clients.lightrag_client import LollmsLightRagConnector
+                                            lc:LollmsLightRagConnector = db["binding"]
+                                            documentation += lc.query(query)
+                                                
+                                        except Exception as ex:
+                                            trace_exception(ex)
+                                except Exception as ex:
+                                    trace_exception(ex)
+                                    self.personality.error(f"Couldn't recover information from Datalake {db['alias']}")
+
+                    if self.personality.persona_data_vectorizer:
+                        chunks:List[Chunk] = self.personality.persona_data_vectorizer.search(query, int(self.config.rag_n_chunks))
+                        for chunk in chunks:
+                            if self.config.rag_put_chunk_informations_into_context:
+                                documentation += f"{self.system_custom_header('document chunk')}\n## document title: {chunk.doc.title}\n## chunk content:\n{chunk.text}\n"
+                            else:
+                                documentation += f"{self.system_custom_header('chunk')}\n{chunk.text}\n"
+
+                    if (len(client.discussion.text_files) > 0) and client.discussion.vectorizer is not None:
+                        chunks:List[Chunk] = client.discussion.vectorizer.search(query, int(self.config.rag_n_chunks))
+                        for chunk in chunks:
+                            if self.config.rag_put_chunk_informations_into_context:
+                                documentation += f"{self.system_custom_header('document chunk')}\n## document title: {chunk.doc.title}\n## chunk content:\n{chunk.text}\n"
+                            else:
+                                documentation += f"{self.start_header_id_template}chunk{self.end_header_id_template}\n{chunk.text}\n"                    
+                    # Check if there is discussion knowledge to add to the prompt
+                    if self.config.activate_skills_lib:
+                        try:
+                            # skills = self.skills_library.query_entry(query)
+                            self.personality.step_start("Adding skills")
+                            if self.config.debug:
+                                ASCIIColors.info(f"Query : {query}")
+                            skill_titles, skills, similarities = self.skills_library.query_vector_db(query, top_k=3, min_similarity=self.config.rag_min_correspondance)#query_entry_fts(query)
+                            skills_detials=[{"title": title, "content":content, "similarity":similarity} for title, content, similarity in zip(skill_titles, skills, similarities)]
+
+                            if len(skills)>0:
+                                if documentation=="":
+                                    documentation=f"{self.system_custom_header('skills library knowledges')}\n"
+                                for i,skill in enumerate(skills_detials):
+                                    documentation += "---\n"+ self.system_custom_header(f"knowledge {i}") +f"\ntitle:\n{skill['title']}\ncontent:\n{skill['content']}\n---\n"
+                            self.personality.step_end("Adding skills")
+                        except Exception as ex:
+                            trace_exception(ex)
+                            self.warning("Couldn't add long term memory information to the context. Please verify the vector database")        # Add information about the user
+                            self.personality.step_end("Adding skills")
+
+                    documentation += f"{self.separator_template}{self.system_custom_header('important information')}Use the documentation data to answer the user questions. If the data is not present in the documentation, please tell the user that the information he is asking for does not exist in the documentation section. It is strictly forbidden to give the user an answer without having actual proof from the documentation.\n"
+
+
+            # Internet
             if self.config.activate_internet_search or force_using_internet or generation_type == "full_context_with_internet":
                 if discussion is None:
                     discussion = self.recover_discussion(client_id)
@@ -1062,303 +1174,8 @@ class LollmsApplication(LoLLMsCom):
                     else:
                         self.personality.step_end("Performing Internet search (advanced mode: slower but more advanced)")
 
-            if self.personality.persona_data_vectorizer:
-                if documentation=="":
-                    documentation=f"{self.separator_template}{self.start_header_id_template}Documentation:\n"
 
-
-                if not self.config.rag_deactivate:
-                    if self.config.rag_build_keys_words:
-                        if discussion is None:
-                            discussion = self.recover_discussion(client_id)
-                        query = self.personality.fast_gen(f"{self.separator_template}{self.start_header_id_template}instruction: Read the discussion and rewrite the last prompt for someone who didn't read the entire discussion.\nDo not answer the prompt. Do not add explanations.{self.separator_template}{self.start_header_id_template}discussion:\n{discussion[-2048:]}{self.separator_template}{self.start_header_id_template}enhanced query: ", max_generation_size=256, show_progress=True)
-                        ASCIIColors.cyan(f"Query:{query}")
-                    else:
-                        query = current_message.content
-                    try:
-                        chunks:List[Chunk] = self.personality.persona_data_vectorizer.search(query, int(self.config.rag_n_chunks))
-                        for chunk in chunks:
-                            if self.config.rag_put_chunk_informations_into_context:
-                                documentation += f"{self.start_header_id_template}document chunk{self.end_header_id_template}\ndocument title: {chunk.doc.title}\nchunk content:\n{chunk.text}\n"
-                            else:
-                                documentation += f"{self.start_header_id_template}chunk{self.end_header_id_template}\n{chunk.text}\n"
-
-                        documentation += f"{self.separator_template}{self.start_header_id_template}important information: Use the documentation data to answer the user questions. If the data is not present in the documentation, please tell the user that the information he is asking for does not exist in the documentation section. It is strictly forbidden to give the user an answer without having actual proof from the documentation.\n"
-
-                    except Exception as ex:
-                        trace_exception(ex)
-                        self.warning("Couldn't add documentation to the context. Please verify the vector database")
-                else:
-                    docs = self.personality.persona_data_vectorizer.list_documents()
-                    for doc in docs:
-                        documentation += self.personality.persona_data_vectorizer.get_document(doc['title'])
-            
-            if not self.personality.ignore_discussion_documents_rag:
-                query = None
-                if len(self.active_rag_dbs) > 0 :
-                    if discussion is None:
-                        discussion = self.recover_discussion(client_id)
-
-                    if self.config.rag_build_keys_words:
-                        self.personality.step_start("Building vector store query")
-                        q = f"{self.separator_template}".join([
-                            "make a RAG vector database query from the last user prompt given this discussion.",
-                            "--- discussion --",
-                            f"{discussion[-2048:]}",
-                            "---",
-                            "Make sure to write the RAG vector database query in your output json code."
-                        ])
-                        template = """{
-"query": "[the rag query deduced from the last messge in the discussion]"
-}
-"""
-                        query = self.personality.generate_code(q, self.personality.image_files, template, callback=self.personality.sink)
-                        if query is None:
-                            query = current_message.content
-                        else:
-                            try:
-                                query = json.loads(query)
-                                query = query["query"]
-                            except Exception as ex:
-                                ASCIIColors.error("failed to generate the query")
-                                query = current_message.content
-                        self.personality.step_end("Building vector store query")
-                        ASCIIColors.magenta(f"Query: {query}")
-                        self.personality.step(f"Query: {query}")
-                    else:
-                        query = current_message.content
-                    if documentation=="":
-                        documentation=f"{self.separator_template}".join([
-                            f"{self.system_custom_header('important information')}",
-                            "Always refer to the provided documentation to answer user questions accurately.",
-                            "Absence of Information: If the required information is not available in the documentation, inform the user that the requested information is not present in the documentation section.",
-                            "Strict Adherence to Documentation: It is strictly prohibited to provide answers without concrete evidence from the documentation.",
-                            "Cite Your Sources: After providing an answer, include the full path to the document where the information was found.",
-                            self.system_custom_header("Documentation")])
-                        documentation += f"{self.separator_template}"
-                    full_documentation=""
-                    if self.config.contextual_summary:
-                        for db in self.active_rag_dbs:
-                            v:VectorDatabase = db["vectorizer"]
-                            docs = v.list_documents()
-                            for doc in docs:
-                                document=v.get_document(document_path = doc["path"])
-                                self.personality.step_start(f"Summaryzing document {doc['path']}")
-                                def post_process(summary):
-                                    return summary
-                                summary = self.personality.summarize_text(document, 
-                                                                        f"Extract information from the following text chunk to answer this request.\n{self.system_custom_header('query')}{query}", chunk_summary_post_processing=post_process, callback=self.personality.sink)
-                                self.personality.step_end(f"Summaryzing document {doc['path']}")
-                                document_infos = f"{self.separator_template}".join([
-                                    self.system_custom_header('document contextual summary'),
-                                    f"source_document_title:{doc['title']}",
-                                    f"source_document_path:{doc['path']}",
-                                    f"content:\n{summary}\n"
-                                ])
-                                documentation_entries.append({
-                                    "document_title":doc['title'],
-                                    "document_path":doc['path'],
-                                    "chunk_content":summary,
-                                    "chunk_size":0,
-                                    "similarity":0,
-                                })
-                                if summary!="":
-                                    v.add_summaries(doc['path'],[{"context":query, "summary":summary}])
-                                full_documentation += document_infos
-                        documentation += self.personality.summarize_text(full_documentation, f"Extract information from the current text chunk and previous text chunks to answer the query. If there is no information about the query, just return an empty string.\n{self.system_custom_header('query')}{query}", callback=self.personality.sink)
-                    else:
-                        results = []
-                        recovered_ids=[[] for _ in range(len(self.active_rag_dbs))]
-                        hop_id = 0
-                        while( len(results)<self.config.rag_n_chunks and hop_id<self.config.rag_max_n_hops):
-                            i=0
-                            hop_id +=1
-                            for db in self.active_rag_dbs:
-                                v = db["vectorizer"]
-                                r=v.search(query, self.config.rag_n_chunks, recovered_ids[i])
-                                recovered_ids[i]+=[rg.chunk_id for rg in r]
-                                if self.config.rag_activate_multi_hops:
-                                    r = [rg for rg in r if self.personality.verify_rag_entry(query, rg.text)]
-                                results+=r
-                                i+=1
-                            if len(results)>=self.config.rag_n_chunks:
-                                break
-                        n_neighbors = self.active_rag_dbs[0]["vectorizer"].n_neighbors
-                        sorted_results = sorted(results, key=lambda x: x.distance)[:n_neighbors]
-
-                        for chunk in sorted_results:
-                            document_infos = f"{self.separator_template}".join([
-                                f"{self.start_header_id_template}document chunk{self.end_header_id_template}",
-                                f"source_document_title:{chunk.doc.title}",
-                                f"source_document_path:{chunk.doc.path}",
-                                f"content:\n{chunk.text}\n"
-                            ])
-                            documentation_entries.append({
-                                "document_title":chunk.doc.title,
-                                "document_path":chunk.doc.path,
-                                "chunk_content":chunk.text,
-                                "chunk_size":chunk.nb_tokens,
-                                "similarity":1-chunk.distance,
-                            })
-                            documentation += document_infos
-
-                if (len(self.config.remote_databases) > 0) and not self.config.rag_deactivate:
-                    for db in self.config.remote_databases:
-                        # Check if database is mounted
-                        if db['mounted']:
-                            try:
-                                if db['type'] == "lightrag":
-                                    from lollmsvectordb.database_clients.lightrag_client import LollmsLightRagConnector
-                                    lc = LollmsLightRagConnector(db['url'], db['key'])
-                                    
-                                    # Recover or initialize discussion
-                                    if discussion is None:
-                                        discussion = self.recover_discussion(client_id)
-
-                                    # Build documentation if empty
-                                    if documentation == "":
-                                        documentation = f"{self.separator_template}".join([
-                                            f"{self.system_custom_header('important information')}",
-                                            "Utilize Documentation Data: Always refer to the provided documentation to answer user questions accurately.",
-                                            "Absence of Information: If the required information is not available in the documentation, inform the user that the requested information is not present in the documentation section.",
-                                            "Strict Adherence to Documentation: It is strictly prohibited to provide answers without concrete evidence from the documentation.",
-                                            "Cite Your Sources: After providing an answer, include the full path to the document where the information was found.",
-                                            f"{self.system_custom_header('Documentation')}"
-                                        ])
-                                        documentation += f"{self.separator_template}"
-
-                                    # Process query
-                                    if query is None:
-                                        if self.config.rag_build_keys_words:
-                                            self.personality.step_start("Building vector store query")
-                                            query = self.personality.fast_gen(
-                                                f"{self.separator_template}"
-                                                f"{self.start_header_id_template}instruction: Read the discussion and rewrite the last prompt for someone who didn't read the entire discussion.\n"
-                                                f"Do not answer the prompt. Do not add explanations."
-                                                f"{self.separator_template}"
-                                                f"{self.start_header_id_template}discussion:\n{discussion[-2048:]}"
-                                                f"{self.separator_template}"
-                                                f"{self.start_header_id_template}enhanced query: ",
-                                                max_generation_size=256,
-                                                show_progress=True,
-                                                callback=self.personality.sink
-                                            )
-                                            self.personality.step_end("Building vector store query")
-                                            ASCIIColors.cyan(f"Query: {query}")
-                                        else:
-                                            query = current_message.content
-                                    
-                                    documentation += lc.query(query)
-                                    
-                            except Exception as ex:
-                                trace_exception(ex)
-
-
-                if (len(client.discussion.text_files) > 0) and client.discussion.vectorizer is not None:
-                    if not self.config.rag_deactivate:
-                        if discussion is None:
-                            discussion = self.recover_discussion(client_id)
-
-                        if documentation=="":
-                            documentation=f"{self.separator_template}".join([
-                                            f"{self.system_custom_header('important information')}",
-                                            "Utilize Documentation Data: Always refer to the provided documentation to answer user questions accurately.",
-                                            "Absence of Information: If the required information is not available in the documentation, inform the user that the requested information is not present in the documentation section.",
-                                            "Strict Adherence to Documentation: It is strictly prohibited to provide answers without concrete evidence from the documentation.",
-                                            "Cite Your Sources: After providing an answer, include the full path to the document where the information was found.",
-                                            f"{self.system_custom_header('Documentation')}"])
-
-                            documentation += f"{self.separator_template}"
-
-                        if query is None:
-                            if self.config.rag_build_keys_words:
-                                self.personality.step_start("Building vector store query")
-                                query = self.personality.fast_gen(f"{self.separator_template}{self.start_header_id_template}instruction: Read the discussion and rewrite the last prompt for someone who didn't read the entire discussion.\nDo not answer the prompt. Do not add explanations.{self.separator_template}{self.start_header_id_template}discussion:\n{discussion[-2048:]}{self.separator_template}{self.start_header_id_template}enhanced query: ", max_generation_size=256, show_progress=True, callback=self.personality.sink)
-                                self.personality.step_end("Building vector store query")
-                                ASCIIColors.cyan(f"Query: {query}")
-                            else:
-                                query = current_message.content
-
-
-                        full_documentation=""
-                        if self.config.contextual_summary:
-                            v = client.discussion.vectorizer
-                            docs = v.list_documents()
-                            for doc in docs:
-                                document=v.get_document(document_path = doc["path"])
-                                self.personality.step_start(f"Summeryzing document {doc['path']}")
-                                summary = self.personality.summarize_text(document, f"Extract information from the following text chunk to answer this request. If there is no information about the query, just return an empty string.\n{self.system_custom_header('query')}{query}", callback=self.personality.sink)
-                                self.personality.step_end(f"Summeryzing document {doc['path']}")
-                                document_infos = f"{self.separator_template}".join([
-                                    self.system_custom_header('document contextual summary'),
-                                    f"source_document_title:{doc['title']}",
-                                    f"source_document_path:{doc['path']}",
-                                    f"content:\n{summary}\n"
-                                ])
-                                documentation_entries.append({
-                                    "document_title":doc['title'],
-                                    "document_path":doc['path'],
-                                    "chunk_content":summary,
-                                    "chunk_size":0,
-                                    "similarity":0,
-                                })
-                                if summary!="":
-                                    v.add_summaries(doc['path'],[{"context":query, "summary":summary}])
-                                full_documentation += document_infos
-                            documentation += self.personality.summarize_text(full_documentation, f"Extract information from the current text chunk and previous text chunks to answer the query. If there is no information about the query, just return an empty string.\n{self.system_custom_header('query')}{query}", callback=self.personality.sink)
-                        else:
-                            try:
-                                chunks:List[Chunk] = client.discussion.vectorizer.search(query, int(self.config.rag_n_chunks))
-                                for chunk in chunks:
-                                    if self.config.rag_put_chunk_informations_into_context:
-                                        documentation += f"{self.start_header_id_template}document chunk{self.end_header_id_template}\ndocument title: {chunk.doc.title}\nchunk content:\n{chunk.text}\n"
-                                    else:
-                                        documentation += f"{self.start_header_id_template}chunk{self.end_header_id_template}\n{chunk.text}\n"
-
-                                documentation += f"{self.separator_template}{self.start_header_id_template}important information: Use the documentation data to answer the user questions. If the data is not present in the documentation, please tell the user that the information he is asking for does not exist in the documentation section. It is strictly forbidden to give the user an answer without having actual proof from the documentation.\n"
-                            except Exception as ex:
-                                trace_exception(ex)
-                                self.warning("Couldn't add documentation to the context. Please verify the vector database")
-                    else:
-                        docs = client.discussion.vectorizer.get_all_documents()
-                        documentation += "\n\n".join(docs) + "\n"
-                            
-                # Check if there is discussion knowledge to add to the prompt
-                if self.config.activate_skills_lib:
-                    try:
-                        self.personality.step_start("Querying skills library")
-                        if discussion is None:
-                            discussion = self.recover_discussion(client_id)
-                        self.personality.step_start("Building query")
-                        query = self.personality.generate_code(f"""Your task is to carefully read the provided discussion and reformulate {self.config.user_name}'s request concisely.
-{self.system_custom_header("discussion")}
-{discussion[-2048:]}
-""", template="""{
-    "request": "the reformulated request"
-}""", callback=self.personality.sink)
-                        query_code = json.loads(query)
-                        query = query_code["request"]
-                        self.personality.step_end("Building query")
-                        self.personality.step(f"query: {query}")
-                        # skills = self.skills_library.query_entry(query)
-                        self.personality.step_start("Adding skills")
-                        if self.config.debug:
-                            ASCIIColors.info(f"Query : {query}")
-                        skill_titles, skills, similarities = self.skills_library.query_vector_db(query, top_k=3, min_similarity=self.config.rag_min_correspondance)#query_entry_fts(query)
-                        skills_detials=[{"title": title, "content":content, "similarity":similarity} for title, content, similarity in zip(skill_titles, skills, similarities)]
-
-                        if len(skills)>0:
-                            if knowledge=="":
-                                knowledge=f"{self.system_custom_header('skills library knowledges')}\n"
-                            for i,skill in enumerate(skills_detials):
-                                knowledge += "---\n"+ self.system_custom_header(f"knowledge {i}") +f"\ntitle:\n{skill['title']}\ncontent:\n{skill['content']}\n---\n"
-                        self.personality.step_end("Adding skills")
-                        self.personality.step_end("Querying skills library")
-                    except Exception as ex:
-                        trace_exception(ex)
-                        self.warning("Couldn't add long term memory information to the context. Please verify the vector database")        # Add information about the user
-                        self.personality.step_end("Adding skills")
-                        self.personality.step_end("Querying skills library",False)
+        #User description
         user_description=""
         if self.config.use_user_informations_in_discussion:
             user_description=f"{self.start_header_id_template}User description{self.end_header_id_template}\n"+self.config.user_description+"\n"
@@ -1396,13 +1213,6 @@ class LollmsApplication(LoLLMsCom):
             tokens_documentation = []
             n_doc_tk = 0
 
-        # Tokenize the knowledge text and calculate its number of tokens
-        if len(knowledge)>0:
-            tokens_history = self.model.tokenize(knowledge)
-            n_history_tk = len(tokens_history)
-        else:
-            tokens_history = []
-            n_history_tk = 0
 
 
         # Tokenize user description
@@ -1415,7 +1225,7 @@ class LollmsApplication(LoLLMsCom):
 
 
         # Calculate the total number of tokens between conditionning, documentation, and knowledge
-        total_tokens = n_cond_tk + n_isearch_tk + n_doc_tk + n_history_tk + n_user_description_tk + n_positive_boost + n_negative_boost + n_fun_mode
+        total_tokens = n_cond_tk + n_isearch_tk + n_doc_tk + n_user_description_tk + n_positive_boost + n_negative_boost + n_fun_mode
 
         # Calculate the available space for the messages
         available_space = self.config.ctx_size - n_tokens - total_tokens
@@ -1530,8 +1340,6 @@ class LollmsApplication(LoLLMsCom):
             "internet_search_results":internet_search_results,
             "documentation":documentation,
             "documentation_entries":documentation_entries,
-            "knowledge":knowledge,
-            "knowledge_infos":knowledge_infos,
             "user_description":user_description,
             "discussion_messages":discussion_messages,
             "positive_boost":positive_boost,
