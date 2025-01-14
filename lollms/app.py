@@ -1238,7 +1238,6 @@ class LollmsApplication(LoLLMsCom):
             ASCIIColors.red(f"available_space:{available_space}")
             ASCIIColors.red(f"n_doc_tk:{n_doc_tk}")
             
-            ASCIIColors.red(f"n_history_tk:{n_history_tk}")
             ASCIIColors.red(f"n_isearch_tk:{n_isearch_tk}")
             
             ASCIIColors.red(f"n_tokens:{n_tokens}")
