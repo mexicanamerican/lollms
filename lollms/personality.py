@@ -759,26 +759,33 @@ class AIPersonality:
                         return_full_generated_code=False, 
                     ):
         response_full = ""
-        full_prompt = f"""{self.system_full_header}Act as code generation assistant who answers with a single code tag content.        
+        full_prompt = f"""{self.system_full_header}Act as a code generation assistant that generates code from user prompt.    
+{self.user_full_header} 
 {prompt}
-Make sure only a single code tag is generated at each dialogue turn.
 """
         if template:
             full_prompt += "Here is a template of the answer:\n"
             if code_tag_format=="markdown":
-                full_prompt += f"""```{language}
+                full_prompt += f"""You must answer with the code placed inside the markdown code tag like this:
+```{language}
 {template}
 ```
-The generated code must be placed inside the markdown code tag.
+{"Make sure you fill all fields and to use the exact same keys as the template." if language in ["json","yaml","xml"] else ""}
+The code tag is mandatory.
+Don't forget encapsulate the code inside a markdown code tag. This is mandatory.
 """
             elif code_tag_format=="html":
-                full_prompt +=f"""<code language="{language}">
+                full_prompt +=f"""You must answer with the code placed inside the html code tag like this:
+<code language="{language}">
 {template}
 </code>
-The generated code must be placed inside the html code tag.
+{"Make sure you fill all fields and to use the exact same keys as the template." if language in ["json","yaml","xml"] else ""}
+The code tag is mandatory.
+Don't forget encapsulate the code inside a html code tag. This is mandatory.
 """
+        full_prompt += f"""Do not split the code in multiple tags.
+{self.ai_full_header}"""
 
-        full_prompt += self.ai_custom_header("assistant")
         if len(self.image_files)>0:
             response = self.generate_with_images(full_prompt, self.image_files, max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug)
         elif  len(images)>0:
@@ -876,9 +883,9 @@ The generated code must be placed inside the html code tag.
         if debug is None:
             debug = self.config.debug
         response_full = ""
-        full_prompt = f"""{self.system_full_header}Act as a code generation assistant who answers with a single code tag content.    
+        full_prompt = f"""{self.system_full_header}Act as a code generation assistant that generates code from user prompt.    
+{self.user_full_header} 
 {prompt}
-Make sure only a single code tag is generated at each dialogue turn.
 """
         if template:
             full_prompt += "Here is a template of the answer:\n"
@@ -900,8 +907,10 @@ Don't forget encapsulate the code inside a markdown code tag. This is mandatory.
 The code tag is mandatory.
 Don't forget encapsulate the code inside a html code tag. This is mandatory.
 """
+        full_prompt += f"""You must return a single code tag.
+Do not split the code in multiple tags.
+{self.ai_full_header}"""
 
-        full_prompt += self.ai_custom_header("assistant")
         if debug:
             ASCIIColors.yellow("Prompt")
             ASCIIColors.yellow(full_prompt)
@@ -971,8 +980,8 @@ Don't forget encapsulate the code inside a html code tag. This is mandatory.
                         max_continues=5
                     ):
         response_full = ""
-        full_prompt = f"""{self.system_full_header}Act as a json generation assistant who answers with a single json code tag content.
-{self.system_custom_header("user")}        
+        full_prompt = f"""{self.system_full_header}Act as a code generation assistant who answers with code tags content.    
+{self.user_full_header} 
 {prompt}
 Make sure only a single code tag is generated at each dialogue turn.
 """
@@ -980,19 +989,23 @@ Make sure only a single code tag is generated at each dialogue turn.
             full_prompt += "Here is a template of the answer:\n"
             if code_tag_format=="markdown":
                 full_prompt += f"""You must answer with the code placed inside the markdown code tag like this:
-```json
+```{language}
 {template}
 ```
-Make sure you provide exactly the same fields as the template.
-Don't forget to close the markdown code tag.
+{"Make sure you fill all fields and to use the exact same keys as the template." if language in ["json","yaml","xml"] else ""}
+The code tag is mandatory.
+Don't forget encapsulate the code inside a markdown code tag. This is mandatory.
+{self.ai_full_header} 
 """
             elif code_tag_format=="html":
                 full_prompt +=f"""You must answer with the code placed inside the html code tag like this:
-<code language="json">
+<code language="{language}">
 {template}
 </code>
-Make sure you provide exactly the same fields as the template.
-Don't forget to close the html code tag.
+{"Make sure you fill all fields and to use the exact same keys as the template." if language in ["json","yaml","xml"] else ""}
+The code tag is mandatory.
+Don't forget encapsulate the code inside a html code tag. This is mandatory.
+{self.ai_full_header} 
 """
 
         full_prompt += self.ai_custom_header("assistant")
