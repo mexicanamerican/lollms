@@ -1034,22 +1034,27 @@ class LollmsApplication(LoLLMsCom):
                     # Process query
                     if self.config.rag_build_keys_words:
                         self.personality.step_start("Building vector store query")
+                        prompt = f"""{self.system_full_header} You are a prompt to query converter assistant. Read the discussion and rewrite the last user prompt as a self sufficient prompt containing all neeeded information.\n
+Do not answer the prompt. Do not add explanations.
+{self.separator_template}
+--- discussion ---
+{self.system_custom_header('discussion')}'\n{discussion[-2048:]}
+---
+Answer directly with the reformulation of the last prompt.
+{self.ai_custom_header('assistant')}"""
                         query = self.personality.fast_gen(
-                            f"{self.separator_template}"
-                            f"{self.system_custom_header('instruction')} Read the discussion and rewrite the last prompt for someone who didn't read the entire discussion.\n"
-                            f"Do not answer the prompt. Do not add explanations."
-                            f"{self.separator_template}"
-                            f"{self.system_custom_header('discussion')}'\n{discussion[-2048:]}"
-                            f"{self.separator_template}"
-                            f"{self.ai_custom_header('enhanced query')}",
+                            prompt,
                             max_generation_size=256,
                             show_progress=True,
                             callback=self.personality.sink
                         )
                         self.personality.step_end("Building vector store query")
-                        ASCIIColors.cyan(f"Query: {query}")
+                        self.personality.step(f"Query: {query}")
                     else:
                         query = current_message.content
+
+                    # Inform the user    
+                    self.personality.step_start("Querying the RAG datalake")
 
                     # RAGs
                     if len(self.active_datalakes) > 0:
@@ -1113,6 +1118,9 @@ class LollmsApplication(LoLLMsCom):
                             trace_exception(ex)
                             self.warning("Couldn't add long term memory information to the context. Please verify the vector database")        # Add information about the user
                             self.personality.step_end("Adding skills")
+
+                    # Inform the user    
+                    self.personality.step_end("Querying the RAG datalake")
 
                     documentation += f"{self.separator_template}{self.system_custom_header('important information')}Use the documentation data to answer the user questions. If the data is not present in the documentation, please tell the user that the information he is asking for does not exist in the documentation section. It is strictly forbidden to give the user an answer without having actual proof from the documentation.\n"
 
