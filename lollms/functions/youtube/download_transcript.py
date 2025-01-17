@@ -7,7 +7,7 @@
 from functools import partial
 from typing import List
 from lollms.utilities import PackageManager
-from ascii_colors import trace_exception
+from ascii_colors import trace_exception, ASCIIColors
 from typing import Any
 
 # Installing necessary packages
@@ -34,7 +34,9 @@ def download_youtube_transcript(video_id: str, language_code: str = 'en') -> str
         
         # Combining the transcript into a single string
         transcript_text = " ".join([entry['text'] for entry in transcript])
-        
+        ASCIIColors.magenta("---- Transcript ----")
+        ASCIIColors.magenta(transcript_text)
+        ASCIIColors.magenta("----")
         return transcript_text
     except Exception as e:
         return trace_exception(e)
