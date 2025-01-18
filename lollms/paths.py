@@ -5,6 +5,7 @@ from lollms.config import BaseConfig
 import subprocess
 import os
 import yaml
+import sys, platform
 
 lollms_path = Path(__file__).parent
 lollms_default_cfg_path = lollms_path / "configs/config.yaml"
@@ -18,6 +19,8 @@ personalities_zoo_repo = "https://github.com/ParisNeo/lollms_personalities_zoo.g
 bindings_zoo_repo = "https://github.com/ParisNeo/lollms_bindings_zoo.git"
 models_zoo_repo = "https://github.com/ParisNeo/models_zoo.git"
 gptqlora_repo = "https://github.com/ParisNeo/gptqlora.git"
+
+lollms_webui_version = "v17 (codename Pulsar 💫)"
 
 # Now we speify the personal folders
 class LollmsPaths:
@@ -94,7 +97,6 @@ class LollmsPaths:
         self.lollms_core_path = self.execution_path/"lollms_core"
         self.safe_store_path = self.execution_path/"utilities/safe_store"
     
-        ASCIIColors.yellow(f"Execution path : {self.execution_path}")
         if (self.execution_path/"zoos").exists():
             ASCIIColors.green("Local zoos folder found")
             rt = self.execution_path / "zoos"
@@ -110,67 +112,102 @@ class LollmsPaths:
             self.personalities_zoo_path         = rt / "personalities_zoo"
             self.models_zoo_path                = rt / "models_zoo"
 
-        ASCIIColors.green("----------------------Paths information-----------------------")
-        ASCIIColors.red("personal_path:",end="")
-        ASCIIColors.yellow(f"{self.personal_path}")
-        ASCIIColors.red("personal_configuration_path:",end="")
-        ASCIIColors.yellow(f"{self.personal_configuration_path}")
-        ASCIIColors.red("personal_discussions_path:",end="")
-        ASCIIColors.yellow(f"{self.personal_discussions_path}")
-        ASCIIColors.red("personal_skills_path:",end="")
-        ASCIIColors.yellow(f"{self.personal_skills_path}")
-        
-        ASCIIColors.red("personal_models_path:",end="")
-        ASCIIColors.yellow(f"{self.personal_models_path}")
-        ASCIIColors.red("personal_user_infos_path:",end="")
-        ASCIIColors.yellow(f"{self.personal_user_infos_path}")
-
-        ASCIIColors.red("personal_services_path:",end="")
-        ASCIIColors.yellow(f"{self.personal_services_path}")
-
-
-        ASCIIColors.red("personal_stt_services_path:", end="")
-        ASCIIColors.yellow(f"{self.personal_stt_services_path}")
-
-        ASCIIColors.red("personal_tts_services_path:", end="")
-        ASCIIColors.yellow(f"{self.personal_tts_services_path}")
-
-        ASCIIColors.red("personal_tti_services_path:", end="")
-        ASCIIColors.yellow(f"{self.personal_tti_services_path}")
-
-        ASCIIColors.red("personal_ttm_services_path:", end="")
-        ASCIIColors.yellow(f"{self.personal_ttm_services_path}")
-
-        ASCIIColors.red("apps_zoo_path:", end="")
-        ASCIIColors.yellow(f"{self.apps_zoo_path}")
-
-
-
-        ASCIIColors.red("personal_trainers_path:",end="")
-        ASCIIColors.yellow(f"{self.personal_trainers_path}")
-        ASCIIColors.red("personal_trainers_path:",end="")
-        ASCIIColors.yellow(f"{self.gptqlora_path}")
-        ASCIIColors.red("personal_data_path:",end="")
-        ASCIIColors.yellow(f"{self.personal_data_path}")
-        ASCIIColors.red("custom_personalities_path:",end="")
-        ASCIIColors.yellow(f"{self.custom_personalities_path}")
-        ASCIIColors.red("custom_voices_path:",end="")
-        ASCIIColors.yellow(f"{self.custom_voices_path}")
-        ASCIIColors.green("-------------------------------------------------------------")
-
-
-        ASCIIColors.green("----------------------Zoo information-----------------------")
-        ASCIIColors.red("bindings_zoo_path:",end="")
-        ASCIIColors.yellow(f"{self.bindings_zoo_path}")
-        ASCIIColors.red("personalities_zoo_path:",end="")
-        ASCIIColors.yellow(f"{self.personalities_zoo_path}")
-        ASCIIColors.red("models_zoo_path:",end="")
-        ASCIIColors.yellow(f"{self.models_zoo_path}")
-        ASCIIColors.green("-------------------------------------------------------------")
+        self.display_splash_screen()
 
         if prepare_configuration:
             self.create_directories()
             self.copy_default_config()
+    def display_splash_screen(self) -> None:
+        """
+        Display a colorful splash screen showing LoLLMs configuration, paths and system information
+        """
+        # Banner
+        ASCIIColors.cyan("""
+        ╔══════════════════════════════════════════════════════════════╗
+        ║             🤖 LoLLMs - Lord of LLMs                         ║
+        ║        One AI Assistant to Rule Them All                     ║
+        ║        By ParisNeo (https://github.com/ParisNeo)            ║
+        ╚══════════════════════════════════════════════════════════════╝
+        """)
+
+        # Version Information
+        ASCIIColors.magenta("\n📦 Version Information:")
+        ASCIIColors.white("    ├─ WebUI Version: ", end="")
+        ASCIIColors.yellow(f"{lollms_webui_version}")
+        ASCIIColors.white("    └─ Release Date: ", end="")
+        ASCIIColors.yellow("January 18, 2025")
+
+        # Python Environment Information
+        ASCIIColors.magenta("\n🐍 Python Environment:")
+        ASCIIColors.white("    ├─ Python Version: ", end="")
+        ASCIIColors.yellow(f"{sys.version.split()[0]}")
+        ASCIIColors.white("    ├─ Python Path: ", end="")
+        ASCIIColors.yellow(f"{sys.executable}")
+        ASCIIColors.white("    └─ Platform: ", end="")
+        ASCIIColors.yellow(f"{platform.platform()}")
+
+        # System Information
+        ASCIIColors.magenta("\n🖥️  System Configuration:")
+        ASCIIColors.white("    ├─ Execution Path: ", end="")
+        ASCIIColors.yellow(f"{self.execution_path}")
+        
+        # Zoo Status
+        if (self.execution_path/"zoos").exists():
+            ASCIIColors.white("    └─ Zoo Status: ", end="")
+            ASCIIColors.green("Local zoos folder found")
+        else:
+            ASCIIColors.white("    └─ Zoo Status: ", end="")
+            ASCIIColors.orange("Using personal zoos folder")
+
+        # Personal Paths Section
+        ASCIIColors.magenta("\n📁 Personal Paths:")
+        paths_info = [
+            ("Personal Path", self.personal_path),
+            ("Configuration Path", self.personal_configuration_path),
+            ("Discussions Path", self.personal_discussions_path),
+            ("Skills Path", self.personal_skills_path),
+            ("Models Path", self.personal_models_path),
+            ("User Info Path", self.personal_user_infos_path),
+            ("Custom Personalities", self.custom_personalities_path),
+            ("Custom Voices", self.custom_voices_path)
+        ]
+        
+        for i, (name, path) in enumerate(paths_info):
+            prefix = "    ├─ " if i < len(paths_info)-1 else "    └─ "
+            ASCIIColors.white(f"{prefix}{name}: ", end="")
+            ASCIIColors.yellow(f"{path}")
+
+        # Services Section
+        ASCIIColors.magenta("\n🛠️  Services Configuration:")
+        services = [
+            ("Main Services", self.personal_services_path),
+            ("Speech-to-Text", self.personal_stt_services_path),
+            ("Text-to-Speech", self.personal_tts_services_path),
+            ("Text-to-Image", self.personal_tti_services_path),
+            ("Text-to-Music", self.personal_ttm_services_path)
+        ]
+        
+        for i, (name, path) in enumerate(services):
+            prefix = "    ├─ " if i < len(services)-1 else "    └─ "
+            ASCIIColors.white(f"{prefix}{name}: ", end="")
+            ASCIIColors.yellow(f"{path}")
+
+        # Zoo Information
+        ASCIIColors.magenta("\n🏰 Zoo Configuration:")
+        zoos = [
+            ("Bindings Zoo", self.bindings_zoo_path),
+            ("Personalities Zoo", self.personalities_zoo_path),
+            ("Models Zoo", self.models_zoo_path)
+        ]
+        
+        for i, (name, path) in enumerate(zoos):
+            prefix = "    ├─ " if i < len(zoos)-1 else "    └─ "
+            ASCIIColors.white(f"{prefix}{name}: ", end="")
+            ASCIIColors.yellow(f"{path}")
+
+        # Ready Message
+        ASCIIColors.green("\n✨ LoLLMs is ready to serve! Let's build something amazing! 🚀\n")
+
 
     def __str__(self) -> str:
         directories = {
