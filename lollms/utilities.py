@@ -60,6 +60,94 @@ from enum import Enum
 from pathlib import Path
 import shutil
 
+from pathlib import Path
+import sys
+import subprocess
+from typing import Union, List
+
+def run_with_current_interpreter(
+    script_path: Union[str, Path], 
+    args: List[str] = None
+) -> subprocess.CompletedProcess:
+    """
+    Runs a Python script using the current interpreter.
+    
+    Args:
+        script_path: Path to the Python script to execute
+        args: Optional list of arguments to pass to the script
+        
+    Returns:
+        subprocess.CompletedProcess object containing the execution result
+        
+    Example:
+        result = run_with_current_interpreter(Path("my_script.py"), ["arg1", "arg2"])
+    """
+        
+    # Get current Python interpreter path
+    interpreter_path = sys.executable
+    
+    # Prepare command
+    command = [interpreter_path, str(script_path)]
+    if args:
+        command.extend(args)
+        
+    # Run the script and return the result
+    return subprocess.run(
+        command,
+        text=True,
+        check=True,  # Raises CalledProcessError if return code != 0
+        stdout=None, # This will make the output go directly to console
+        stderr=None  # This will make the errors go directly to console
+    )
+
+from pathlib import Path
+import sys
+import subprocess
+from typing import Union, List, Optional
+
+def run_module(
+    module_name: str,
+    args: Optional[List[str]] = None,
+) -> subprocess.CompletedProcess:
+    """
+    Runs a Python module using the current interpreter with the -m flag and outputs to console.
+    
+    Args:
+        module_name: Name of the module to run (e.g. 'pip', 'http.server')
+        args: Optional list of arguments to pass to the module
+        
+    Returns:
+        subprocess.CompletedProcess object containing the execution result
+        
+    Example:
+        # Run pip list
+        result = run_module("pip", ["list"])
+        # Run http.server on port 8000
+        result = run_module("http.server", ["8000"])
+    """
+    # Get current Python interpreter path
+    interpreter_path = sys.executable
+    
+    # Prepare command
+    command = [interpreter_path, "-m", module_name]
+    if args:
+        command.extend(args)
+        
+    try:
+        # Run the module with direct console output
+        return subprocess.run(
+            command,
+            text=True,
+            check=True,  # Raises CalledProcessError if return code != 0
+            stdout=None, # This will make the output go directly to console
+            stderr=None  # This will make the errors go directly to console
+        )
+    except subprocess.CalledProcessError as e:
+        print(f"Error running module {module_name}")
+        raise
+
+
+
 class EnvManager(Enum):
     CONDA = 'conda'
     VENV = 'venv'

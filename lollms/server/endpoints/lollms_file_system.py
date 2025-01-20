@@ -91,8 +91,87 @@ def open_file(file_types: List[str]) -> Optional[Path]:
         return None
     
 
+def select_lightrag_input_folder_(client) -> Optional[Dict[str, Path]]:
+    """
+    Opens a folder selection dialog and then a string input dialog to get the database name using PyQt5.
+    
+    Returns:
+        Optional[Dict[str, Path]]: A dictionary with the database name and the database path, or None if no folder was selected.
+    """
+    try:
+        # Create a QApplication instance
+        app = QApplication.instance()
+        if not app:
+            app = QApplication(sys.argv)
 
-def select_rag_database(client) -> Optional[Dict[str, Path]]:
+        # Open the folder selection dialog
+        dialog = QFileDialog()
+        # dialog.setOption(QFileDialog.DontUseNativeDialog, True)
+        dialog.setWindowFlag(Qt.WindowStaysOnTopHint, True)
+        dialog.setWindowModality(Qt.ApplicationModal)
+        dialog.raise_()
+        dialog.activateWindow()
+
+        # Add a custom filter to show network folders
+        dialog.setFileMode(QFileDialog.Directory)
+        
+        # Show the dialog modally
+        if dialog.exec_() == QFileDialog.Accepted:
+            folder_path = dialog.selectedFiles()[0]  # Get the selected folder path
+            if folder_path:
+                try:
+                    run_async(partial(lollmsElfServer.sio.emit,'lightrag_input_folder_added', {"path": str(folder_path)}, to=client.client_id))
+                except Exception as ex:
+                    trace_exception(ex)
+                return {"database_path": Path(folder_path)}
+
+            else:
+                return None
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return None
+
+def select_lightrag_output_folder_(client) -> Optional[Dict[str, Path]]:
+    """
+    Opens a folder selection dialog and then a string input dialog to get the database name using PyQt5.
+    
+    Returns:
+        Optional[Dict[str, Path]]: A dictionary with the database name and the database path, or None if no folder was selected.
+    """
+    try:
+        # Create a QApplication instance
+        app = QApplication.instance()
+        if not app:
+            app = QApplication(sys.argv)
+
+        # Open the folder selection dialog
+        dialog = QFileDialog()
+        # dialog.setOption(QFileDialog.DontUseNativeDialog, True)
+        dialog.setWindowFlag(Qt.WindowStaysOnTopHint, True)
+        dialog.setWindowModality(Qt.ApplicationModal)
+        dialog.raise_()
+        dialog.activateWindow()
+
+        # Add a custom filter to show network folders
+        dialog.setFileMode(QFileDialog.Directory)
+        
+        # Show the dialog modally
+        if dialog.exec_() == QFileDialog.Accepted:
+            folder_path = dialog.selectedFiles()[0]  # Get the selected folder path
+            if folder_path:
+                try:
+                    run_async(partial(lollmsElfServer.sio.emit,'lightrag_output_folder_added', {"path": str(folder_path)}, to=client.client_id))
+                except Exception as ex:
+                    trace_exception(ex)
+                return {"database_path": Path(folder_path)}
+            else:
+                return None
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return None
+
+
+def select_lollmsvectordb_input_folder_(client) -> Optional[Dict[str, Path]]:
     """
     Opens a folder selection dialog and then a string input dialog to get the database name using PyQt5.
     
@@ -175,7 +254,7 @@ def select_rag_database(client) -> Optional[Dict[str, Path]]:
                             vdb.build_index()
                             ASCIIColors.success("OK")
                         lollmsElfServer.HideBlockingMessage()
-                        run_async(partial(lollmsElfServer.sio.emit,'rag_db_added', {"datalake_name": db_name, "path": str(folder_path)}, to=client.client_id))
+                        run_async(partial(lollmsElfServer.sio.emit,'lollmsvectordb_datalake_added', {"datalake_name": db_name, "path": str(folder_path)}, to=client.client_id))
 
                     except Exception as ex:
                         trace_exception(ex)
@@ -265,13 +344,34 @@ def get_file(file_infos: FileOpenRequest):
     return open_file(file_infos.file_types)
 
 
-@router.post("/add_rag_database")
-async def add_rag_database(database_infos: SelectDatabase):
+@router.post("/select_lollmsvectordb_input_folder")
+async def select_lollmsvectordb_input_folder(database_infos: SelectDatabase):
     """
     Selects and names a database 
     """ 
     client = check_access(lollmsElfServer, database_infos.client_id)
-    lollmsElfServer.rag_thread = threading.Thread(target=select_rag_database, args=[client])
+    lollmsElfServer.rag_thread = threading.Thread(target=select_lollmsvectordb_input_folder_, args=[client])
+    lollmsElfServer.rag_thread.start()
+    return True
+
+
+@router.post("/select_lightrag_input_folder")
+async def select_lightrag_input_folder(database_infos: SelectDatabase):
+    """
+    Selects and names a database 
+    """ 
+    client = check_access(lollmsElfServer, database_infos.client_id)
+    lollmsElfServer.rag_thread = threading.Thread(target=select_lightrag_input_folder_, args=[client])
+    lollmsElfServer.rag_thread.start()
+    return True
+
+@router.post("/select_lightrag_output_folder")
+async def select_lightrag_output_folder(database_infos: SelectDatabase):
+    """
+    Selects and names a database 
+    """ 
+    client = check_access(lollmsElfServer, database_infos.client_id)
+    lollmsElfServer.rag_thread = threading.Thread(target=select_lightrag_output_folder_, args=[client])
     lollmsElfServer.rag_thread.start()
     return True
 
@@ -450,7 +550,7 @@ async def vectorize_folder(database_infos: FolderInfos):
                 vdb.build_index()
                 ASCIIColors.success("OK")
             lollmsElfServer.HideBlockingMessage()
-            run_async(partial(lollmsElfServer.sio.emit,'rag_db_added', {"datalake_name": db_name, "path": str(folder_path)}, to=client.client_id))
+            run_async(partial(lollmsElfServer.sio.emit,'lollmsvectordb_datalake_added', {"datalake_name": db_name, "path": str(folder_path)}, to=client.client_id))
 
         except Exception as ex:
             trace_exception(ex)

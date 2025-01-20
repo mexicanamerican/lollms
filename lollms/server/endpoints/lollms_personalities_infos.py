@@ -125,7 +125,7 @@ def get_personality():
 
 @router.get("/get_all_personalities")
 def get_all_personalities():
-    ASCIIColors.yellow("Listing all personalities")
+    ASCIIColors.yellow("Listing all personalities", end="")
     personalities_folder = lollmsElfServer.lollms_paths.personalities_zoo_path
     personalities = {}
 

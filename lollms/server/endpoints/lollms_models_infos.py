@@ -40,7 +40,7 @@ async def list_models():
         List[str]: A list of model names.
     """
     if lollmsElfServer.binding is not None:
-        ASCIIColors.yellow("Listing models")
+        ASCIIColors.yellow("Listing models", end="")
         models = lollmsElfServer.binding.list_models()
         ASCIIColors.green("ok")
         return models

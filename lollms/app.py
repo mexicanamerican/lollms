@@ -28,9 +28,10 @@ import platform
 import gc
 import yaml
 import time
-from lollms.utilities import PackageManager
+from lollms.utilities import run_with_current_interpreter
 import socket
 import json
+import pipmaster as pm
 class LollmsApplication(LoLLMsCom):
     def __init__(
                     self, 
@@ -375,8 +376,36 @@ class LollmsApplication(LoLLMsCom):
                             rag_db | {"binding": lr}
                     )
     def start_servers(self):
-
         ASCIIColors.yellow("* - * - * - Starting services - * - * - *")
+        def start_local_services(*args, **kwargs):
+            for rag_server in self.config.rag_local_services:
+                try:
+                    # - alias: datalake
+                    #     key: ''
+                    #     path: ''
+                    #     start_at_startup: false
+                    #     type: lightrag
+                    #     url: http://localhost:9621/
+
+                    if rag_server["start_at_startup"]:
+                        if rag_server["type"]=="lightrag":
+                            try:
+                                if not pm.is_installed("lightrag-hku"):
+                                    pm.install("lightrag-hku[api]")
+                                subprocess.Popen(
+                                ["lightrag-server", "--llm-binding", "lollms", "--embedding-binding", "lollms", "--input-dir", rag_server["input_path"], "--working-dir", rag_server["working_path"]],
+                                text=True,
+                                stdout=None, # This will make the output go directly to console
+                                stderr=None  # This will make the errors go directly to console
+                                )
+                            except Exception as ex:
+                                trace_exception(ex)
+                except Exception as ex:
+                    trace_exception(ex)
+                    self.warning(f"Couldn't start lightrag")
+
+        ASCIIColors.execute_with_animation("Loading RAG servers", start_local_services,ASCIIColors.color_blue)
+        
         tts_services = []
         stt_services = []
         def start_ttt(*args, **kwargs):
@@ -399,7 +428,7 @@ class LollmsApplication(LoLLMsCom):
                     trace_exception(ex)
                     self.warning(f"Couldn't load vllm")
         ASCIIColors.execute_with_animation("Loading TTT services", start_ttt,ASCIIColors.color_blue)
-        print("OK")
+
         def start_stt(*args, **kwargs):
             if self.config.whisper_activate or self.config.active_stt_service == "whisper":
                 try:
@@ -416,7 +445,6 @@ class LollmsApplication(LoLLMsCom):
                 self.stt = LollmsWhisper(self, self.config.whisper_model)
 
         ASCIIColors.execute_with_animation("Loading STT services", start_stt, ASCIIColors.color_blue)
-        print("OK")
 
         def start_tts(*args, **kwargs):
             if self.config.active_tts_service == "xtts":
@@ -450,7 +478,6 @@ class LollmsApplication(LoLLMsCom):
                 self.tts = self.xtts
 
         ASCIIColors.execute_with_animation("Loading TTS services", start_tts, ASCIIColors.color_blue)
-        print("OK")
 
         def start_tti(*args, **kwargs):
             if self.config.enable_sd_service:
@@ -493,7 +520,7 @@ class LollmsApplication(LoLLMsCom):
                     self.tti = LollmsComfyUI(self, comfyui_base_url=self.config.comfyui_base_url)
 
         ASCIIColors.execute_with_animation("Loading loacal TTI services", start_tti, ASCIIColors.color_blue)
-        print("OK")
+
         def start_ttv(*args, **kwargs):
             if self.config.active_ttv_service == "lumalabs" and (self.ttv is None or self.tti.name!="lumalabs"):
                 try:
