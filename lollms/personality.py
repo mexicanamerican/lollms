@@ -3379,7 +3379,7 @@ class APScript(StateMachine):
             # Generate each field individually
             for field, field_info in template.items():
                 if "prompt" in field_info:
-                    field_prompt = self.system_custom_header("prompt")+prompt+"\n"+self.system_custom_header("field to generate")+field+"\n"
+                    field_prompt = prompt+"\n"+"field to generate: "+field+"\n"
                     template = f"""{{
 "{field}": [{field_info["prompt"]}]
 }}"""
