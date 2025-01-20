@@ -390,6 +390,7 @@ class LollmsApplication(LoLLMsCom):
                     if rag_server["start_at_startup"]:
                         if rag_server["type"]=="lightrag":
                             try:
+                                self.ShowBlockingMessage("Installing Lightrag\nPlease wait...")
                                 if not pm.is_installed("lightrag-hku"):
                                     pm.install("lightrag-hku[api]")
                                 subprocess.Popen(
@@ -398,7 +399,9 @@ class LollmsApplication(LoLLMsCom):
                                 stdout=None, # This will make the output go directly to console
                                 stderr=None  # This will make the errors go directly to console
                                 )
+                                self.HideBlockingMessage()
                             except Exception as ex:
+                                self.HideBlockingMessage()
                                 trace_exception(ex)
                 except Exception as ex:
                     trace_exception(ex)
