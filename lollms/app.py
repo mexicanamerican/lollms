@@ -1310,18 +1310,23 @@ Answer directly with the reformulation of the last prompt.
                 if message.content != '' and (
                         message.message_type <= MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_SET_CONTENT_INVISIBLE_TO_USER.value and message.message_type != MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_SET_CONTENT_INVISIBLE_TO_AI.value):
 
-                    # Tokenize the message content
-                    if self.config.use_model_name_in_discussions:
-                        if message.model:
-                            msg =  f"{self.separator_template}" + f"{start_ai_header_id_template if message.sender_type == SENDER_TYPES.SENDER_TYPES_AI else self.start_user_header_id_template}{message.sender}({message.model}){end_ai_header_id_template  if message.sender_type == SENDER_TYPES.SENDER_TYPES_AI else self.end_user_header_id_template}" + message.content.strip()
+                        
+                    if message.sender_type == SENDER_TYPES.SENDER_TYPES_AI:
+                        if self.config.use_assistant_name_in_discussion:
+                            if self.config.use_model_name_in_discussions:
+                                msg = self.ai_custom_header(message.sender+f"({message.model})") + message.content.strip()
+                            else:
+                                msg = self.ai_full_header + message.content.strip()
                         else:
-                            msg = f"{self.separator_template}" + f"{start_ai_header_id_template if message.sender_type == SENDER_TYPES.SENDER_TYPES_AI else self.start_user_header_id_template}{message.sender}{end_ai_header_id_template  if message.sender_type == SENDER_TYPES.SENDER_TYPES_AI else self.end_user_header_id_template}" + message.content.strip()
-                        message_tokenized = self.model.tokenize(msg)
+                            if self.config.use_model_name_in_discussions:
+                                msg = self.ai_custom_header("assistant"+f"({message.model})") + message.content.strip()
+                            else:
+                                msg = self.ai_custom_header("assistant") + message.content.strip()
                     else:
-                        msg_value= f"{self.separator_template}" + f"{start_ai_header_id_template if message.sender_type == SENDER_TYPES.SENDER_TYPES_AI else self.start_user_header_id_template}{message.sender}{end_ai_header_id_template  if message.sender_type == SENDER_TYPES.SENDER_TYPES_AI else self.end_user_header_id_template}" + message.content.strip()
-                        message_tokenized = self.model.tokenize(
-                            msg_value
-                        )
+                        msg = self.user_full_header + message.content.strip()
+
+                    message_tokenized = self.model.tokenize(msg)
+
                     # Check if adding the message will exceed the available space
                     if tokens_accumulated + len(message_tokenized) > available_space:
                         # Update the cumulative number of tokens
@@ -1342,16 +1347,23 @@ Answer directly with the reformulation of the last prompt.
             if message.content != '' and (
                     message.message_type <= MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_SET_CONTENT_INVISIBLE_TO_USER.value and message.message_type != MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_SET_CONTENT_INVISIBLE_TO_AI.value):
 
-                if self.config.use_model_name_in_discussions:
-                    if message.model:
-                        msg = f"{self.separator_template}{start_ai_header_id_template if message.sender_type == SENDER_TYPES.SENDER_TYPES_AI else self.start_user_header_id_template}{message.sender}({message.model}){end_ai_header_id_template  if message.sender_type == SENDER_TYPES.SENDER_TYPES_AI else self.end_user_header_id_template}" + message.content.strip()
+                if message.sender_type == SENDER_TYPES.SENDER_TYPES_AI:
+                    if self.config.use_assistant_name_in_discussion:
+                        if self.config.use_model_name_in_discussions:
+                            msg = self.ai_custom_header(message.sender+f"({message.model})") + message.content.strip()
+                        else:
+                            msg = self.ai_full_header + message.content.strip()
                     else:
-                        msg = f"{self.separator_template}{start_ai_header_id_template if message.sender_type == SENDER_TYPES.SENDER_TYPES_AI else self.start_user_header_id_template}{message.sender}{end_ai_header_id_template  if message.sender_type == SENDER_TYPES.SENDER_TYPES_AI else self.end_user_header_id_template}" + message.content.strip()
-                    message_tokenized = self.model.tokenize(msg)
+                        if self.config.use_model_name_in_discussions:
+                            msg = self.ai_custom_header("assistant"+f"({message.model})") + message.content.strip()
+                        else:
+                            msg = self.ai_custom_header("assistant") + message.content.strip()
                 else:
-                    message_tokenized = self.model.tokenize(
-                        f"{self.separator_template}{start_ai_header_id_template if message.sender_type == SENDER_TYPES.SENDER_TYPES_AI else self.start_user_header_id_template}{message.sender}{end_ai_header_id_template  if message.sender_type == SENDER_TYPES.SENDER_TYPES_AI else self.end_user_header_id_template}" + message.content.strip()
-                    )
+                    if self.config.use_user_name_in_discussions:
+                        msg = self.user_full_header + message.content.strip()
+                    else:
+                        msg = self.user_custom_header("user") + message.content.strip()
+                message_tokenized = self.model.tokenize(msg)
 
                 # Add the tokenized message to the full_message_list
                 full_message_list.insert(0, message_tokenized)
