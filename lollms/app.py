@@ -1321,7 +1321,10 @@ Answer directly with the reformulation of the last prompt.
                             else:
                                 msg = self.ai_custom_header("assistant") + message.content.strip()
                     else:
-                        msg = self.user_full_header + message.content.strip()
+                        if self.config.use_user_name_in_discussions:
+                            msg = self.user_full_header + message.content.strip()
+                        else:
+                            msg = self.user_custom_header("user") + message.content.strip()
                     msg += self.separator_template
                     message_tokenized = self.model.tokenize(msg)
 

@@ -257,8 +257,7 @@ class AIPersonality:
 
     def build_context(self, context_details, is_continue=False, return_tokens=False):
         # Build the final prompt by concatenating the conditionning and discussion messages
-        prompt_data = self.separator_template.join(
-        [
+        elements = [
             context_details["conditionning"],
             context_details["internet_search_results"],
             context_details["documentation"],
@@ -267,9 +266,12 @@ class AIPersonality:
             context_details["positive_boost"],
             context_details["negative_boost"],
             context_details["fun_mode"],
-            self.ai_full_header if not is_continue else '' if not self.config.use_continue_message else "CONTINUE FROM HERE And do not open a new markdown code tag." + self.separator_template + self.ai_full_header
+            self.ai_full_header if not is_continue else '' if not self.config.use_continue_message \
+                else "CONTINUE FROM HERE And do not open a new markdown code tag." + self.separator_template + self.ai_full_header
         ]
-        )
+        
+        # Filter out empty elements and join with separator
+        prompt_data = self.separator_template.join(element for element in elements if element)
         tokens = self.model.tokenize(prompt_data)
         if return_tokens:
             return prompt_data, tokens
