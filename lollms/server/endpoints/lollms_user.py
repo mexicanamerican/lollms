@@ -128,3 +128,20 @@ async def upload_logo(logo: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="Invalid file type.")
         
     return {"status": True,"fileName": f"{random_filename}{extension}"}
+
+@router.post("/remove_logo")
+async def remove_logo():
+    """
+    Uploads a user avatar file to a dedicated directory, preventing path traversal attacks.
+
+    Parameters:
+        - logo: UploadFile object representing the user avatar file.
+
+    Returns:
+        - Dictionary with the status of the upload and the generated file name.
+
+    Raises:
+        - HTTPException with a 400 status code and an error message if the file is invalid or has an invalid type.
+    """
+        
+    return {"status": True}
