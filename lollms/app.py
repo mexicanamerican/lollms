@@ -1309,7 +1309,7 @@ Answer directly with the reformulation of the last prompt.
                         message.message_type <= MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_SET_CONTENT_INVISIBLE_TO_USER.value and message.message_type != MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_SET_CONTENT_INVISIBLE_TO_AI.value):
 
                         
-                    if message.sender_type == SENDER_TYPES.SENDER_TYPES_AI:
+                    if message.sender_type == SENDER_TYPES.SENDER_TYPES_AI.value:
                         if self.config.use_assistant_name_in_discussion:
                             if self.config.use_model_name_in_discussions:
                                 msg = self.ai_custom_header(message.sender+f"({message.model})") + message.content.strip()
@@ -1345,7 +1345,7 @@ Answer directly with the reformulation of the last prompt.
             if message.content != '' and (
                     message.message_type <= MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_SET_CONTENT_INVISIBLE_TO_USER.value and message.message_type != MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_SET_CONTENT_INVISIBLE_TO_AI.value):
 
-                if message.sender_type == SENDER_TYPES.SENDER_TYPES_AI:
+                if message.sender_type == SENDER_TYPES.SENDER_TYPES_AI.value:
                     if self.config.use_assistant_name_in_discussion:
                         if self.config.use_model_name_in_discussions:
                             msg = self.ai_custom_header(message.sender+f"({message.model})") + message.content.strip()
