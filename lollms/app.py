@@ -964,8 +964,6 @@ class LollmsApplication(LoLLMsCom):
         skills_detials=[]
         skills = []
         documentation_entries = []
-        start_ai_header_id_template     = self.config.start_ai_header_id_template
-        end_ai_header_id_template       = self.config.end_ai_header_id_template
 
 
         if self.personality.callback is None:
@@ -1324,7 +1322,7 @@ Answer directly with the reformulation of the last prompt.
                                 msg = self.ai_custom_header("assistant") + message.content.strip()
                     else:
                         msg = self.user_full_header + message.content.strip()
-
+                    msg += self.separator_template
                     message_tokenized = self.model.tokenize(msg)
 
                     # Check if adding the message will exceed the available space
