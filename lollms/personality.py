@@ -193,9 +193,9 @@ class AIPersonality:
         self._prompts_list: List[str] = []
         self._welcome_message: str = "Welcome! I am lollms (Lord of LLMs) A free and open assistant built by ParisNeo. What can I do for you today?"
         self._include_welcome_message_in_discussion: bool = True
-        self._user_message_prefix: str = f"human:"
+        self._user_message_prefix: str = f"user"
         self._link_text: str = "\n"
-        self._ai_message_prefix: str = f"lollms:"
+        self._ai_message_prefix: str = f"assistant"
 
         # Extra
         self._dependencies: List[str] = []
@@ -2827,7 +2827,7 @@ class StateMachine:
                 if param_count == 3:
                     # Old version of the function
                     return func(command, full_context, client)
-                elif param_count == 5:
+                elif param_count >= 5:
                     # New version of the function
                     return func(command, full_context, callback, context_state, client)
                 else:
@@ -4626,7 +4626,7 @@ transition-all duration-300 ease-in-out">
         return module, code
 
 
-    def yes_no(self, question: str, context:str="", max_answer_length: int = 50, conditionning="") -> bool:
+    def yes_no(self, question: str, context:str="", max_answer_length: int = 500, conditionning="") -> bool:
         """
         Analyzes the user prompt and answers whether it is asking to generate an image.
 
