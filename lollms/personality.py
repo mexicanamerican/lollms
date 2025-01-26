@@ -257,6 +257,18 @@ class AIPersonality:
 
     def build_context(self, context_details, is_continue=False, return_tokens=False):
         # Build the final prompt by concatenating the conditionning and discussion messages
+        if self.config.use_assistant_name_in_discussion:
+            if self.config.use_model_name_in_discussions:
+                ai_header = self.ai_custom_header(self.name+f"({self.config.model_name})") 
+            else:
+                ai_header = self.ai_full_header
+        else:
+            if self.config.use_model_name_in_discussions:
+                ai_header = self.ai_custom_header("assistant"+f"({self.config.model_name})")
+            else:
+                ai_header = self.ai_custom_header("assistant")
+
+
         elements = [
             context_details["conditionning"],
             context_details["internet_search_results"],
@@ -266,7 +278,7 @@ class AIPersonality:
             context_details["positive_boost"],
             context_details["negative_boost"],
             context_details["fun_mode"],
-            self.ai_full_header if not is_continue else '' if not self.config.use_continue_message \
+            ai_header if not is_continue else '' if not self.config.use_continue_message \
                 else "CONTINUE FROM HERE And do not open a new markdown code tag." + self.separator_template + self.ai_full_header
         ]
         
