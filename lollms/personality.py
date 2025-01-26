@@ -1003,20 +1003,18 @@ Make sure only a single code tag is generated at each dialogue turn.
             full_prompt += "Here is a template of the answer:\n"
             if code_tag_format=="markdown":
                 full_prompt += f"""You must answer with the code placed inside the markdown code tag like this:
-```{language}
+```plaintext
 {template}
 ```
-{"Make sure you fill all fields and to use the exact same keys as the template." if language in ["json","yaml","xml"] else ""}
 The code tag is mandatory.
 Don't forget encapsulate the code inside a markdown code tag. This is mandatory.
 {self.ai_full_header} 
 """
             elif code_tag_format=="html":
                 full_prompt +=f"""You must answer with the code placed inside the html code tag like this:
-<code language="{language}">
+<code language="plaintext">
 {template}
 </code>
-{"Make sure you fill all fields and to use the exact same keys as the template." if language in ["json","yaml","xml"] else ""}
 The code tag is mandatory.
 Don't forget encapsulate the code inside a html code tag. This is mandatory.
 {self.ai_full_header} 
@@ -3338,7 +3336,8 @@ class APScript(StateMachine):
     def generate_structured_content(self, 
                                 prompt, 
                                 template, 
-                                single_shot=False, 
+                                single_shot=False,
+                                notify = False,
                                 output_format="yaml"):
         """
         Generate structured content (YAML/JSON) either in single-shot or step-by-step mode.
@@ -3392,6 +3391,8 @@ class APScript(StateMachine):
         else:
             # Generate each field individually
             for field, field_info in template.items():
+                if notify:
+                    self.step_start(f"Building {field}")
                 if "prompt" in field_info:
                     field_prompt = prompt+"\n"+"field to generate: "+field+"\n"
                     template = f"""{{
@@ -3404,6 +3405,8 @@ class APScript(StateMachine):
                     if "processor" in field_info:
                         cleaned_response = field_info["processor"](cleaned_response)
                     output_data[field] = cleaned_response
+                if notify:
+                    self.step_end(f"Building {field}")
         
         # Format the output string
         if output_format == "yaml":
