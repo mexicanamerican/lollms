@@ -365,7 +365,7 @@ class AIPersonality:
         if callback:
             callback(full_text, MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_SET_CONTENT)
 
-    def ui(self, ui_text:str, callback: Callable[[str | list | None, MSG_OPERATION_TYPE, str, Any | None], bool]=None):
+    def ui(self, ui_text:str, callback: Callable[[str | list | None, MSG_OPERATION_TYPE, str, Any | None], bool]=None, client_id= None):
         """This sends ui text to front end
 
         Args:
@@ -1748,7 +1748,7 @@ Don't forget encapsulate the code inside a html code tag. This is mandatory.
                             pth = discussion_path_to_url(path)
                             self.new_message("",MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_SET_CONTENT)
                             output = f'<img src="{pth}" width="800">\n\n'
-                            self.set_message_content(output)
+                            self.ui(output)
                             self.app.close_message(client.client_id if client is not None else 0)
 
                         if self.model.binding_type not in [BindingType.TEXT_IMAGE, BindingType.TEXT_IMAGE_VIDEO]:
@@ -4106,7 +4106,7 @@ transition-all duration-300 ease-in-out">
         if callback:
             callback([{"title":title, "content":json.dumps(json_infos, indent=indent)}], MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_JSON_INFOS)
 
-    def ui(self, html_ui:str, callback: Callable[[str | list | None, MSG_OPERATION_TYPE, str, Any | None], bool]|None=None):
+    def ui(self, html_ui:str, callback: Callable[[str | list | None, MSG_OPERATION_TYPE, str, Any | None], bool]|None=None, client_id=None):
         """This sends ui elements to front end
 
         Args:
@@ -4122,10 +4122,10 @@ transition-all duration-300 ease-in-out">
             callback = self.callback
 
         if callback:
-            callback(html_ui, MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_UI)
+            callback(html_ui, MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_UI, client_id=client_id)
 
 
-    def ui_in_iframe(self, html_ui:str, callback: Callable[[str | list | None, MSG_OPERATION_TYPE, str, Any | None], bool]=None):
+    def ui_in_iframe(self, html_ui:str, callback: Callable[[str | list | None, MSG_OPERATION_TYPE, str, Any | None], bool]=None, client_id= None):
         """This sends ui elements to front end inside an iframe
 
         Args:
