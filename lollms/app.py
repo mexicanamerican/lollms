@@ -1031,11 +1031,37 @@ class LollmsApplication(LoLLMsCom):
             n_negative_boost = 0
 
         if self.config.fun_mode:
-            fun_mode=f"{self.system_custom_header('important information')} Fun mode activated. In this mode you must answer in a funny playful way. Do not be serious in your answers. Each answer needs to make the user laugh.\n"
+            fun_mode=f"""{self.system_custom_header('important information')} 
+Fun mode activated. In this mode you must answer in a funny playful way. Do not be serious in your answers. Each answer needs to make the user laugh.\n"
+"""
             n_fun_mode = len(self.model.tokenize(positive_boost))
         else:
             fun_mode=""
             n_fun_mode = 0
+
+        if self.config.think_first_mode:
+            think_first_mode=f"""{self.system_custom_header('important information')} 
+  Use a think first process to answer the user:
+  <thinking>
+  Ask yourself about the user's request and answer it with logical details.
+  If the user is requesting general information that does not require internet search and you are confident about it, then prepare to answer directly.
+  If the user is requesting general information that does require internet search and you have in the context enough information to answer, then use that data to answer.
+  If the user is requesting general information that does require internet search but you do not have any information, then ask him to activate internet search.
+
+  if the user is posing a riddle or asking a math question, make sure you use regourous math hypothisis, testing and analysis.
+  If the user is requesting to perform a task, then plan it through steps and prepare to answer
+  If the user is just discussing casually, do not perform the think first process
+
+  Make sure you continue thinking until you find a satisfactory answer
+  Assess any potential errors you may make
+  </thinking>
+
+  After thinking you can answer the user.
+"""
+            n_think_first_mode = len(self.model.tokenize(positive_boost))
+        else:
+            think_first_mode=""
+            n_think_first_mode = 0
 
         discussion = None
         if generation_type != "simple_question":
@@ -1263,7 +1289,7 @@ Answer directly with the reformulation of the last prompt.
 
 
         # Calculate the total number of tokens between conditionning, documentation, and knowledge
-        total_tokens = n_cond_tk + n_isearch_tk + n_doc_tk + n_user_description_tk + n_positive_boost + n_negative_boost + n_fun_mode
+        total_tokens = n_cond_tk + n_isearch_tk + n_doc_tk + n_user_description_tk + n_positive_boost + n_negative_boost + n_fun_mode + n_think_first_mode
 
         # Calculate the available space for the messages
         available_space = self.config.ctx_size - n_tokens - total_tokens
@@ -1398,6 +1424,7 @@ Answer directly with the reformulation of the last prompt.
             "negative_boost":negative_boost,
             "current_language":self.config.current_language,
             "fun_mode":fun_mode,
+            "think_first_mode":think_first_mode,
             "ai_prefix":ai_prefix,
             "extra":"",
             "available_space":available_space,

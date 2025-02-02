@@ -88,6 +88,7 @@ class LollmsPaths:
         self.gptqlora_path                  = self.personal_trainers_path / "gptqlora"
 
         self.custom_personalities_path      = self.personal_path / "custom_personalities"
+        self.custom_function_calls_path     = self.personal_path / "custom_function_calls"
         self.custom_voices_path             = self.personal_path / "custom_voices"
 
         self.binding_models_paths   = []
@@ -169,7 +170,9 @@ class LollmsPaths:
             ("Models Path", self.personal_models_path),
             ("User Info Path", self.personal_user_infos_path),
             ("Custom Personalities", self.custom_personalities_path),
-            ("Custom Voices", self.custom_voices_path)
+            ("Custom Voices", self.custom_voices_path),
+            ("Custom function calls",self.custom_function_calls_path)
+
         ]
         
         for i, (name, path) in enumerate(paths_info):
@@ -259,6 +262,7 @@ class LollmsPaths:
         self.personal_ttm_services_path.mkdir(parents=True, exist_ok=True)        
         self.personal_trainers_path.mkdir(parents=True, exist_ok=True)
         self.custom_personalities_path.mkdir(parents=True, exist_ok=True)
+        self.custom_function_calls_path.mkdir(parents=True, exist_ok=True)
         self.custom_voices_path.mkdir(parents=True, exist_ok=True)
 
         self.apps_zoo_path.mkdir(parents=True, exist_ok=True)

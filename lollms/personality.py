@@ -278,6 +278,7 @@ class AIPersonality:
             context_details["positive_boost"],
             context_details["negative_boost"],
             context_details["fun_mode"],
+            context_details["think_first_mode"],            
             ai_header if not is_continue else '' if not self.config.use_continue_message \
                 else "CONTINUE FROM HERE And do not open a new markdown code tag." + self.separator_template + self.ai_full_header
         ]
@@ -3440,6 +3441,7 @@ class APScript(StateMachine):
                 - negative_boost (str): The negative boost information.
                 - current_language (str): The force language information.
                 - fun_mode (str): The fun mode conditionning text
+                - think_first_mode (str(): The think first mode condition
                 - ai_prefix (str): The AI prefix information.
             client_id: The client ID for code generation.
             callback (function, optional): The callback function for code generation.
