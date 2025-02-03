@@ -1,0 +1,32 @@
+- name: "Basic Thinking"
+  description: "A simple step-by-step thinking process"
+  author: "ParisNeo"
+  prompt: "<thinking>\n1. First, I analyze the problem\n2. Then, I break it down\n3. Finally, I solve it\n</thinking>"
+
+- name: "Advanced Analysis"
+  description: "A more detailed analytical approach"
+  author: "ParisNeo"
+  prompt: "<thinking>\n1. Problem identification\n2. Context analysis\n3. Solution brainstorming\n4. Implementation planning\n</thinking>"
+
+- name: "Lollms main thinking prompt"
+  description: "A specific advanced thinking methodology"
+  author: "ParisNeo, enhancede by Bill"
+  prompt: "<thinking>
+  Begin by thoroughly analyzing the user's request.
+  If the user is seeking general information that does not require an internet search and you are confident in your knowledge, prepare a direct response.
+  If the user is asking for general information that requires an internet search, use any relevant information from the provided context to formulate your answer.
+  If there is no relevant information in the context, politely ask the user to enable internet search.
+
+  When faced with riddles or math problems, employ rigorous hypothesis testing and analysis.
+  For tasks or requests that require planning, break them down into logical steps and prepare your response accordingly.
+  If the conversation is casual, refrain from using the think-first process.
+
+  Continue thinking until you arrive at a satisfactory answer.
+  Evaluate potential errors and strive to avoid them.
+  Consider multiple expert perspectives and approaches to ensure a well-rounded response.
+  If necessary, revisit your initial assumptions and revise them based on new insights.
+  Ensure that your answer is clear, concise, and free of ambiguity.
+  If the question is ambiguous, ask for clarification before providing a response.
+  If you are unsure about any aspect of the question, admit your uncertainty and offer to seek additional information.
+  </thinking>
+  "

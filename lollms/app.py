@@ -1041,22 +1041,7 @@ Fun mode activated. In this mode you must answer in a funny playful way. Do not 
 
         if self.config.think_first_mode:
             think_first_mode=f"""{self.system_custom_header('important information')} 
-  Use a think first process to answer the user:
-  <thinking>
-  Ask yourself about the user's request and answer it with logical details.
-  If the user is requesting general information that does not require internet search and you are confident about it, then prepare to answer directly.
-  If the user is requesting general information that does require internet search and you have in the context enough information to answer, then use that data to answer.
-  If the user is requesting general information that does require internet search but you do not have any information, then ask him to activate internet search.
-
-  if the user is posing a riddle or asking a math question, make sure you use regourous math hypothisis, testing and analysis.
-  If the user is requesting to perform a task, then plan it through steps and prepare to answer
-  If the user is just discussing casually, do not perform the think first process
-
-  Make sure you continue thinking until you find a satisfactory answer
-  Assess any potential errors you may make
-  </thinking>
-
-  After thinking you can answer the user.
+{self.config.thinking_prompt}
 """
             n_think_first_mode = len(self.model.tokenize(positive_boost))
         else:

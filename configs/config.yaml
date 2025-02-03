@@ -1,5 +1,5 @@
 # =================== Lord Of Large Language Multimodal Systems Configuration file =========================== 
-version: 153
+version: 154
 
 # video viewing and news recovering
 last_viewed_video: null
@@ -338,6 +338,29 @@ negative_boost: null
 current_language: english
 fun_mode: false
 think_first_mode: false
+thinking_prompt:   "<thinking>
+  Begin by thoroughly analyzing the user's request.
+  If the user is seeking general information that does not require an internet search and you are confident in your knowledge, prepare a direct response.
+  If the user is asking for general information that requires an internet search, use any relevant information from the provided context to formulate your answer.
+  If there is no relevant information in the context, politely ask the user to enable internet search.
+
+  When faced with riddles or math problems, employ rigorous hypothesis testing and analysis.
+  For tasks or requests that require planning, break them down into logical steps and prepare your response accordingly.
+  If the conversation is casual, refrain from using the think-first process.
+
+  Continue thinking until you arrive at a satisfactory answer.
+  Evaluate potential errors and strive to avoid them.
+  Consider multiple expert perspectives and approaches to ensure a well-rounded response.
+  If necessary, revisit your initial assumptions and revise them based on new insights.
+  Ensure that your answer is clear, concise, and free of ambiguity.
+  If the question is ambiguous, ask for clarification before providing a response.
+  If you are unsure about any aspect of the question, admit your uncertainty and offer to seek additional information.
+  </thinking>
+  "
+
+
+
+
 function_calls: []
 # { name: the function name,
 #   value: the function name without spaces,
@@ -349,5 +372,3 @@ function_calls: []
 # webui configurations
 show_code_of_conduct: true
 activate_audio_infos: true
-
-
