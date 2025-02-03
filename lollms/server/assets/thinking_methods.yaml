@@ -1,17 +1,19 @@
 - name: "Basic Thinking"
   description: "A simple step-by-step thinking process"
   author: "ParisNeo"
-  prompt: "<thinking>\n1. First, I analyze the problem\n2. Then, I break it down\n3. Finally, I solve it\n</thinking>"
+  prompt: "Before answering the user, start by a thinking section:\n\n<thinking>\n1. First, I analyze the problem\n2. Then, I break it down\n3. Finally, I solve it\n</thinking>\n\nOnce the thinking is done, you answer the user."
 
 - name: "Advanced Analysis"
   description: "A more detailed analytical approach"
   author: "ParisNeo"
-  prompt: "<thinking>\n1. Problem identification\n2. Context analysis\n3. Solution brainstorming\n4. Implementation planning\n</thinking>"
+  prompt: "Before answering the user, start by a thinking section:\n\n<thinking>\n1. Problem identification\n2. Context analysis\n3. Solution brainstorming\n4. Implementation planning\n</thinking>\n\nOnce the thinking is done, you answer the user."
 
 - name: "Lollms main thinking prompt"
   description: "A specific advanced thinking methodology"
   author: "ParisNeo, enhancede by Bill"
-  prompt: "<thinking>
+  prompt: "Before answering the user, start by a thinking section:
+
+  <thinking>
   Begin by thoroughly analyzing the user's request.
   If the user is seeking general information that does not require an internet search and you are confident in your knowledge, prepare a direct response.
   If the user is asking for general information that requires an internet search, use any relevant information from the provided context to formulate your answer.
@@ -29,4 +31,6 @@
   If the question is ambiguous, ask for clarification before providing a response.
   If you are unsure about any aspect of the question, admit your uncertainty and offer to seek additional information.
   </thinking>
+
+  Once the thinking is done, you answer the user.
   "
