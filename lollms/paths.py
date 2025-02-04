@@ -81,6 +81,7 @@ class LollmsPaths:
         self.personal_ttm_services_path     = self.personal_services_path / "ttm"
 
         self.apps_zoo_path                  = self.personal_path / "apps_zoo"
+        self.functions_zoo_path             = self.personal_path / "functions_zoo"
 
 
 
@@ -235,7 +236,8 @@ class LollmsPaths:
             "Personal TTI services path": self.personal_tti_services_path,
             "Personal TTM services path": self.personal_ttm_services_path, 
 
-            "Applications zoo path": self.apps_zoo_path,          
+            "Applications zoo path": self.apps_zoo_path,
+            "Functions zoo path": self.functions_zoo_path,          
         }
         return "\n".join([f"{category}: {path}" for category, path in directories.items()])
 
@@ -266,6 +268,7 @@ class LollmsPaths:
         self.custom_voices_path.mkdir(parents=True, exist_ok=True)
 
         self.apps_zoo_path.mkdir(parents=True, exist_ok=True)
+        self.functions_zoo_path.mkdir(parents=True, exist_ok=True)
 
         
         if not self.bindings_zoo_path.exists():
