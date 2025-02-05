@@ -9,6 +9,7 @@ from lollms.utilities import detect_antiprompt, remove_text_from_string, trace_e
 from lollms.security import sanitize_path, check_access
 from ascii_colors import ASCIIColors
 from lollms.databases.discussions_database import DiscussionsDB, Discussion
+from lollms.security import check_access
 from typing import List, Optional, Union
 from pathlib import Path
 from lollmsvectordb.database_elements.chunk import Chunk
@@ -22,14 +23,14 @@ from datetime import datetime, timedelta
 import asyncio
 from contextlib import asynccontextmanager
 import hashlib
-
+import pipmaster as pm
+import subprocess
 # ----------------------- Defining router and main class ------------------------------
 
 router = APIRouter()
 lollmsElfServer: LOLLMSWebUI = LOLLMSWebUI.get_instance()
 
 # ----------------------- RAG System ------------------------------
-
 class RAGQuery(BaseModel):
     query: str = Field(..., description="The query to process using RAG")
     key: str = Field(..., description="The key to identify the user")
@@ -60,6 +61,15 @@ class RAGChunk(BaseModel):
     text : str
     nb_tokens : int
     distance : float
+
+
+
+class AuthenticationModel(BaseModel):
+    client_id: str = Field(..., description="The client id to authentify the user")
+
+class LightragOperationModel(BaseModel):
+    client_id: str = Field(..., description="The client id to authentify the user")
+    index: str = Field(..., description="TThe index of the lightrag service to start/stop")
 
 def get_user_vectorizer(user_key: str):
     small_key = hashlib.md5(user_key.encode()).hexdigest()[:8]
@@ -143,3 +153,35 @@ async def wipe_database(key: str):
     user_folder = lollmsElfServer.lollms_paths / str(key)
     shutil.rmtree(user_folder, ignore_errors=True)
     return DocumentResponse(success=True, message="Database wiped successfully.")
+
+
+#lightrag
+@router.post("/start_rag_server", response_model=DocumentResponse)
+async def start_rag_server(query: LightragOperationModel):
+    await check_access(query.client_id)
+    rag_server = lollmsElfServer.config.rag_local_services[query.index]
+            # - alias: datalake
+            #     key: ''
+            #     path: ''
+            #     start_at_startup: false
+            #     type: lightrag
+            #     url: http://localhost:9621/
+
+    if rag_server["type"]=="lightrag":
+        try:
+            lollmsElfServer.ShowBlockingMessage("Installing Lightrag\nPlease wait...")
+            if not pm.is_installed("lightrag-hku"):
+                pm.install("https://github.com/ParisNeo/LightRAG.git[api,tools]")
+            subprocess.Popen(
+            ["lightrag-server", "--llm-binding", "lollms", "--embedding-binding", "lollms", "--input-dir", rag_server["input_path"], "--working-dir", rag_server["working_path"]],
+            text=True,
+            stdout=None, # This will make the output go directly to console
+            stderr=None  # This will make the errors go directly to console
+            )
+            lollmsElfServer.HideBlockingMessage()
+
+        except Exception as ex:
+            trace_exception(ex)
+
+    return DocumentResponse(success=True, message="Starting server.")
+

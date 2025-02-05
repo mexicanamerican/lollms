@@ -392,9 +392,7 @@ class LollmsApplication(LoLLMsCom):
                             try:
                                 self.ShowBlockingMessage("Installing Lightrag\nPlease wait...")
                                 if not pm.is_installed("lightrag-hku"):
-                                    pm.install("lightrag-hku[api]")
-                                if not pm.is_installed("aioboto3"):
-                                    pm.install("aioboto3")
+                                    pm.install("https://github.com/ParisNeo/LightRAG.git[api,tools]")
                                 subprocess.Popen(
                                 ["lightrag-server", "--llm-binding", "lollms", "--embedding-binding", "lollms", "--input-dir", rag_server["input_path"], "--working-dir", rag_server["working_path"]],
                                 text=True,
