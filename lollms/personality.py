@@ -1144,6 +1144,50 @@ Don't forget encapsulate the code inside a html code tag. This is mandatory.
             "formatted_string": formatted_string
         }
 
+    def extract_thinking_blocks(text: str) -> List[str]:
+        """
+        Extracts content between <thinking> tags from a given text.
+        
+        Parameters:
+        text (str): The text containing thinking blocks
+        
+        Returns:
+        List[str]: List of extracted thinking contents
+        """
+        import re
+        
+        # Find all matches between thinking tags
+        pattern = r'<thinking>(.*?)</thinking>'
+        # re.DOTALL allows . to match newlines
+        matches = re.finditer(pattern, text, re.DOTALL)
+        
+        # Extract and clean the content
+        thinking_blocks = [match.group(1).strip() for match in matches]
+        
+        return thinking_blocks
+
+    def remove_thinking_blocks(text: str) -> str:
+        """
+        Removes thinking blocks from text including the tags.
+        
+        Parameters:
+        text (str): The text containing thinking blocks
+        
+        Returns:
+        str: Text with thinking blocks removed
+        """
+        import re
+        
+        # Replace thinking blocks with empty string
+        pattern = r'<thinking>.*?</thinking>'
+        cleaned_text = re.sub(pattern, '', text, flags=re.DOTALL)
+        
+        # Remove extra whitespace and normalize newlines
+        cleaned_text = re.sub(r'\n\s*\n', '\n\n', cleaned_text.strip())
+        
+        return cleaned_text        
+        
+
     def extract_code_blocks(self, text: str, return_remaining_text: bool = False) -> Union[List[dict], Tuple[List[dict], str]]:
         """
         This function extracts code blocks from a given text and optionally returns the text without code blocks.
