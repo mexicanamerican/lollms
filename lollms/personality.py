@@ -1144,7 +1144,7 @@ Don't forget encapsulate the code inside a html code tag. This is mandatory.
             "formatted_string": formatted_string
         }
 
-    def extract_thinking_blocks(text: str) -> List[str]:
+    def extract_thinking_blocks(self, text: str) -> List[str]:
         """
         Extracts content between <thinking> tags from a given text.
         
@@ -1166,7 +1166,7 @@ Don't forget encapsulate the code inside a html code tag. This is mandatory.
         
         return thinking_blocks
 
-    def remove_thinking_blocks(text: str) -> str:
+    def remove_thinking_blocks(self, text: str) -> str:
         """
         Removes thinking blocks from text including the tags.
         
