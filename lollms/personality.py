@@ -1144,9 +1144,10 @@ Don't forget encapsulate the code inside a html code tag. This is mandatory.
             "formatted_string": formatted_string
         }
 
+
     def extract_thinking_blocks(self, text: str) -> List[str]:
         """
-        Extracts content between <thinking> tags from a given text.
+        Extracts content between <thinking> or <think> tags from a given text.
         
         Parameters:
         text (str): The text containing thinking blocks
@@ -1156,19 +1157,18 @@ Don't forget encapsulate the code inside a html code tag. This is mandatory.
         """
         import re
         
-        # Find all matches between thinking tags
-        pattern = r'<thinking>(.*?)</thinking>'
-        # re.DOTALL allows . to match newlines
+        # Pattern to match both <thinking> and <think> blocks with matching tags
+        pattern = r'<(thinking|think)>(.*?)</\1>'
         matches = re.finditer(pattern, text, re.DOTALL)
         
-        # Extract and clean the content
-        thinking_blocks = [match.group(1).strip() for match in matches]
+        # Extract content from the second group (index 2) and clean
+        thinking_blocks = [match.group(2).strip() for match in matches]
         
         return thinking_blocks
 
     def remove_thinking_blocks(self, text: str) -> str:
         """
-        Removes thinking blocks from text including the tags.
+        Removes thinking blocks (either <thinking> or <think>) from text including the tags.
         
         Parameters:
         text (str): The text containing thinking blocks
@@ -1178,15 +1178,14 @@ Don't forget encapsulate the code inside a html code tag. This is mandatory.
         """
         import re
         
-        # Replace thinking blocks with empty string
-        pattern = r'<thinking>.*?</thinking>'
+        # Pattern to remove both <thinking> and <think> blocks with matching tags
+        pattern = r'<(thinking|think)>.*?</\1>'
         cleaned_text = re.sub(pattern, '', text, flags=re.DOTALL)
         
         # Remove extra whitespace and normalize newlines
         cleaned_text = re.sub(r'\n\s*\n', '\n\n', cleaned_text.strip())
         
-        return cleaned_text        
-        
+        return cleaned_text
 
     def extract_code_blocks(self, text: str, return_remaining_text: bool = False) -> Union[List[dict], Tuple[List[dict], str]]:
         """
