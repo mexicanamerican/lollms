@@ -479,7 +479,7 @@ class AIPersonality:
         return self.multichoice_question(question, ["no","yes"], context, max_answer_length, conditionning=conditionning)>0
 
 
-    def multichoice_question(self, question: str, possible_answers:list, context:str = "", max_answer_length: int = 50, conditionning="", return_explanation=False) -> int:
+    def multichoice_question(self, question: str, possible_answers:list, context:str = "", max_answer_length: int = None, conditionning="", return_explanation=False) -> int:
         """
         Interprets a multi-choice question from a users response. This function expects only one choice as true. All other choices are considered false. If none are correct, returns -1.
 
@@ -540,10 +540,11 @@ class AIPersonality:
             else:
                 return -1
         except Exception as ex:
+            trace_exception(ex)
             if return_explanation:
-                return int(code.split('\n')[0]), ""
+                return -1, ""
             else:
-                return int(code.split('\n')[0])
+                return -1
     def multichoice_ranking(self, question: str, possible_answers:list, context:str = "", max_answer_length: int = 50, conditionning="") -> int:
         """
         Ranks answers for a question from best to worst. returns a list of integers
