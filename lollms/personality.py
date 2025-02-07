@@ -23,7 +23,7 @@ from pathlib import Path
 from PIL import Image
 import re
 import shutil
-
+import os
 from datetime import datetime
 import importlib
 import subprocess
@@ -876,96 +876,141 @@ Don't forget encapsulate the code inside a html code tag. This is mandatory.
                 return None, None
             else:
                 return None
-    
+        
     def generate_code(
-                        self, 
-                        prompt, 
-                        images=[],
-                        template=None,
-                        language="json",
-                        code_tag_format="markdown", # or "html"
-                        max_size = None,  
-                        temperature = None, 
-                        top_k = None, 
-                        top_p=None, 
-                        repeat_penalty=None, 
-                        repeat_last_n=None, 
-                        callback=None, 
-                        debug=None, 
-                        return_full_generated_code=False, 
-                        accept_all_if_no_code_tags_is_present=False, 
-                        max_continues=5
-                    ):
+        self, 
+        prompt, 
+        images=[],
+        template=None,
+        language="json",
+        code_tag_format="markdown",  # or "html"
+        max_size=None,  
+        temperature=None, 
+        top_k=None, 
+        top_p=None, 
+        repeat_penalty=None, 
+        repeat_last_n=None, 
+        callback=None, 
+        debug=None, 
+        return_full_generated_code=False, 
+        accept_all_if_no_code_tags_is_present=False, 
+        max_continues=5
+    ):
         if debug is None:
             debug = self.config.debug
+            
         response_full = ""
-        full_prompt = f"""{self.system_full_header}Act as a code generation assistant that generates code from user prompt.    
-{self.user_full_header} 
-{prompt}
-"""
+        code_directives = [
+            "STRICT REQUIREMENTS:",
+            "1. Respond ONLY with a SINGLE code block containing the complete implementation",
+            "2. ABSOLUTELY NO explanatory text, comments, or text outside code blocks",
+            "3. Code MUST be syntactically correct and properly formatted",
+            "4. For structured formats (JSON/YAML/XML):",
+            "   a. Maintain EXACT key names and hierarchy from template",
+            "   b. Preserve all required fields even if empty",
+            "5. If unsure about values, use appropriate placeholders",
+            "6. NEVER split code across multiple blocks",
+            "7. ALWAYS close code blocks properly"
+        ]
+
+        full_prompt = f"""{self.system_full_header}You are a PRECISION code generation system. 
+    Your responses MUST follow these rules:
+    {os.linesep.join(code_directives)}
+
+    {self.user_full_header}
+    {prompt}
+    """
+
         if template:
-            full_prompt += "Here is a template of the answer:\n"
-            if code_tag_format=="markdown":
-                full_prompt += f"""You must answer with the code placed inside the markdown code tag like this:
-```{language}
-{template}
-```
-{"Make sure you fill all fields and to use the exact same keys as the template." if language in ["json","yaml","xml"] else ""}
-The code tag is mandatory.
-Don't forget encapsulate the code inside a markdown code tag. This is mandatory.
-"""
-            elif code_tag_format=="html":
-                full_prompt +=f"""You must answer with the code placed inside the html code tag like this:
-<code language="{language}">
-{template}
-</code>
-{"Make sure you fill all fields and to use the exact same keys as the template." if language in ["json","yaml","xml"] else ""}
-The code tag is mandatory.
-Don't forget encapsulate the code inside a html code tag. This is mandatory.
-"""
-        full_prompt += f"""You must return a single code tag.
-Do not split the code in multiple tags.
-{self.ai_full_header}"""
+            full_prompt += "\nTEMPLATE STRUCTURE (FOLLOW EXACTLY):\n"
+            if code_tag_format == "markdown":
+                full_prompt += f"""```{language}
+    {template}
+    ```"""
+            elif code_tag_format == "html":
+                full_prompt += f"""<code language="{language}">
+    {template}
+    </code>"""
+
+            full_prompt += f"\n\nIMPERATIVE: Match structure PRECISELY. Use EXACT keys/attributes from template."
+
+        code_wrapper = (
+            f"\n\nRespond STRICTLY in this format:\n```{language}\n{{code}}\n```" 
+            if code_tag_format == "markdown" else
+            f"\n\nRespond STRICTLY in this format:\n<code language='{language}'>\n{{code}}\n</code>"
+        )
+        
+        full_prompt += code_wrapper
+        full_prompt += f"\n{self.ai_full_header}"
 
         if debug:
             ASCIIColors.yellow("Prompt")
             ASCIIColors.yellow(full_prompt)
 
-        if len(self.image_files)>0:
+        # Generate initial response
+        if len(self.image_files) > 0:
             response = self.generate_with_images(full_prompt, self.image_files, max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug)
-        elif  len(images)>0:
+        elif len(images) > 0:
             response = self.generate_with_images(full_prompt, images, max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug)
         else:
             response = self.generate(full_prompt, max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug)
+        
         response_full += response
+
         if debug:
-            ASCIIColors.green("Response")
+            ASCIIColors.green("Initial Response")
             ASCIIColors.green(response_full)
+
+        # Extract code blocks
         codes = self.extract_code_blocks(response)
-        if len(codes)==0 and accept_all_if_no_code_tags_is_present:
+        if len(codes) == 0 and accept_all_if_no_code_tags_is_present:
             if return_full_generated_code:
                 return response, response_full
             else:
                 return response
-        if len(codes)>0:
+
+        if len(codes) > 0:
             if not codes[-1]["is_complete"]:
                 code = "\n".join(codes[-1]["content"].split("\n")[:-1])
                 nb_continues = 0
-                while not codes[-1]["is_complete"] and nb_continues<max_continues:
-                    response = self.generate(full_prompt+code+self.user_full_header+"continue the code. Start from last line and continue the code. Put the code inside a markdown code tag."+self.separator_template+self.ai_full_header, max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug)
+
+                # Enhanced continuation logic
+                while not codes[-1]["is_complete"] and nb_continues < max_continues:
+                    last_line = code.split("\n")[-1]
+                    continuation_prompt = (
+                        f"{self.user_full_header} Continue EXACTLY from this point "
+                        f"(LAST LINE):\n{last_line}\n\n"
+                        "INSTRUCTIONS:\n"
+                        "1. Continue from line above WITHOUT repetition\n"
+                        "2. Maintain code structure integrity\n"
+                        "3. Ensure proper indentation\n"
+                        "4. Close open structures if needed\n"
+                        f"{self.ai_full_header}"
+                    )
+
+                    response = self.generate(
+                        full_prompt + continuation_prompt,
+                        max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug
+                    )
                     response_full += response
                     codes = self.extract_code_blocks(response)
-                    if len(codes)==0:
+
+                    if len(codes) == 0:
                         break
                     else:
                         if not codes[-1]["is_complete"]:
-                            code +="\n"+ "\n".join(codes[-1]["content"].split("\n")[:-1])
+                            code += "\n" + "\n".join(codes[-1]["content"].split("\n")[:-1])
                         else:
-                            code +="\n"+ "\n".join(codes[-1]["content"].split("\n"))
+                            code += "\n" + "\n".join(codes[-1]["content"].split("\n"))
                     nb_continues += 1
             else:
                 code = codes[-1]["content"]
-            
+
+            if debug:
+                ASCIIColors.green("Response Validation")
+                ASCIIColors.cyan(f"Extracted {len(codes)} code blocks")
+                ASCIIColors.cyan(f"Final code length: {len(code)} characters")
+
             if return_full_generated_code:
                 return code, response_full
             else:
@@ -4152,7 +4197,7 @@ transition-all duration-300 ease-in-out">
         if callback:
             callback([{"title":title, "content":json.dumps(json_infos, indent=indent)}], MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_JSON_INFOS)
 
-    def ui(self, html_ui:str, callback: Callable[[str | list | None, MSG_OPERATION_TYPE, str, Any | None], bool]|None=None, client_id=None):
+    def ui(self, html_ui:str, callback: Callable[[str | list | None, MSG_OPERATION_TYPE, str, Any | None], bool]|None=None):
         """This sends ui elements to front end
 
         Args:
@@ -4168,7 +4213,7 @@ transition-all duration-300 ease-in-out">
             callback = self.callback
 
         if callback:
-            callback(html_ui, MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_UI, client_id=client_id)
+            callback(html_ui, MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_UI)
 
 
     def ui_in_iframe(self, html_ui:str, callback: Callable[[str | list | None, MSG_OPERATION_TYPE, str, Any | None], bool]=None, client_id= None):
