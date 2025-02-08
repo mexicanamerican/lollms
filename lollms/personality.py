@@ -4760,7 +4760,7 @@ transition-all duration-300 ease-in-out">
         """
         return self.personality.yes_no(question, context, max_answer_length, conditionning=conditionning, return_explanation=return_explanation, callback=callback)
 
-    def multichoice_questionmultichoice_question(
+    def multichoice_question(
             self, 
             question: str, 
             possible_answers: list, 
