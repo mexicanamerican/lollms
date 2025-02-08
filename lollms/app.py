@@ -180,6 +180,88 @@ class LollmsApplication(LoLLMsCom):
         self.skills_library             = SkillsLibrary(self.lollms_paths.personal_skills_path/(self.config.skills_lib_database_name+".sqlite"), config = self.config)
         self.tasks_library              = TasksLibrary(self)
 
+
+    def embed_function_call_in_prompt(self, original_prompt):
+        """Embeds function call descriptions in the system prompt"""
+        function_descriptions = [
+            "You have access to these functions. Use them when needed:",
+            "Format: <lollms_function_call>{JSON}</lollms_function_call>"
+        ]
+        
+        # Get mounted functions
+        mounted_functions = [
+            fc for fc in self.config.mounted_function_calls 
+            if fc["mounted"]
+        ]
+        
+        for fc in mounted_functions:
+            try:
+                # Load function config
+                fn_path = self.paths.functions_zoo_path / fc["name"]
+                with open(fn_path/"config.yaml") as f:
+                    config = yaml.safe_load(f)
+                    
+                # Build function description
+                desc = [
+                    f"Function: {config['name']}",
+                    f"Description: {config['description']}",
+                    f"Parameters: {json.dumps(config.get('parameters', {}))}",
+                    f"Returns: {json.dumps(config.get('returns', {}))}",
+                    f"Needs Processing: {str(config.get('needs_processing', True)).lower()}",
+                    f"Examples: {', '.join(config.get('examples', []))}"
+                ]
+                function_descriptions.append("\n".join(desc))
+                
+            except Exception as e:
+                print(f"Error loading function {fc['name']}: {e}")
+
+        return original_prompt + "\n\n" + "\n\n".join(function_descriptions)
+
+    def detect_function_calls(self, text):
+        """Detects and parses function calls in AI output"""
+        import re
+        import json
+        
+        pattern = r'<lollms_function_call>(.*?)</lollms_function_call>'
+        matches = re.findall(pattern, text, re.DOTALL)
+        
+        valid_calls = []
+        
+        for match in matches:
+            try:
+                call_data = json.loads(match.strip())
+                
+                # Validate required fields
+                if not all(k in call_data for k in ["function_name", "parameters"]):
+                    continue
+                    
+                # Check if function is mounted
+                is_mounted = any(
+                    fc["name"] == call_data["function_name"] and fc["mounted"]
+                    for fc in self.config.mounted_function_calls
+                )
+                
+                if not is_mounted:
+                    continue
+                    
+                # Set default needs_processing if missing
+                if "needs_processing" not in call_data:
+                    call_data["needs_processing"] = True
+                    
+                valid_calls.append({
+                    "function_name": call_data["function_name"],
+                    "parameters": call_data["parameters"],
+                    "needs_processing": call_data["needs_processing"]
+                })
+                
+            except json.JSONDecodeError:
+                continue
+            except Exception as e:
+                print(f"Error parsing function call: {e}")
+                continue
+                
+        return valid_calls
+
     @staticmethod
     def check_internet_connection():
         global is_internet_available

@@ -366,7 +366,7 @@ class AIPersonality:
         if callback:
             callback(full_text, MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_SET_CONTENT)
 
-    def ui(self, ui_text:str, callback: Callable[[str | list | None, MSG_OPERATION_TYPE, str, Any | None], bool]=None, client_id= None):
+    def set_message_html(self, ui_text:str, callback: Callable[[str | list | None, MSG_OPERATION_TYPE, str, Any | None], bool]=None, client_id= None):
         """This sends ui text to front end
 
         Args:
@@ -570,10 +570,17 @@ class AIPersonality:
         
         try:
             result = json.loads(response)
-            if "index" in result and isinstance(result["index"], int):
-                return result
+            if return_explanation:
+                if "index" in result and isinstance(result["index"], int):
+                    return result["index"], result["index"]
+            else:
+                if "index" in result and isinstance(result["index"], int):
+                    return result["index"]
         except json.JSONDecodeError:
-            return {"index": -1}
+            if return_explanation:
+                return -1, "failed to decide"
+            else:
+                return -1
             
     def multichoice_ranking(
             self, 
@@ -1923,7 +1930,7 @@ Don't forget encapsulate the code inside a html code tag. This is mandatory.
                             pth = discussion_path_to_url(path)
                             self.new_message("",MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_SET_CONTENT)
                             output = f'<img src="{pth}" width="800">\n\n'
-                            self.ui(output)
+                            self.set_message_html(output)
                             self.app.close_message(client.client_id if client is not None else 0)
 
                         if self.model.binding_type not in [BindingType.TEXT_IMAGE, BindingType.TEXT_IMAGE_VIDEO]:
@@ -2759,6 +2766,94 @@ Don't forget encapsulate the code inside a html code tag. This is mandatory.
                                     ]),
                                     max_generation_size=max_generation_size, callback=self.sink)
         return translated
+    
+
+    def sequential_summarize(self, text, summary_context="", format="bullet points", tone="neutral", ctx_size=4096, callback = None):
+        """
+        Summarizes a long text sequentially by processing chunks and maintaining a memory.
+        
+        Args:
+            text (str): The input text to summarize.
+            summary_context (str): Optional context to guide the summarization.
+            format (str): Desired format for the final summary (e.g., "bullet points").
+            tone (str): Desired tone for the final summary (e.g., "neutral").
+            ctx_size (int): Total context window size of the model.
+        
+        Returns:
+            str: The final formatted summary.
+        """
+        
+        # Tokenize entire text
+        all_tokens = self.model.tokenize(text)
+        total_tokens = len(all_tokens)
+        
+        # Initialize memory and chunk index
+        memory = ""
+        start_token_idx = 0
+        
+        # Create static prompt template
+        static_prompt_template = f"""!@>instruction:
+Update the summary memory by combining previous memory with key information from this text chunk. Focus on aspects relevant to: {summary_context}
+Keep memory concise using bullet points.
+
+!@>current memory:
+{{memory}}
+
+!@>new text chunk:
+{{chunk}}
+
+!@>updated memory:
+"""
+        
+        # Calculate static prompt tokens (with empty memory and chunk)
+        example_prompt = static_prompt_template.format(memory="", chunk="")
+        static_tokens = len(self.model.tokenize(example_prompt))
+        
+        # Process text in chunks
+        while start_token_idx < total_tokens:
+            # Calculate available tokens for chunk
+            current_memory_tokens = len(self.model.tokenize(memory))
+            available_tokens = ctx_size - static_tokens - current_memory_tokens
+            
+            if available_tokens <= 0:
+                raise ValueError("Memory too large - consider reducing chunk size or increasing context window")
+            
+            # Get chunk tokens
+            end_token_idx = min(start_token_idx + available_tokens, total_tokens)
+            chunk_tokens = all_tokens[start_token_idx:end_token_idx]
+            chunk = self.model.detokenize(chunk_tokens)
+            
+            # Generate memory update
+            prompt = static_prompt_template.format(memory=memory, chunk=chunk)
+            memory = self.fast_gen(prompt, max_generation_size=ctx_size//4, callback=callback).strip()
+            
+            # Move to next chunk
+            start_token_idx = end_token_idx
+        
+        # Prepare final summary prompt
+        final_prompt_template = f"""!@>instruction:
+Create final summary using this memory. Follow these requirements:
+Format: {format}
+Tone: {tone}
+
+!@>memory:
+{{memory}}
+
+!@>summary:
+"""
+        
+        # Truncate memory if needed for final prompt
+        example_final_prompt = final_prompt_template.format(memory="")
+        final_static_tokens = len(self.model.tokenize(example_final_prompt))
+        available_final_tokens = ctx_size - final_static_tokens
+        
+        memory_tokens = self.model.tokenize(memory)
+        if len(memory_tokens) > available_final_tokens:
+            memory = self.model.detokenize(memory_tokens[:available_final_tokens])
+        
+        # Generate final summary
+        final_prompt = final_prompt_template.format(memory=memory)
+        return self.fast_gen(final_prompt, callback=callback)
 
     def summarize_text(
                         self,
@@ -3674,6 +3769,22 @@ class APScript(StateMachine):
                                     ]),
                                     max_generation_size=max_generation_size, callback=self.sink)
         return translated
+    def sequential_summarize(self, text: Any, summary_context: str = "", format: str = "bullet points", tone: str = "neutral", ctx_size: int = 4096, callback = None):
+        """
+        Summarizes a long text sequentially by processing chunks and maintaining a memory.
+        
+        Args:
+            text (str): The input text to summarize.
+            summary_context (str): Optional context to guide the summarization.
+            format (str): Desired format for the final summary (e.g., "bullet points").
+            tone (str): Desired tone for the final summary (e.g., "neutral").
+            ctx_size (int): Total context window size of the model.
+        
+        Returns:
+            str: The final formatted summary.
+        """
+        return self.personality.sequential_summarize(text, summary_context, format, tone, ctx_size, callback=callback)
+    
 
     def summarize_text(
                         self,
@@ -3703,7 +3814,6 @@ class APScript(StateMachine):
                                             callback, 
                                             chunk_summary_post_processing=chunk_summary_post_processing,
                                             summary_mode=summary_mode)
-            tk = self.personality.model.tokenize(text)
             tk = self.personality.model.tokenize(text)
             dtk_ln=prev_len-len(tk)
             prev_len = len(tk)
@@ -4212,7 +4322,7 @@ transition-all duration-300 ease-in-out">
         if callback:
             callback([{"title":title, "content":json.dumps(json_infos, indent=indent)}], MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_JSON_INFOS)
 
-    def ui(self, html_ui:str, callback: Callable[[str | list | None, MSG_OPERATION_TYPE, str, Any | None], bool]|None=None):
+    def set_message_html(self, html_ui:str, callback: Callable[[str | list | None, MSG_OPERATION_TYPE, str, Any | None], bool]|None=None):
         """This sends ui elements to front end
 
         Args:
