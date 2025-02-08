@@ -511,7 +511,7 @@ class AIPersonality:
         
         try:
             parsed_response = json.loads(response)
-            answer = parsed_response.get("answer", "no").lower()
+            answer = parsed_response.get("answer", False)
             explanation = parsed_response.get("explanation", "")
             
             if return_explanation:
