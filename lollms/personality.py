@@ -489,18 +489,18 @@ class AIPersonality:
                 - If return_explanation is False, returns a boolean (True for 'yes', False for 'no').
                 - If return_explanation is True, returns a dictionary with the answer and explanation.
         """
-        prompt = f"{conditionning}\nQuestion: {question}\nContext: {context}\nAnswer strictly with 'yes' or 'no'. If explanation is needed, provide it in a separate field."
+        prompt = f"{conditionning}\nQuestion: {question}\nContext: {context}\n"
         
         template = """
         {
-            "answer": "yes" | "no",
+            "answer": true | false,
             "explanation": "Optional explanation if return_explanation is True"
         }
         """
         
         response = self.generate_code(
             prompt=prompt,
-            template=template if return_explanation else None,
+            template=template,
             language="json",
             code_tag_format="markdown",
             max_size=max_answer_length,
@@ -515,9 +515,9 @@ class AIPersonality:
             explanation = parsed_response.get("explanation", "")
             
             if return_explanation:
-                return {"answer": answer == "yes", "explanation": explanation}
+                return {"answer": answer, "explanation": explanation}
             else:
-                return answer == "yes"
+                return answer
         except json.JSONDecodeError:
             return False
 
