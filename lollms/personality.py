@@ -4760,7 +4760,15 @@ transition-all duration-300 ease-in-out">
         """
         return self.personality.yes_no(question, context, max_answer_length, conditionning=conditionning, return_explanation=return_explanation, callback=callback)
 
-    def multichoice_question(self, question: str, possible_answers:list, context:str = "", max_answer_length: int = 1024, conditionning="", return_justification=False) -> int:
+    def multichoice_questionmultichoice_question(
+            self, 
+            question: str, 
+            possible_answers: list, 
+            context: str = "", 
+            max_answer_length: int = None, 
+            conditionning: str = "", 
+            return_explanation: bool = False
+        ) -> dict:
         """
         Interprets a multi-choice question from a users response. This function expects only one choice as true. All other choices are considered false. If none are correct, returns -1.
 
@@ -4773,7 +4781,7 @@ transition-all duration-300 ease-in-out">
         Returns:
             int: Index of the selected option within the possible_ansers list. Or -1 if there was not match found among any of them.
         """
-        return self.personality.multichoice_question(question, possible_answers, context, max_answer_length, conditionning, return_justification)
+        return self.personality.multichoice_question(question, possible_answers, context, max_answer_length, conditionning, return_explanation)
 
     def multichoice_ranking(self, question: str, possible_answers:list, context:str = "", max_answer_length: int = 50, conditionning="") -> int:
         """
