@@ -465,135 +465,167 @@ class AIPersonality:
     def sink(self, s=None,i=None,d=None):
         pass
 
-    def yes_no(self, question: str, context:str="", max_answer_length: int = 50, conditionning="") -> bool:
+    def yes_no(
+            self,
+            question: str,
+            context: str = "",
+            max_answer_length: int = None,
+            conditionning: str = "",
+            return_explanation: bool = False,
+            callback = None
+        ) -> bool | dict:
         """
-        Analyzes the user prompt and answers whether it is asking to generate an image.
+        Answers a yes/no question.
 
         Args:
-            question (str): The user's message.
-            max_answer_length (int, optional): The maximum length of the generated answer. Defaults to 50.
-            conditionning: An optional system message to put at the beginning of the prompt
-        Returns:
-            bool: True if the user prompt is asking to generate an image, False otherwise.
-        """
-        return self.multichoice_question(question, ["no","yes"], context, max_answer_length, conditionning=conditionning)>0
-
-
-    def multichoice_question(self, question: str, possible_answers:list, context:str = "", max_answer_length: int = None, conditionning="", return_explanation=False) -> int:
-        """
-        Interprets a multi-choice question from a users response. This function expects only one choice as true. All other choices are considered false. If none are correct, returns -1.
-
-        Args:
-            question (str): The multi-choice question posed by the user.
-            possible_ansers (List[Any]): A list containing all valid options for the chosen value. For each item in the list, either 'True', 'False', None or another callable should be passed which will serve as the truth test function when checking against the actual user input.
-            max_answer_length (int, optional): Maximum string length allowed while interpreting the users' responses. Defaults to 50.
-            conditionning: An optional system message to put at the beginning of the prompt
+            question (str): The yes/no question to answer.
+            context (str, optional): Additional context to provide for the question.
+            max_answer_length (int, optional): Maximum string length allowed for the response. Defaults to None.
+            conditionning (str, optional): An optional system message to put at the beginning of the prompt.
+            return_explanation (bool, optional): If True, returns a dictionary with the answer and explanation. Defaults to False.
 
         Returns:
-            int: Index of the selected option within the possible_ansers list. Or -1 if there was not match found among any of them.
+            bool or dict: 
+                - If return_explanation is False, returns a boolean (True for 'yes', False for 'no').
+                - If return_explanation is True, returns a dictionary with the answer and explanation.
         """
-        choices = "\n".join([f"{i}. {possible_answer}" for i, possible_answer in enumerate(possible_answers)])
-        elements = [conditionning] if conditionning!="" else []
-        if context!="":
-            elements+=[
-                        self.system_custom_header("context"),
-                        f"{context}",
-                    ]
-        elements += [
-                "Answer this multi choices question about the context:\n",
-        ]
-        elements += [
-                self.system_custom_header("question"),
-                question,
-                self.system_custom_header("possible answers"),
-                f"{choices}",
-        ]
-        prompt = self.build_prompt(elements)
-        code = self.generate_code(
-                                    prompt, 
-                                    self.image_files,"""{
-    "choice_index": [an int representing the index of the choice made]
-    "justification": "[Justify the choice]",
-}""",
-                                    max_size= max_answer_length, 
-                                    temperature=0.1,
-                                    top_k=50,
-                                    top_p=0.9,
-                                    repeat_penalty=1.0,
-                                    repeat_last_n=50,
-                                    callback=self.sink,
-                                    accept_all_if_no_code_tags_is_present=True
-                                )
+        prompt = f"{conditionning}\nQuestion: {question}\nContext: {context}\nAnswer strictly with 'yes' or 'no'. If explanation is needed, provide it in a separate field."
+        
+        template = """
+        {
+            "answer": "yes" | "no",
+            "explanation": "Optional explanation if return_explanation is True"
+        }
+        """
+        
+        response = self.generate_code(
+            prompt=prompt,
+            template=template if return_explanation else None,
+            language="json",
+            code_tag_format="markdown",
+            max_size=max_answer_length,
+            include_code_directives=True,
+            accept_all_if_no_code_tags_is_present=True,
+            callback=callback
+        )
+        
         try:
-            if len(code)>0:
-                json_code = json.loads(code)
-                selection = json_code["choice_index"]
-                self.print_prompt("Multi choice selection",prompt+"\n!@>assistant:\n"+code)
-                try:
-                    if return_explanation:
-                        return int(selection), json_code["justification"]
-                    else:
-                        return int(selection)
-                except:
-                    ASCIIColors.cyan("Model failed to answer the question")
-                    return -1
-            else:
-                return -1
-        except Exception as ex:
-            trace_exception(ex)
+            parsed_response = json.loads(response)
+            answer = parsed_response.get("answer", "no").lower()
+            explanation = parsed_response.get("explanation", "")
+            
             if return_explanation:
-                return -1, ""
+                return {"answer": answer == "yes", "explanation": explanation}
             else:
-                return -1
-    def multichoice_ranking(self, question: str, possible_answers:list, context:str = "", max_answer_length: int = 50, conditionning="") -> int:
+                return answer == "yes"
+        except json.JSONDecodeError:
+            return False
+
+    def multichoice_question(
+            self, 
+            question: str, 
+            possible_answers: list, 
+            context: str = "", 
+            max_answer_length: int = None, 
+            conditionning: str = "", 
+            return_explanation: bool = False
+        ) -> dict:
         """
-        Ranks answers for a question from best to worst. returns a list of integers
+        Interprets a multi-choice question from a user's response. This function expects only one choice as true. 
+        All other choices are considered false. If none are correct, returns -1.
 
         Args:
             question (str): The multi-choice question posed by the user.
-            possible_ansers (List[Any]): A list containing all valid options for the chosen value. For each item in the list, either 'True', 'False', None or another callable should be passed which will serve as the truth test function when checking against the actual user input.
-            max_answer_length (int, optional): Maximum string length allowed while interpreting the users' responses. Defaults to 50.
-            conditionning: An optional system message to put at the beginning of the prompt
+            possible_answers (List[Any]): A list containing all valid options for the chosen value.
+            context (str, optional): Additional context to provide for the question.
+            max_answer_length (int, optional): Maximum string length allowed while interpreting the user's responses. Defaults to None.
+            conditionning (str, optional): An optional system message to put at the beginning of the prompt.
+            return_explanation (bool, optional): If True, returns a dictionary with the choice and explanation. Defaults to False.
 
         Returns:
-            int: Index of the selected option within the possible_ansers list. Or -1 if there was not match found among any of them.
+            dict: 
+                - If return_explanation is False, returns a JSON object with only the selected choice index.
+                - If return_explanation is True, returns a JSON object with the selected choice index and an explanation.
+                - Returns {"index": -1} if no match is found among the possible answers.
         """
-        start_header_id_template    = self.config.start_header_id_template
-        end_header_id_template      = self.config.end_header_id_template
-        system_message_template     = self.config.system_message_template
-
-        choices = "\n".join([f"{i}. {possible_answer}" for i, possible_answer in enumerate(possible_answers)])
-        elements = [conditionning] if conditionning!="" else []
-        elements += [
-                f"{start_header_id_template}{system_message_template}{end_header_id_template}",
-                "Answer this multi choices question.",
-                "Answer with an id from the possible answers.",
-                "Do not answer with an id outside this possible answers.",
-                f"{start_header_id_template}{end_header_id_template}{question}",
-                f"{start_header_id_template}possible answers{end_header_id_template}",
-                f"{choices}",
-        ]
-        if context!="":
-            elements+=[
-                       f"{start_header_id_template}context{end_header_id_template}",
-                        f"{context}",
-                    ]
-
-        elements += [f"{start_header_id_template}answer{end_header_id_template}"]
-        prompt = self.build_prompt(elements)
-
-        gen = self.generate(prompt, max_answer_length, temperature=0.1, top_k=50, top_p=0.9, repeat_penalty=1.0, repeat_last_n=50).strip().replace("</s>","").replace("<s>","")
-        self.print_prompt("Multi choice ranking",prompt+gen)
-        if gen.index("]")>=0:
-            try:
-                ranks = eval(gen.split("]")[0]+"]")
-                return ranks
-            except:
-                ASCIIColors.red("Model failed to rank inputs")
-                return None
+        
+        prompt = f"""
+        {conditionning}\n
+        QUESTION:\n{question}\n
+        POSSIBLE ANSWERS:\n"""
+        for i, answer in enumerate(possible_answers):
+            prompt += f"{i}. {answer}\n"
+        
+        if context:
+            prompt += f"\nADDITIONAL CONTEXT:\n{context}\n"
+        
+        prompt += "\nRespond with a JSON object containing:\n"
+        if return_explanation:
+            prompt += "{\"index\": (the selected answer index), \"explanation\": (reasoning for selection)}"
         else:
-            ASCIIColors.red("Model failed to rank inputs")
-            return None
+            prompt += "{\"index\": (the selected answer index)}"
+        
+        response = self.generate_code(prompt, language="json", max_size=max_answer_length, 
+            accept_all_if_no_code_tags_is_present=True, return_full_generated_code=False)
+        
+        try:
+            result = json.loads(response)
+            if "index" in result and isinstance(result["index"], int):
+                return result
+        except json.JSONDecodeError:
+            return {"index": -1}
+            
+    def multichoice_ranking(
+            self, 
+            question: str, 
+            possible_answers: list, 
+            context: str = "", 
+            max_answer_length: int = 50, 
+            conditionning: str = "", 
+            return_explanation: bool = False
+        ) -> dict:
+        """
+        Ranks answers for a question from best to worst. Returns a JSON object containing the ranked order.
+
+        Args:
+            question (str): The question for which the answers are being ranked.
+            possible_answers (List[Any]): A list of possible answers to rank.
+            context (str, optional): Additional context to provide for the question.
+            max_answer_length (int, optional): Maximum string length allowed for the response. Defaults to 50.
+            conditionning (str, optional): An optional system message to put at the beginning of the prompt.
+            return_explanation (bool, optional): If True, returns a dictionary with the ranked order and explanations. Defaults to False.
+
+        Returns:
+            dict: 
+                - If return_explanation is False, returns a JSON object with only the ranked order.
+                - If return_explanation is True, returns a JSON object with the ranked order and explanations.
+        """
+        
+        prompt = f"""
+        {conditionning}\n
+        QUESTION:\n{question}\n
+        POSSIBLE ANSWERS:\n"""
+        for i, answer in enumerate(possible_answers):
+            prompt += f"{i}. {answer}\n"
+        
+        if context:
+            prompt += f"\nADDITIONAL CONTEXT:\n{context}\n"
+        
+        prompt += "\nRespond with a JSON object containing:\n"
+        if return_explanation:
+            prompt += "{\"ranking\": (list of indices ordered from best to worst), \"explanations\": (list of reasons for each ranking)}"
+        else:
+            prompt += "{\"ranking\": (list of indices ordered from best to worst)}"
+        
+        response = self.generate_code(prompt, language="json", return_full_generated_code=False)
+        
+        try:
+            result = json.loads(response)
+            if "ranking" in result and isinstance(result["ranking"], list):
+                return result
+        except json.JSONDecodeError:
+            return {"ranking": []}
+
 
     def step_start(self, step_text, callback: Callable[[str | list | None, MSG_OPERATION_TYPE, str, Any | None], bool]=None):
         """This triggers a step start
@@ -894,55 +926,121 @@ Don't forget encapsulate the code inside a html code tag. This is mandatory.
         debug=None, 
         return_full_generated_code=False, 
         accept_all_if_no_code_tags_is_present=False, 
-        max_continues=5
+        max_continues=3,
+        include_code_directives=True  # Make code directives optional
     ):
         if debug is None:
             debug = self.config.debug
             
         response_full = ""
-        code_directives = [
-            "STRICT REQUIREMENTS:",
-            "1. Respond ONLY with a SINGLE code block containing the complete implementation",
-            "2. ABSOLUTELY NO explanatory text, comments, or text outside code blocks",
-            "3. Code MUST be syntactically correct and properly formatted",
-            "4. For structured formats (JSON/YAML/XML):",
-            "   a. Maintain EXACT key names and hierarchy from template",
-            "   b. Preserve all required fields even if empty",
-            "5. If unsure about values, use appropriate placeholders",
-            "6. NEVER split code across multiple blocks",
-            "7. ALWAYS close code blocks properly"
-        ]
+        
+        # Determine if structured format
+        structured = language.lower() in {'json', 'yaml', 'xml'}
+        lang = language.lower()
 
-        full_prompt = f"""{self.system_full_header}You are a PRECISION code generation system. 
-    Your responses MUST follow these rules:
-    {os.linesep.join(code_directives)}
+        # Build core directives (optional)
+        code_directives = []
+        if include_code_directives:
+            code_directives.extend([
+                "STRICT REQUIREMENTS:",
+                "1. Respond ONLY with a SINGLE code block containing the complete implementation",
+                "2. ABSOLUTELY NO explanatory text, comments, or text outside code blocks",
+                "3. Code MUST be syntactically correct and properly formatted",
+            ])
 
-    {self.user_full_header}
-    {prompt}
-    """
+            # Add structured format rules if applicable
+            if structured:
+                code_directives.extend([
+                    f"4. For {language.upper()} format:",
+                    "   a. Maintain EXACT key names and hierarchy from template",
+                    "   b. Preserve all required fields even if empty",
+                ])
+                next_num = 5
+            else:
+                next_num = 4
+
+            # Add remaining core directives
+            code_directives.extend([
+                f"{next_num}. If unsure about values, use appropriate placeholders",
+                f"{next_num+1}. NEVER split code across multiple blocks",
+                f"{next_num+2}. ALWAYS close code blocks properly"
+            ])
+
+            # Add language-specific best practices
+            if lang == 'python':
+                code_directives.extend([
+                    "\nPYTHON-SPECIFIC RULES:",
+                    "- Follow PEP8 style guidelines",
+                    "- Use type hints for function signatures",
+                    "- Include docstrings for public functions/classes/modules",
+                    "- Prefer f-strings over format() or % formatting",
+                    "- Handle exceptions properly with try/except blocks",
+                    "- Avoid global variables where possible",
+                    "- Use list comprehensions where appropriate"
+                ])
+            elif lang == 'c':
+                code_directives.extend([
+                    "\nC-SPECIFIC RULES:",
+                    "- Use standard C library functions where possible",
+                    "- Check for NULL pointers after allocation",
+                    "- Free dynamically allocated memory appropriately",
+                    "- Use const qualifiers for constants",
+                    "- Include necessary header guards (#ifndef/#define)",
+                    "- Document function purposes using comments",
+                    "- Validate all input parameters"
+                ])
+            elif lang == 'cpp':
+                code_directives.extend([
+                    "\nC++-SPECIFIC RULES:",
+                    "- Follow RAII (Resource Acquisition Is Initialization) principles",
+                    "- Use smart pointers (unique_ptr, shared_ptr) instead of raw pointers",
+                    "- Prefer standard library containers (vector, map) over raw arrays",
+                    "- Use const references for large object parameters",
+                    "- Mark functions as noexcept where appropriate",
+                    "- Use namespaces appropriately",
+                    "- Follow the rule of five/zero for class design"
+                ])
+
+        # Construct the full prompt
+        full_prompt_parts = [self.system_full_header]
+        if include_code_directives:
+            full_prompt_parts.extend([
+                "You are a PRECISION code generation system.",
+                "Your responses MUST follow these rules:",
+                "\n".join(code_directives),
+                ""
+            ])
+        
+        full_prompt_parts.extend([
+            prompt,
+            ""
+        ])
 
         if template:
-            full_prompt += "\nTEMPLATE STRUCTURE (FOLLOW EXACTLY):\n"
-            if code_tag_format == "markdown":
-                full_prompt += f"""```{language}
-    {template}
-    ```"""
-            elif code_tag_format == "html":
-                full_prompt += f"""<code language="{language}">
-    {template}
-    </code>"""
+            full_prompt_parts.extend([
+                "TEMPLATE STRUCTURE (FOLLOW EXACTLY):",
+                f"```{language}\n{template}\n```" if code_tag_format == "markdown" else f"<code language='{language}'>\n{template}\n</code>",
+                ""
+            ])
 
-            full_prompt += f"\n\nIMPERATIVE: Match structure PRECISELY. Use EXACT keys/attributes from template."
+            if structured:
+                full_prompt_parts.append(f"IMPERATIVE: Match {language.upper()} structure PRECISELY. Use EXACT keys/attributes from template.")
+            else:
+                full_prompt_parts.append("IMPERATIVE: Follow code structure patterns from template.")
 
-        code_wrapper = (
-            f"\n\nRespond STRICTLY in this format:\n```{language}\n{{code}}\n```" 
-            if code_tag_format == "markdown" else
-            f"\n\nRespond STRICTLY in this format:\n<code language='{language}'>\n{{code}}\n</code>"
-        )
+        # Add code wrapper based on the specified format
+        if code_tag_format == "markdown":
+            code_wrapper = f"Respond STRICTLY in this format:\n```{language}\n{{write the code here}}\n```\n"
+        elif code_tag_format == "html":
+            code_wrapper = f"Respond STRICTLY in this format:\n<code language='{language}'>\n{{write the code here}}\n</code>\n"
         
-        full_prompt += code_wrapper
-        full_prompt += f"\n{self.ai_full_header}"
+        full_prompt_parts.extend([
+            code_wrapper,
+            self.ai_custom_header("assistant")
+        ])
 
+        full_prompt = "\n".join(full_prompt_parts)
+        full_prompt = full_prompt.strip()
         if debug:
             ASCIIColors.yellow("Prompt")
             ASCIIColors.yellow(full_prompt)
@@ -960,8 +1058,7 @@ Don't forget encapsulate the code inside a html code tag. This is mandatory.
         if debug:
             ASCIIColors.green("Initial Response")
             ASCIIColors.green(response_full)
-
-        # Extract code blocks
+            
         codes = self.extract_code_blocks(response)
         if len(codes) == 0 and accept_all_if_no_code_tags_is_present:
             if return_full_generated_code:
@@ -969,57 +1066,89 @@ Don't forget encapsulate the code inside a html code tag. This is mandatory.
             else:
                 return response
 
+        code = None
+        is_complete = False
         if len(codes) > 0:
-            if not codes[-1]["is_complete"]:
-                code = "\n".join(codes[-1]["content"].split("\n")[:-1])
-                nb_continues = 0
+            code_info = codes[-1]
+            code = code_info["content"]
+            is_complete = code_info["is_complete"]
+            current_code = code
+        else:
+            code = None
+            current_code = ""
 
-                # Enhanced continuation logic
-                while not codes[-1]["is_complete"] and nb_continues < max_continues:
-                    last_line = code.split("\n")[-1]
-                    continuation_prompt = (
-                        f"{self.user_full_header} Continue EXACTLY from this point "
-                        f"(LAST LINE):\n{last_line}\n\n"
-                        "INSTRUCTIONS:\n"
-                        "1. Continue from line above WITHOUT repetition\n"
-                        "2. Maintain code structure integrity\n"
-                        "3. Ensure proper indentation\n"
-                        "4. Close open structures if needed\n"
-                        f"{self.ai_full_header}"
-                    )
+        # Continuation loop for incomplete code
+        continues = 0
+        while not is_complete and continues < max_continues and code is not None:
+            continues += 1
+            if debug:
+                ASCIIColors.yellow(f"Attempting continuation {continues}/{max_continues}")
 
-                    response = self.generate(
-                        full_prompt + continuation_prompt,
-                        max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug
-                    )
-                    response_full += response
-                    codes = self.extract_code_blocks(response)
+            # Prepare continuation prompt
+            continuation_prompt = (
+                f"The previous {language} code generation was interrupted. Continue EXACTLY from the last line below.\n"
+                f"Follow all original directives. Respond ONLY with a SINGLE code block continuing from this point:\n"
+                f"```{language}\n"
+                f"{current_code.strip()}\n"  # Show current code to continue from
+                f"```\n"
+                f"Important: Do NOT repeat any previous code. Start your response with the code block."
+            )
 
-                    if len(codes) == 0:
-                        break
-                    else:
-                        if not codes[-1]["is_complete"]:
-                            code += "\n" + "\n".join(codes[-1]["content"].split("\n")[:-1])
-                        else:
-                            code += "\n" + "\n".join(codes[-1]["content"].split("\n"))
-                    nb_continues += 1
+            # Generate continuation
+            if len(images) > 0:
+                cont_response = self.generate_with_images(continuation_prompt, images, max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug)
             else:
-                code = codes[-1]["content"]
+                cont_response = self.generate(continuation_prompt, max_size, temperature, top_k, top_p, repeat_penalty, repeat_last_n, callback, debug=debug)
+            
+            response_full += cont_response
+
+            # Extract continuation code
+            cont_codes = self.extract_code_blocks(cont_response)
+            if len(cont_codes) == 0:
+                if debug:
+                    ASCIIColors.red("No code found in continuation response")
+                break
+
+            cont_code_info = cont_codes[-1]
+            cont_code = cont_code_info["content"]
+            cont_is_complete = cont_code_info["is_complete"]
+
+            # Remove overlapping lines from continuation
+            current_lines = current_code.split('\n')
+            cont_lines = cont_code.split('\n')
+            
+            # Find maximum overlap
+            overlap = 0
+            max_check = min(len(current_lines), len(cont_lines))
+            for i in range(1, max_check + 1):
+                if current_lines[-i:] == cont_lines[:i]:
+                    overlap = i
+
+            # Merge codes
+            if overlap > 0:
+                merged_code = '\n'.join(current_lines) + '\n' + '\n'.join(cont_lines[overlap:])
+            else:
+                merged_code = current_code + '\n' + cont_code
+
+            current_code = merged_code.strip('\n')
+            is_complete = cont_is_complete
 
             if debug:
-                ASCIIColors.green("Response Validation")
-                ASCIIColors.cyan(f"Extracted {len(codes)} code blocks")
-                ASCIIColors.cyan(f"Final code length: {len(code)} characters")
+                ASCIIColors.cyan(f"Continuation {continues} result:")
+                ASCIIColors.cyan(current_code)
+                ASCIIColors.cyan(f"Code complete: {is_complete}")
 
-            if return_full_generated_code:
-                return code, response_full
-            else:
-                return code
+        # Final code validation
+        if code is not None:
+            code = current_code
+            if debug:
+                ASCIIColors.green("Final generated code:")
+                ASCIIColors.green(code)
+
+        if return_full_generated_code:
+            return code, response_full
         else:
-            if return_full_generated_code:
-                return None, None
-            else:
-                return None
+            return code
 
 
     def generate_text(
@@ -1113,84 +1242,40 @@ Don't forget encapsulate the code inside a html code tag. This is mandatory.
         else:
             return None
 
-    def generate_structured_content(self, 
-                                prompt,
-                                images = [],
-                                template = {}, 
-                                single_shot=False, 
-                                output_format="json"):
-        """
-        Generate structured content (YAML/JSON) either in single-shot or step-by-step mode.
-        
-        Args:
-            prompt (str): The main prompt describing what to generate
-            template (dict): Dictionary containing the structure and field-specific prompts
-            single_shot (bool): If True, generates all content at once. If False, generates field by field
-            output_format (str): "yaml" or "json"
-        
-        Returns:
-            dict: Contains both the structured data and formatted string
-        """
-        
-        # Initialize the output dictionary with default values
-        output_data = {}
-        for field, field_info in template.items():
-            output_data[field] = field_info.get("default", "")
-        
-        if single_shot:
-            # Generate all content at once for powerful LLMs
-            full_prompt = f"""Generate {output_format} content for: {prompt}
-"""
-            if self.config.debug and not self.processor:
-                ASCIIColors.highlight(full_prompt,"source_document_title", ASCIIColors.color_yellow, ASCIIColors.color_red, False)
+    def generate_structured_content(
+            self, 
+            prompt,
+            images=[],
+            template=None, 
+            single_shot=False, 
+            output_format="json",
+            callback=None
+        ):
+            """
+            Generates structured content (e.g., JSON, YAML, XML) based on a prompt and template.
 
-            if output_format=="yaml":
-                output_data = yaml.dumps(output_data)
+            Args:
+                prompt (str): The input prompt describing the desired content.
+                images (list, optional): List of images to include in the generation process.
+                template (dict, optional): A template defining the structure of the output.
+                single_shot (bool, optional): If True, generates content in a single attempt without continuations.
+                output_format (str, optional): The format of the structured content (e.g., "json", "yaml", "xml").
 
-            code = self.generate_code(full_prompt, images, output_data, output_format, callback=self.sink, accept_all_if_no_code_tags_is_present=True)
-            # Parse the response based on format
-            if output_format == "yaml":
-                try:
-                    output_data = yaml.safe_load(code)
-                except yaml.YAMLError:
-                    # If parsing fails, fall back to step-by-step
-                    single_shot = False
-            elif output_format == "json":
-                try:
-                    output_data = json.loads(code)
-                except json.JSONDecodeError:
-                    # If parsing fails, fall back to step-by-step
-                    single_shot = False
-        
-        if not single_shot:
-            # Generate each field individually
-            for field, field_info in template.items():
-                if "prompt" in field_info:
-                    field_prompt = field_info["prompt"].format(main_prompt=prompt)
-                    code = self.generate_code(field_prompt,  images, output_data, callback=self.sink, accept_all_if_no_code_tags_is_present=True )
-                    # Apply any field-specific processing
-                    if "processor" in field_info:
-                        cleaned_response = field_info["processor"](code)
-                    output_data[field] = cleaned_response
-        
-        # Format the output string
-        if output_format == "yaml":
-            formatted_string = ""
-            for key, value in output_data.items():
-                if isinstance(value, str) and ("\n" in value or len(value) > 40):
-                    v = value.replace('\n', '\n    ')
-                    formatted_string += f"{key}: |\n    {v}\n"
-                else:
-                    formatted_string += f"{key}: {value}\n"
-        else:  # json
-            formatted_string = json.dumps(output_data, indent=2)
-        
-        return {
-            "data": output_data,
-            "formatted_string": formatted_string
-        }
-
-
+            Returns:
+                dict: A dictionary containing:
+                    - "data": The parsed structured content (e.g., dict, list).
+                    - "formatted_string": The formatted string representation of the content.
+            """
+            return    self.generate_code(
+                        prompt, 
+                        images=images,
+                        template=template,
+                        language=output_format,
+                        code_tag_format="markdown",  # or "html"
+                        debug=None,
+                        callback=callback
+                    )
+    
     def extract_thinking_blocks(self, text: str) -> List[str]:
         """
         Extracts content between <thinking> or <think> tags from a given text.
@@ -3424,11 +3509,12 @@ class APScript(StateMachine):
                     )     
 
     def generate_structured_content(self, 
-                                prompt, 
-                                template, 
+                                prompt,
+                                images=[],
+                                template=None, 
                                 single_shot=False,
-                                notify = False,
-                                output_format="yaml"):
+                                output_format="yaml",
+                                callback=None):
         """
         Generate structured content (YAML/JSON) either in single-shot or step-by-step mode.
         
@@ -3441,79 +3527,8 @@ class APScript(StateMachine):
         Returns:
             dict: Contains both the structured data and formatted string
         """
-        
-        # Initialize the output dictionary with default values
-        output_data = {}
-        for field, field_info in template.items():
-            output_data[field] = field_info.get("default", f'[{field_info.get(f"prompt","")}]')
-            if output_data[field] == '':
-                output_data[field] = f'[{field_info.get(f"prompt","")}]'
-        
-        if single_shot:
-            # Generate all content at once for powerful LLMs
-            full_prompt = f"Generate {output_format.lower()} content for: {prompt}"
-            if output_format=="yaml":
-                template = f"""{yaml.dump(output_data, default_flow_style=False)}
-"""
-            elif output_format=="json":
-                template = f"""{json.dumps(output_data)}
-"""
-            if self.config.debug:
-                ASCIIColors.green(full_prompt)
-            if self.config.debug and not self.personality.processor:
-                ASCIIColors.highlight(full_prompt,"source_document_title", ASCIIColors.color_yellow, ASCIIColors.color_red, False)
+        return self.personality.generate_structured_content(prompt, images, template, single_shot, output_format, callback)
 
-            code = self.generate_code(full_prompt, self.personality.image_files, template, language=output_format, callback=self.sink, accept_all_if_no_code_tags_is_present=True)
-            # Parse the response based on format
-            if output_format == "yaml":
-                try:
-                    output_data = yaml.safe_load(code)
-                except yaml.YAMLError:
-                    # If parsing fails, fall back to step-by-step
-                    single_shot = False
-            elif output_format == "json":
-                try:
-                    output_data = json.loads(code)
-                except json.JSONDecodeError:
-                    # If parsing fails, fall back to step-by-step
-                    single_shot = False
-        
-        else:
-            # Generate each field individually
-            for field, field_info in template.items():
-                if notify:
-                    self.step_start(f"Building {field}")
-                if "prompt" in field_info:
-                    field_prompt = prompt+"\n"+"field to generate: "+field+"\n"
-                    template = f"""{{
-"{field}": [{field_info["prompt"]}]
-}}"""
-                    code = self.generate_code(field_prompt, self.personality.image_files, template, "json", callback=self.sink, accept_all_if_no_code_tags_is_present=True )
-                    # Clean up the response
-                    cleaned_response = json.loads(code)[field]
-                    # Apply any field-specific processing
-                    if "processor" in field_info:
-                        cleaned_response = field_info["processor"](cleaned_response)
-                    output_data[field] = cleaned_response
-                if notify:
-                    self.step_end(f"Building {field}")
-        
-        # Format the output string
-        if output_format == "yaml":
-            formatted_string = ""
-            for key, value in output_data.items():
-                if isinstance(value, str) and ("\n" in value or len(value) > 40):
-                    v = value.replace('\n', '\n    ')
-                    formatted_string += f"{key}: |\n    {v}\n"
-                else:
-                    formatted_string += f"{key}: {value}\n"
-        else:  # json
-            formatted_string = json.dumps(output_data, indent=2)
-        
-        return {
-            "data": output_data,
-            "formatted_string": formatted_string
-        }
             
     def run_workflow(self,  context_details:dict=None, client:Client=None,  callback: Callable[[str | list | None, MSG_OPERATION_TYPE, str, AIPersonality| None], bool]=None):
         """
@@ -4732,7 +4747,7 @@ transition-all duration-300 ease-in-out">
         return module, code
 
 
-    def yes_no(self, question: str, context:str="", max_answer_length: int = 500, conditionning="") -> bool:
+    def yes_no(self, question: str, context:str="", max_answer_length: int = None, conditionning="", return_explanation=False, callback = None) -> bool:
         """
         Analyzes the user prompt and answers whether it is asking to generate an image.
 
@@ -4743,7 +4758,7 @@ transition-all duration-300 ease-in-out">
         Returns:
             bool: True if the user prompt is asking to generate an image, False otherwise.
         """
-        return self.personality.multichoice_question(question, ["no","yes"], context, max_answer_length, conditionning=conditionning)>0
+        return self.personality.yes_no(question, context, max_answer_length, conditionning=conditionning, return_explanation=return_explanation, callback=callback)
 
     def multichoice_question(self, question: str, possible_answers:list, context:str = "", max_answer_length: int = 1024, conditionning="", return_justification=False) -> int:
         """
