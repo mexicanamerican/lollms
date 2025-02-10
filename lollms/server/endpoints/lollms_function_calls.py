@@ -97,6 +97,7 @@ async def list_function_calls():
                             }
                             function_calls.append(function_info)
                     except Exception as e:
+                        trace_exception(e)
                         ASCIIColors.error(f"Error loading function {fn_dir.name}: {e}")
     
     # Process the main functions zoo
