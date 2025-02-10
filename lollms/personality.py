@@ -2836,7 +2836,7 @@ Don't forget encapsulate the code inside a html code tag. This is mandatory.
         
         # Create static prompt template
         static_prompt_template = f"""!@>instruction:
-Update the summary memory by combining previous memory with key information from this text chunk. Focus on aspects relevant to: {summary_context}
+Update the summary memory by combining previous memory with key information from this text chunk. {summary_context if summary_context else ''}
 Keep memory concise using bullet points.
 
 !@>current memory:
