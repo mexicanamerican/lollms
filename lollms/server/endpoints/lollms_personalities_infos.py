@@ -346,6 +346,7 @@ async def reinstall_personality(personality_in: PersonalityIn):
                                         run_scripts=True,installation_option=InstallOption.FORCE_INSTALL)
             return {"status":True}
         except Exception as ex:
+            trace_exception(ex)
             ASCIIColors.error(f"Personality file not found or is corrupted ({personality_in.name}).\nReturned the following exception:{ex}\nPlease verify that the personality you have selected exists or select another personality. Some updates may lead to change in personality name or category, so check the personality selection in settings to be sure.")
             ASCIIColors.info("Trying to force reinstall")
             return {"status":False, 'error':str(e)}
