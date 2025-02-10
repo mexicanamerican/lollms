@@ -18,6 +18,7 @@ safe_store_repo = "https://github.com/ParisNeo/safe_store.git"
 personalities_zoo_repo = "https://github.com/ParisNeo/lollms_personalities_zoo.git"
 bindings_zoo_repo = "https://github.com/ParisNeo/lollms_bindings_zoo.git"
 models_zoo_repo = "https://github.com/ParisNeo/models_zoo.git"
+functions_zoo_repo = "https://github.com/ParisNeo/lollms_functions_zoo.git"
 gptqlora_repo = "https://github.com/ParisNeo/gptqlora.git"
 
 lollms_webui_version = "v17 (codename Pulsar 💫)"
@@ -81,7 +82,7 @@ class LollmsPaths:
         self.personal_ttm_services_path     = self.personal_services_path / "ttm"
 
         self.apps_zoo_path                  = self.personal_path / "apps_zoo"
-        self.functions_zoo_path             = self.personal_path / "functions_zoo"
+        self.custom_functions_zoo_path      = self.personal_path / "functions_zoo"
 
 
 
@@ -106,6 +107,7 @@ class LollmsPaths:
             self.bindings_zoo_path              = rt / "bindings_zoo"
             self.personalities_zoo_path         = rt / "personalities_zoo"
             self.models_zoo_path                = rt / "models_zoo"
+            self.functions_zoo_path             = rt / "functions_zoo"
         else:
             ASCIIColors.orange("local zoos folder not found")
             rt = self.personal_path / "zoos"
@@ -113,6 +115,8 @@ class LollmsPaths:
             self.bindings_zoo_path              = rt / "bindings_zoo"
             self.personalities_zoo_path         = rt / "personalities_zoo"
             self.models_zoo_path                = rt / "models_zoo"
+            self.functions_zoo_path             = rt / "functions_zoo"
+
 
         self.display_splash_screen()
 
@@ -237,7 +241,8 @@ class LollmsPaths:
             "Personal TTM services path": self.personal_ttm_services_path, 
 
             "Applications zoo path": self.apps_zoo_path,
-            "Functions zoo path": self.functions_zoo_path,          
+            "Functions zoo path": self.functions_zoo_path,
+            "Custom Functions zoo path": self.custom_function_calls_path,          
         }
         return "\n".join([f"{category}: {path}" for category, path in directories.items()])
 
@@ -268,7 +273,7 @@ class LollmsPaths:
         self.custom_voices_path.mkdir(parents=True, exist_ok=True)
 
         self.apps_zoo_path.mkdir(parents=True, exist_ok=True)
-        self.functions_zoo_path.mkdir(parents=True, exist_ok=True)
+        self.custom_functions_zoo_path.mkdir(parents=True, exist_ok=True)
 
         
         if not self.bindings_zoo_path.exists():
@@ -286,6 +291,10 @@ class LollmsPaths:
             ASCIIColors.info("No models found in your personal space.\nCloning the models zoo")
             subprocess.run(["git", "clone", models_zoo_repo, self.models_zoo_path])
 
+        if not self.functions_zoo_path.exists():
+            # Clone the repository to the target path
+            ASCIIColors.info("No functions found in your personal space.\nCloning the functions zoo")
+            subprocess.run(["git", "clone", functions_zoo_repo, self.functions_zoo_path])
 
 
     def copy_default_config(self):

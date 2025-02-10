@@ -795,6 +795,45 @@ class AIPersonality:
         gen = self.generate(prompt, max_generation_size, temperature = temperature, top_k = top_k, top_p=top_p, repeat_penalty=repeat_penalty, repeat_last_n=repeat_last_n, callback=callback, show_progress=show_progress).strip().replace("</s>", "").replace("<s>", "")
 
         return gen
+    
+
+    def generate_text_with_tag(self, prompt, tag_name="SPECIAL_TAG"):
+        """
+        Generates text using self.fast_gen and wraps it inside a custom tag.
+        
+        :param prompt: The input prompt for text generation.
+        :param tag_name: The name of the tag to wrap the generated text (default is "SPECIAL_TAG").
+        :return: The generated text wrapped inside the specified tag.
+        """
+        # Generate the text using self.fast_gen
+        generated_text = self.fast_gen(self.system_full_header+f"you are a helpful assistant that responds to user requests inside a <{tag_name}></{tag_name}> tag.\nExample:\n{self.user_custom_header('user')}What is the result to one plus one?\n{self.user_custom_header('assistant')}Here is the answer to your question:\n<{tag_name}>\nOne plus one equals to two.\n</{tag_name}>\n"+"\n"+self.separator_template+self.user_custom_header("user")+prompt+"\n"+self.separator_template+self.ai_custom_header("assistant"))
+        return generated_text
+
+    def extract_text_from_tag(self, tagged_text, tag_name="SPECIAL_TAG"):
+        """
+        Extracts the text from a custom tag.
+        
+        :param tagged_text: The text containing the tagged content.
+        :param tag_name: The name of the tag to extract text from (default is "SPECIAL_TAG").
+        :return: The extracted text from the specified tag.
+        """
+        # Define the start and end tags based on the provided tag_name
+        start_tag = f"<{tag_name}>"
+        end_tag = f"</{tag_name}>"
+        
+        # Find the indices of the start and end tags
+        start_index = tagged_text.find(start_tag)
+        end_index = tagged_text.find(end_tag)
+        
+        # If the tags are found, extract the text between them
+        if start_index != -1 and end_index != -1:
+            start_index += len(start_tag)  # Move index to the start of the actual text
+            extracted_text = tagged_text[start_index:end_index]
+        else:
+            extracted_text = ""  # Return empty string if tags are not found
+        
+        return extracted_text
+
 
     def generate_codes(
                         self, 
@@ -1426,13 +1465,17 @@ Don't forget encapsulate the code inside a html code tag. This is mandatory.
 
                     if index + 1 < len(indices):
                         next_pos = indices[index + 1] - code_delimiter_position
-                        if next_pos - 3 < len(sub_text) and sub_text[next_pos - 3] == "`":
-                            block_infos["content"] = sub_text[start_pos:next_pos - 3].strip()
-                            block_infos["is_complete"] = True
-                        else:
-                            block_infos["content"] = sub_text[start_pos:next_pos].strip()
-                            block_infos["is_complete"] = False
-                        
+                        try:
+                            if next_pos - 3 < len(sub_text) and sub_text[next_pos - 3] == "`":
+                                block_infos["content"] = sub_text[start_pos:next_pos - 3].strip()
+                                block_infos["is_complete"] = True
+                            else:
+                                block_infos["content"] = sub_text[start_pos:next_pos].strip()
+                                block_infos["is_complete"] = False
+                        except Exception as ex:
+                            ASCIIColors.error("Trouble extracting code")
+                            ASCIIColors.error(f"next_pos:{next_pos}\nsub_text length:{len(sub_text)}")                        
+                            ASCIIColors.error(f"Trying to access:{next_pos-3}")                        
                         if return_remaining_text:
                             last_end = indices[index + 1] + 3
                     else:
@@ -2768,7 +2811,7 @@ Don't forget encapsulate the code inside a html code tag. This is mandatory.
         return translated
     
 
-    def sequential_summarize(self, text, summary_context="", format="bullet points", tone="neutral", ctx_size=4096, callback = None):
+    def sequential_summarize(self, text, summary_context="", task="Create final summary using this memory.", format="bullet points", tone="neutral", ctx_size=4096, callback = None):
         """
         Summarizes a long text sequentially by processing chunks and maintaining a memory.
         
@@ -2832,7 +2875,7 @@ Keep memory concise using bullet points.
         
         # Prepare final summary prompt
         final_prompt_template = f"""!@>instruction:
-Create final summary using this memory. Follow these requirements:
+{task}. Follow these requirements:
 Format: {format}
 Tone: {tone}
 
@@ -2843,7 +2886,7 @@ Tone: {tone}
 """
         
         # Truncate memory if needed for final prompt
-        example_final_prompt = final_prompt_template.format(memory="")
+        example_final_prompt = final_prompt_template.format(memory=memory)
         final_static_tokens = len(self.model.tokenize(example_final_prompt))
         available_final_tokens = ctx_size - final_static_tokens
         
@@ -5137,6 +5180,29 @@ transition-all duration-300 ease-in-out">
         - str: The generated text after removing special tokens ("<s>" and "</s>") and stripping any leading/trailing whitespace.
         """
         return self.personality.fast_gen(prompt=prompt,max_generation_size=max_generation_size,placeholders=placeholders, sacrifice=sacrifice, debug=debug, callback=callback, show_progress=show_progress)
+
+
+
+
+    def generate_text_with_tag(self, prompt, tag_name="SPECIAL_TAG"):
+        """
+        Generates text using self.fast_gen and wraps it inside a custom tag.
+        
+        :param prompt: The input prompt for text generation.
+        :param tag_name: The name of the tag to wrap the generated text (default is "SPECIAL_TAG").
+        :return: The generated text wrapped inside the specified tag.
+        """
+        return self.personality.generate_text_with_tag(prompt, tag_name)
+
+    def extract_text_from_tag(self, tagged_text, tag_name="SPECIAL_TAG"):
+        """
+        Extracts the text from a custom tag.
+        
+        :param tagged_text: The text containing the tagged content.
+        :param tag_name: The name of the tag to extract text from (default is "SPECIAL_TAG").
+        :return: The extracted text from the specified tag.
+        """
+        return self.personality.extract_text_from_tag(tagged_text, tag_name)
 
     def mix_it_up(self, prompt: str, models, master_model, nb_rounds=2, max_generation_size: int= None, placeholders: dict = {}, sacrifice: list = ["previous_discussion"], debug: bool = False, callback=None, show_progress=False) -> dict:
         """

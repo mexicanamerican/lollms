@@ -40,34 +40,73 @@ lollmsElfServer = LOLLMSElfServer.get_instance()
 
 # ----------------------------------- Endpoints -----------------------------------------
 
+from datetime import datetime
+from pathlib import Path
 
 @router.get("/list_function_calls")
 async def list_function_calls():
-    """List all available function calls in the functions zoo"""
-    functions_zoo_path = lollmsElfServer.paths.functions_zoo_path
+    """List all available function calls in the functions zoo and custom functions zoo"""
+    functions_zoo_path = lollmsElfServer.lollms_paths.functions_zoo_path
+    custom_functions_zoo_path = lollmsElfServer.lollms_paths.custom_functions_zoo_path
     function_calls = []
     
-    for fn_dir in functions_zoo_path.iterdir():
-        if fn_dir.is_dir():
-            yaml_file = fn_dir / "config.yaml"
-            py_file = fn_dir / "function.py"
-            
-            if yaml_file.exists() and py_file.exists():
-                try:
-                    with open(yaml_file, "r") as f:
-                        config = yaml.safe_load(f)
-                        function_info = {
-                            "name": config.get("name", fn_dir.name),
-                            "description": config.get("description", ""),
-                            "parameters": config.get("parameters", {}),
-                            "returns": config.get("returns", {}),
-                            "examples": config.get("examples", []),
-                            "author": config.get("author", "Unknown"),
-                            "version": config.get("version", "1.0.0")
-                        }
-                        function_calls.append(function_info)
-                except Exception as e:
-                    ASCIIColors.error(f"Error loading function {fn_dir.name}: {e}")
+    # Helper function to process a directory and append function calls
+    def process_directory(directory, category_name):
+        for fn_dir in directory.iterdir():
+            if fn_dir.is_dir():
+                yaml_file = fn_dir / "config.yaml"
+                py_file = fn_dir / "function.py"
+                
+                if yaml_file.exists() and py_file.exists():
+                    try:
+                        with open(yaml_file, "r") as f:
+                            config = yaml.safe_load(f)
+                            
+                            # Ensure creation_date_time and last_update_date_time exist
+                            if "creation_date_time" not in config:
+                                config["creation_date_time"] = datetime.now().isoformat()
+                            if "last_update_date_time" not in config:
+                                config["last_update_date_time"] = datetime.now().isoformat()
+                            
+                            # Save the updated YAML file if changes were made
+                            with open(yaml_file, "w") as f:
+                                yaml.safe_dump(config, f)
+                            
+                            # Check if the function is mounted
+                            mounted = False
+                            selected = False
+                            for mounted_function in lollmsElfServer.config.mounted_function_calls:
+                                if mounted_function["name"] == config.get("name", fn_dir.name):
+                                    mounted = True
+                                    selected = mounted_function.get("selected", False)
+                                    break
+                            
+                            function_info = {
+                                "name": config.get("name", fn_dir.name),
+                                "description": config.get("description", ""),
+                                "parameters": config.get("parameters", {}),
+                                "returns": config.get("returns", {}),
+                                "examples": config.get("examples", []),
+                                "author": config.get("author", "Unknown"),
+                                "version": config.get("version", "1.0.0"),
+                                "category": category_name,
+                                "creation_date_time": config.get("creation_date_time"),
+                                "last_update_date_time": config.get("last_update_date_time"),
+                                "mounted": mounted,
+                                "selected": selected
+                            }
+                            function_calls.append(function_info)
+                    except Exception as e:
+                        ASCIIColors.error(f"Error loading function {fn_dir.name}: {e}")
+    
+    # Process the main functions zoo
+    for category_dir in functions_zoo_path.iterdir():
+        if category_dir.is_dir():
+            process_directory(category_dir, category_dir.name)
+    
+    # Process the custom functions zoo under the "custom" category
+    if custom_functions_zoo_path.exists():
+        process_directory(custom_functions_zoo_path, "custom")
     
     return {"function_calls": function_calls}
 
@@ -88,7 +127,7 @@ async def mount_function_call(request: Request):
         raise HTTPException(status_code=403, detail="Access denied")
 
     # Validate function exists
-    fn_dir = lollmsElfServer.paths.functions_zoo_path / function_name
+    fn_dir = lollmsElfServer.lollms_paths.functions_zoo_path / function_name
     if not fn_dir.exists() or not (fn_dir / "config.yaml").exists() or not (fn_dir / "function.py").exists():
         raise HTTPException(status_code=404, detail="Function not found")
 
