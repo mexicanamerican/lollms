@@ -3812,7 +3812,7 @@ class APScript(StateMachine):
                                     ]),
                                     max_generation_size=max_generation_size, callback=self.sink)
         return translated
-    def sequential_summarize(self, text: Any, summary_context: str = "", format: str = "bullet points", tone: str = "neutral", ctx_size: int = 4096, callback = None):
+    def sequential_summarize(self, text: str, summary_context: str = "", task="Create final summary using this memory.", format: str = "bullet points", tone: str = "neutral", ctx_size: int = 4096, callback = None):
         """
         Summarizes a long text sequentially by processing chunks and maintaining a memory.
         
