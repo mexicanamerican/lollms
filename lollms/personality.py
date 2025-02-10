@@ -1785,9 +1785,11 @@ Don't forget encapsulate the code inside a html code tag. This is mandatory.
             default_language = lang.lower().strip().split()[0]
         else:
             default_language = 'english'
+        try:   
+            current_language = self.selected_language.lower().strip().split()[0]
+        except:
+            default_language = 'english'
             
-        current_language = self.selected_language.lower().strip().split()[0]
-
         if current_language and  current_language!= default_language:
             language_path = self.app.lollms_paths.personal_configuration_path/"personalities"/self.personality_folder_name/f"languages_{current_language}.yaml"
             if not language_path.exists():
