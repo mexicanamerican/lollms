@@ -1299,8 +1299,7 @@ Don't forget encapsulate the code inside a html code tag. This is mandatory.
             self, 
             prompt,
             images=[],
-            template=None, 
-            single_shot=False, 
+            template=None,
             output_format="json",
             callback=None
         ):
@@ -3659,7 +3658,6 @@ class APScript(StateMachine):
                                 prompt,
                                 images=[],
                                 template=None, 
-                                single_shot=False,
                                 output_format="yaml",
                                 callback=None):
         """
@@ -3674,7 +3672,7 @@ class APScript(StateMachine):
         Returns:
             dict: Contains both the structured data and formatted string
         """
-        return self.personality.generate_structured_content(prompt, images, template, single_shot, output_format, callback)
+        return self.personality.generate_structured_content(prompt, images, template, output_format, callback)
 
             
     def run_workflow(self,  context_details:dict=None, client:Client=None,  callback: Callable[[str | list | None, MSG_OPERATION_TYPE, str, AIPersonality| None], bool]=None):
