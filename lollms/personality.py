@@ -489,6 +489,9 @@ class AIPersonality:
                 - If return_explanation is False, returns a boolean (True for 'yes', False for 'no').
                 - If return_explanation is True, returns a dictionary with the answer and explanation.
         """
+        if not callback:
+            callback=self.sink
+
         prompt = f"{conditionning}\nQuestion: {question}\nContext: {context}\n"
         
         template = """
@@ -548,6 +551,8 @@ class AIPersonality:
                 - If return_explanation is True, returns a JSON object with the selected choice index and an explanation.
                 - Returns {"index": -1} if no match is found among the possible answers.
         """
+        if not callback:
+            callback=self.sink
         
         prompt = f"""
         {conditionning}\n
@@ -607,6 +612,8 @@ class AIPersonality:
                 - If return_explanation is False, returns a JSON object with only the ranked order.
                 - If return_explanation is True, returns a JSON object with the ranked order and explanations.
         """
+        if not callback:
+            callback=self.sink
         
         prompt = f"""
         {conditionning}\n
