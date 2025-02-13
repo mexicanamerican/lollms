@@ -1327,26 +1327,36 @@ Don't forget encapsulate the code inside a html code tag. This is mandatory.
                         debug=None,
                         callback=callback
                     )
-    
+        
     def extract_thinking_blocks(self, text: str) -> List[str]:
         """
-        Extracts content between <thinking> or <think> tags from a given text.
-        
+        Extracts content between <thinking> or  tags from a given text.
+        If a closing tag is present without an opening tag, the content from the start of the text up to the closing tag is extracted.
+        If both opening and closing tags are present, extracts all content between them.
+
         Parameters:
-        text (str): The text containing thinking blocks
-        
+            text (str): The text containing thinking blocks
+
         Returns:
-        List[str]: List of extracted thinking contents
+            List[str]: List of extracted thinking contents
         """
-        import re
-        
-        # Pattern to match both <thinking> and <think> blocks with matching tags
+        # Pattern to match both thinking and think blocks with matching tags
         pattern = r'<(thinking|think)>(.*?)</\1>'
         matches = re.finditer(pattern, text, re.DOTALL)
-        
-        # Extract content from the second group (index 2) and clean
+
+        # Extract content from the second group and clean
         thinking_blocks = [match.group(2).strip() for match in matches]
-        
+
+        # Check for closing tags without opening tags
+        if not thinking_blocks:
+            # Look for any closing tag without a matching opening tag
+            closing_pattern = r'</(thinking|think)>'
+            closing_match = re.search(closing_pattern, text)
+            if closing_match:
+                # Extract content from start up to the closing tag
+                content = text.split('</')[0].strip()
+                thinking_blocks.append(content)
+
         return thinking_blocks
 
     def remove_thinking_blocks(self, text: str) -> str:
