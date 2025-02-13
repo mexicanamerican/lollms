@@ -1351,24 +1351,30 @@ Don't forget encapsulate the code inside a html code tag. This is mandatory.
 
     def remove_thinking_blocks(self, text: str) -> str:
         """
-        Removes thinking blocks (either <thinking> or <think>) from text including the tags.
-        
+        Removes thinking blocks (either <thinking> or <think>) from text, including the tags.
+        If a closing tag is present without a corresponding opening tag, the content from the start of the text up to the closing tag is removed.
+
         Parameters:
         text (str): The text containing thinking blocks
-        
+
         Returns:
         str: Text with thinking blocks removed
         """
         import re
-        
-        # Pattern to remove both <thinking> and <think> blocks with matching tags
-        pattern = r'<(thinking|think)>.*?</\1>'
-        cleaned_text = re.sub(pattern, '', text, flags=re.DOTALL)
-        
+
+        # First, remove blocks with both opening and closing tags
+        pattern_with_tags = r'<(thinking|think)>.*?</\1>'
+        cleaned_text = re.sub(pattern_with_tags, '', text, flags=re.DOTALL)
+
+        # Then, remove content starting from the beginning up to a closing tag without an opening
+        pattern_without_opening = r'^.*?</(thinking|think)>'
+        cleaned_text = re.sub(pattern_without_opening, '', cleaned_text, flags=re.DOTALL)
+
         # Remove extra whitespace and normalize newlines
         cleaned_text = re.sub(r'\n\s*\n', '\n\n', cleaned_text.strip())
-        
+
         return cleaned_text
+
 
     def extract_code_blocks(self, text: str, return_remaining_text: bool = False) -> Union[List[dict], Tuple[List[dict], str]]:
         """
