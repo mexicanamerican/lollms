@@ -1393,32 +1393,33 @@ Answer directly with the reformulation of the last prompt.
         if generation_type != "simple_question":
             # Accumulate messages starting from message_index
             for i in range(message_index, -1, -1):
-                if self.config.keep_thoughts:
-                    message = messages[i]
-                else:
-                    message = self.personality.remove_thinking_blocks(messages[i])
+                message = messages[i]
 
                 # Check if the message content is not empty and visible to the AI
                 if message.content != '' and (
                         message.message_type <= MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_SET_CONTENT_INVISIBLE_TO_USER.value and message.message_type != MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_SET_CONTENT_INVISIBLE_TO_AI.value):
 
+                    if self.config.keep_thoughts:
+                        content = message.content
+                    else:
+                        content = self.personality.remove_thinking_blocks(message.content)
                         
                     if message.sender_type == SENDER_TYPES.SENDER_TYPES_AI.value:
                         if self.config.use_assistant_name_in_discussion:
                             if self.config.use_model_name_in_discussions:
-                                msg = self.ai_custom_header(message.sender+f"({message.model})") + message.content.strip()
+                                msg = self.ai_custom_header(message.sender+f"({message.model})") + content.strip()
                             else:
-                                msg = self.ai_full_header + message.content.strip()
+                                msg = self.ai_full_header + content.strip()
                         else:
                             if self.config.use_model_name_in_discussions:
-                                msg = self.ai_custom_header("assistant"+f"({message.model})") + message.content.strip()
+                                msg = self.ai_custom_header("assistant"+f"({message.model})") + content.strip()
                             else:
-                                msg = self.ai_custom_header("assistant") + message.content.strip()
+                                msg = self.ai_custom_header("assistant") + content.strip()
                     else:
                         if self.config.use_user_name_in_discussions:
-                            msg = self.user_full_header + message.content.strip()
+                            msg = self.user_full_header + content.strip()
                         else:
-                            msg = self.user_custom_header("user") + message.content.strip()
+                            msg = self.user_custom_header("user") + content.strip()
                     msg += self.separator_template
                     message_tokenized = self.model.tokenize(msg)
 
@@ -1441,23 +1442,27 @@ Answer directly with the reformulation of the last prompt.
             # Check if the message content is not empty and visible to the AI
             if message.content != '' and (
                     message.message_type <= MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_SET_CONTENT_INVISIBLE_TO_USER.value and message.message_type != MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_SET_CONTENT_INVISIBLE_TO_AI.value):
+                if self.config.keep_thoughts:
+                    content = message.content
+                else:
+                    content = self.personality.remove_thinking_blocks(message.content)
 
                 if message.sender_type == SENDER_TYPES.SENDER_TYPES_AI.value:
                     if self.config.use_assistant_name_in_discussion:
                         if self.config.use_model_name_in_discussions:
-                            msg = self.ai_custom_header(message.sender+f"({message.model})") + message.content.strip()
+                            msg = self.ai_custom_header(message.sender+f"({message.model})") + content.strip()
                         else:
-                            msg = self.ai_full_header + message.content.strip()
+                            msg = self.ai_full_header + content.strip()
                     else:
                         if self.config.use_model_name_in_discussions:
-                            msg = self.ai_custom_header("assistant"+f"({message.model})") + message.content.strip()
+                            msg = self.ai_custom_header("assistant"+f"({message.model})") + content.strip()
                         else:
-                            msg = self.ai_custom_header("assistant") + message.content.strip()
+                            msg = self.ai_custom_header("assistant") + content.strip()
                 else:
                     if self.config.use_user_name_in_discussions:
-                        msg = self.user_full_header + message.content.strip()
+                        msg = self.user_full_header + content.strip()
                     else:
-                        msg = self.user_custom_header("user") + message.content.strip()
+                        msg = self.user_custom_header("user") + content.strip()
                 message_tokenized = self.model.tokenize(msg)
 
                 # Add the tokenized message to the full_message_list
