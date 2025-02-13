@@ -1393,7 +1393,10 @@ Answer directly with the reformulation of the last prompt.
         if generation_type != "simple_question":
             # Accumulate messages starting from message_index
             for i in range(message_index, -1, -1):
-                message = messages[i]
+                if self.config.keep_thoughts:
+                    message = messages[i]
+                else:
+                    message = self.personality.remove_thinking_blocks(messages[i])
 
                 # Check if the message content is not empty and visible to the AI
                 if message.content != '' and (
