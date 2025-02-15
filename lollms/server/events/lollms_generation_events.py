@@ -212,7 +212,6 @@ def add_events(sio:socketio):
 
             client.generation_thread = threading.Thread(target=do_generation)
             client.generation_thread.start()
-            ASCIIColors.info("Started generation task")
             lollmsElfServer.busy=True
 
         except Exception as ex:
@@ -269,7 +268,6 @@ def add_events(sio:socketio):
             ASCIIColors.green("Starting message generation by "+lollmsElfServer.personality.name)
             client.generation_thread = threading.Thread(target=lollmsElfServer.start_message_generation, args=(message, message.id, client_id))
             client.generation_thread.start()
-            ASCIIColors.info("Started generation task")
             lollmsElfServer.busy=True
             #tpe = threading.Thread(target=lollmsElfServer.start_message_generation, args=(message, message_id, client_id))
             #tpe.start()

@@ -183,4 +183,3 @@ def add_events(sio:socketio):
 
         client.generation_thread = threading.Thread(target=do_generation)
         client.generation_thread.start()
-        ASCIIColors.info("Started generation task")
