@@ -131,6 +131,7 @@ class AIPersonality:
         Raises:
         ValueError: If the provided path is not a folder or does not contain a config.yaml file.
         """
+        self.sink_id = 0
         self.config = config
 
         self.bot_says = ""
@@ -463,7 +464,15 @@ class AIPersonality:
                                                     )
 
     def sink(self, s=None,i=None,d=None):
-        pass
+        if self.config.debug:
+            print(s,end="")
+        else:
+            animation = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
+            ASCIIColors.yellow(animation[self.sink_id]+"\r")
+            if self.sink_id<9:
+                self.sink_id += 1
+            else:
+                self.sink_id = 0
 
     def yes_no(
             self,
