@@ -75,14 +75,17 @@ async def list_function_calls():
                             # Check if the function is mounted
                             mounted = False
                             selected = False
-                            for mounted_function in lollmsElfServer.config.mounted_function_calls:
-                                if mounted_function["name"] == config.get("name", fn_dir.name):
-                                    mounted = True
-                                    selected = mounted_function.get("selected", False)
-                                    break
-                            
+                            try:
+                                for mounted_function in lollmsElfServer.config.mounted_function_calls:
+                                    if mounted_function["name"] == config.get("name", fn_dir.name):
+                                        mounted = True
+                                        selected = mounted_function.get("selected", False)
+                                        break
+                            except:
+                                pass
                             function_info = {
                                 "name": config.get("name", fn_dir.name),
+                                "category":  config.get("name", fn_dir.parent.name),
                                 "description": config.get("description", ""),
                                 "parameters": config.get("parameters", {}),
                                 "returns": config.get("returns", {}),
@@ -122,13 +125,14 @@ async def mount_function_call(request: Request):
     """Mount a function call to make it available to the LLM"""
     data = await request.json()
     client_id = data.get("client_id")
+    function_category = data.get("function_category")
     function_name = data.get("function_name")
 
-    if not check_access(client_id, lollmsElfServer):
+    if not check_access(lollmsElfServer, client_id):
         raise HTTPException(status_code=403, detail="Access denied")
 
     # Validate function exists
-    fn_dir = lollmsElfServer.lollms_paths.functions_zoo_path / function_name
+    fn_dir = lollmsElfServer.lollms_paths.functions_zoo_path / function_category / function_name
     if not fn_dir.exists() or not (fn_dir / "config.yaml").exists() or not (fn_dir / "function.py").exists():
         raise HTTPException(status_code=404, detail="Function not found")
 
@@ -144,10 +148,12 @@ async def mount_function_call(request: Request):
     # Add new entry
     lollmsElfServer.config.mounted_function_calls.append({
         "name": function_name,
+        "dir": str(fn_dir),
+        "selected": False,
         "mounted": True
     })
     lollmsElfServer.config.save_config()
-    
+
     return {"status": True, "message": "Function mounted successfully"}
 
 @router.post("/unmount_function_call")
@@ -157,7 +163,7 @@ async def unmount_function_call(request: Request):
     client_id = data.get("client_id")
     function_name = data.get("function_name")
 
-    if not check_access(client_id, lollmsElfServer):
+    if not check_access(lollmsElfServer, client_id):
         raise HTTPException(status_code=403, detail="Access denied")
 
     # Find and update the function call
@@ -173,3 +179,26 @@ async def unmount_function_call(request: Request):
 
     lollmsElfServer.config.save_config()
     return {"status": True, "message": "Function unmounted successfully"}
+
+
+@router.post("/toggle_function_call")
+async def toggle_function_call(request: Request):
+    """Mount a function call to make it available to the LLM"""
+    data = await request.json()
+    client_id = data.get("client_id")
+    fn_dir = data.get("dir")
+    function_name = data.get("name")
+    if not check_access(lollmsElfServer, client_id):
+        raise HTTPException(status_code=403, detail="Access denied")
+    p_dir = Path(fn_dir)
+    if not p_dir.exists() or not (p_dir / "config.yaml").exists() or not (p_dir / "function.py").exists():
+        raise HTTPException(status_code=404, detail="Function not found")
+
+
+    # Add new entry
+    for entry in lollmsElfServer.config.mounted_function_calls:
+        if entry.name == function_name and entry.dir == str(fn_dir):
+            entry.selected = not entry.selected
+    lollmsElfServer.config.save_config()
+    
+    return {"status": True, "message": "Function mounted successfully"}
