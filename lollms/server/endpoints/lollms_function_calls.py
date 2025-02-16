@@ -197,8 +197,8 @@ async def toggle_function_call(request: Request):
 
     # Add new entry
     for entry in lollmsElfServer.config.mounted_function_calls:
-        if entry.name == function_name and entry.dir == str(fn_dir):
-            entry.selected = not entry.selected
+        if entry["name"] == function_name and entry["dir"] == str(fn_dir):
+            entry["selected"] = not entry["selected"]
     lollmsElfServer.config.save_config()
     
     return {"status": True, "message": "Function mounted successfully"}
