@@ -169,8 +169,8 @@ async def unmount_function_call(request: Request):
     # Find and update the function call
     found = False
     for fc in lollmsElfServer.config.mounted_function_calls:
-        if fc["name"] == function_name and fc["mounted"]:
-            fc["mounted"] = False
+        if fc["name"] == function_name:
+            lollmsElfServer.config.mounted_function_calls.remove(fc) 
             found = True
             break
     
