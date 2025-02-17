@@ -12,6 +12,8 @@ from lollms.utilities import PromptReshaper
 from lollms.client_session import Client, Session
 from lollms.databases.skills_database import SkillsLibrary
 from lollms.tasks import TasksLibrary
+from lollms.prompting import LollmsLLMTemplate, LollmsContextDetails
+import importlib
 
 from lollmsvectordb.database_elements.chunk import Chunk
 from lollmsvectordb.vector_database import VectorDatabase
@@ -99,7 +101,8 @@ class LollmsApplication(LoLLMsCom):
         
         self.rt_com = None
         self.is_internet_available = self.check_internet_connection()
-        
+        self.template = LollmsLLMTemplate(self.config, self.personality)
+
         if not free_mode:
             try:
                 if config.auto_update and self.is_internet_available:
@@ -1028,7 +1031,7 @@ class LollmsApplication(LoLLMsCom):
             discussion += "\n" + self.config.discussion_prompt_separator + msg.sender + ": " + msg.content.strip()
         return discussion
     # -------------------------------------- Prompt preparing
-    def prepare_query(self, client_id: str, message_id: int = -1, is_continue: bool = False, n_tokens: int = 0, generation_type = None, force_using_internet=False, previous_chunk="") -> Tuple[str, str, List[str]]:
+    def prepare_query(self, client_id: str, message_id: int = -1, is_continue: bool = False, n_tokens: int = 0, generation_type = None, force_using_internet=False, previous_chunk="") -> LollmsContextDetails:
         """
         Prepares the query for the model.
 
@@ -1044,7 +1047,6 @@ class LollmsApplication(LoLLMsCom):
         skills_detials=[]
         skills = []
         documentation_entries = []
-
 
         if self.personality.callback is None:
             self.personality.callback = partial(self.process_data, client_id=client_id)
@@ -1087,7 +1089,7 @@ class LollmsApplication(LoLLMsCom):
         if len(conditionning)>0:
             if type(conditionning) is list:
                 conditionning = "\n".join(conditionning)
-            conditionning =  self.system_full_header + self.personality.replace_keys(conditionning, self.personality.conditionning_commands) + ("" if conditionning[-1]==self.separator_template else self.separator_template)
+            conditionning =  self.system_full_header + conditionning + ("" if conditionning[-1]==self.separator_template else self.separator_template)
 
         # Check if there are document files to add to the prompt
         internet_search_results = ""
@@ -1353,6 +1355,34 @@ Answer directly with the reformulation of the last prompt.
             n_user_description_tk = 0
 
 
+        function_calls = []
+        if len(self.config.mounted_function_calls)>0:            
+            for fc in self.config.mounted_function_calls:
+                if fc["selected"]:
+                    dr = Path(fc["dir"])
+                    with open(dr/"config.yaml", "r") as f:
+                        fc_dict = yaml.safe_load(f.read())
+                        # Step 1: Construct the full path to the function.py module
+                        module_path = dr / "function.py"
+                        module_name = "function"  # Name for the loaded module
+
+                        # Step 2: Use importlib.util to load the module from the file path
+                        spec = importlib.util.spec_from_file_location(module_name, module_path)
+                        if spec is None:
+                            raise ImportError(f"Could not load module from {module_path}")
+                        
+                        module = importlib.util.module_from_spec(spec)
+                        sys.modules[module_name] = module  # Add the module to sys.modules
+                        spec.loader.exec_module(module)    # Execute the module
+
+                        # Step 3: Retrieve the class from the module using the class name
+                        class_name = fc_dict["class_name"]
+                        class_ = getattr(module, class_name)
+                        
+                        # Step 4: Create an instance of the class and store it in fc_dict["class"]
+                        fc_dict["class"] = class_(self, client)
+                        function_calls.append(fc_dict)
+
         # Calculate the total number of tokens between conditionning, documentation, and knowledge
         total_tokens = n_cond_tk + n_isearch_tk + n_doc_tk + n_user_description_tk + n_positive_boost + n_negative_boost + n_fun_mode + n_think_first_mode
 
@@ -1484,28 +1514,37 @@ Answer directly with the reformulation of the last prompt.
 
 
         # Details
-        context_details = {
-            "client_id":client_id,
-            "conditionning":conditionning,
-            "internet_search_infos":internet_search_infos,
-            "internet_search_results":internet_search_results,
-            "documentation":documentation,
-            "documentation_entries":documentation_entries,
-            "user_description":user_description,
-            "discussion_messages":discussion_messages,
-            "positive_boost":positive_boost,
-            "negative_boost":negative_boost,
-            "current_language":self.config.current_language,
-            "fun_mode":fun_mode,
-            "think_first_mode":think_first_mode,
-            "ai_prefix":ai_prefix,
-            "extra":"",
-            "available_space":available_space,
-            "skills":skills_detials,
-            "is_continue":is_continue,
-            "previous_chunk":previous_chunk,
-            "prompt":current_message.content
-        }    
+        context_details = LollmsContextDetails(
+            client=client,
+            conditionning=conditionning,
+            internet_search_infos=internet_search_infos,
+            internet_search_results=internet_search_results,
+            documentation=documentation,
+            documentation_entries=documentation_entries,
+            user_description=user_description,
+            discussion_messages=discussion_messages,
+            positive_boost=positive_boost,
+            negative_boost=negative_boost,
+            current_language=self.config.current_language,
+            fun_mode=fun_mode,
+            think_first_mode=think_first_mode,
+            ai_prefix=ai_prefix,
+            extra="",
+            available_space=available_space,
+            skills=skills_detials,
+            is_continue=is_continue,
+            previous_chunk=previous_chunk,
+            prompt=current_message.content,
+            function_calls=function_calls,
+
+            debug= self.config.debug,
+            ctx_size= self.config.ctx_size,
+            max_n_predict= self.config.max_n_predict,
+
+            model= self.model
+        )
+        
+        
         if self.config.debug and not self.personality.processor:
             ASCIIColors.highlight(documentation,"source_document_title", ASCIIColors.color_yellow, ASCIIColors.color_red, False)
         # Return the prepared query, original message content, and tokenized query

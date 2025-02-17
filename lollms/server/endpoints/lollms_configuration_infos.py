@@ -17,6 +17,7 @@ from lollms.binding import BindingBuilder, InstallOption
 from ascii_colors import ASCIIColors
 from lollms.utilities import load_config, trace_exception, gc, show_yes_no_dialog
 from lollms.security import check_access
+from lollms.templating import LollmsLLMTemplate
 from pathlib import Path
 from typing import List
 import json
@@ -193,6 +194,9 @@ async def apply_settings(request: Request):
             lollmsElfServer.verify_servers()
             if lollmsElfServer.config.auto_save:
                 lollmsElfServer.config.save_config()
+
+            lollmsElfServer.template = LollmsLLMTemplate(lollmsElfServer.config, lollmsElfServer.personality)
+
             return {"status":True}
         except Exception as ex:
             trace_exception(ex)

@@ -42,7 +42,7 @@ import sys
 from lollms.com import LoLLMsCom
 from lollms.helpers import trace_exception
 from lollms.utilities import PackageManager
-
+from lollms.prompting import LollmsContextDetails
 import inspect
 
 from lollms.code_parser import compress_js, compress_python, compress_html
@@ -256,7 +256,7 @@ class AIPersonality:
     def compute_n_predict(self, tokens):
         return min(self.config.ctx_size-len(tokens)-1,self.config.max_n_predict if self.config.max_n_predict else self.config.ctx_size-len(tokens)-1)      
 
-    def build_context(self, context_details, is_continue=False, return_tokens=False):
+    def build_context(self, context_details:LollmsContextDetails, is_continue:bool=False, return_tokens:bool=False):
         # Build the final prompt by concatenating the conditionning and discussion messages
         if self.config.use_assistant_name_in_discussion:
             if self.config.use_model_name_in_discussions:
@@ -269,23 +269,10 @@ class AIPersonality:
             else:
                 ai_header = self.ai_custom_header("assistant")
 
-
-        elements = [
-            context_details["conditionning"],
-            context_details["internet_search_results"],
-            context_details["documentation"],
-            context_details["user_description"],
-            context_details["discussion_messages"],
-            context_details["positive_boost"],
-            context_details["negative_boost"],
-            context_details["fun_mode"],
-            context_details["think_first_mode"],            
-            ai_header if not is_continue else '' if not self.config.use_continue_message \
-                else "CONTINUE FROM HERE And do not open a new markdown code tag." + self.separator_template + self.ai_full_header
-        ]
-        
         # Filter out empty elements and join with separator
-        prompt_data = self.separator_template.join(element for element in elements if element)
+        prompt_data = context_details.build_prompt(self.app.template, [ai_header] if not is_continue else [] if not self.config.use_continue_message \
+            else ["CONTINUE FROM HERE And do not open a new markdown code tag." + self.separator_template + ai_header])
+        
         tokens = self.model.tokenize(prompt_data)
         if return_tokens:
             return prompt_data, tokens
@@ -2178,13 +2165,6 @@ Don't forget encapsulate the code inside a html code tag. This is mandatory.
         }
 
     # ========================================== Properties ===========================================
-    @property
-    def conditionning_commands(self):
-        return {
-            "date_time": datetime.now().strftime("%A, %B %d, %Y %I:%M:%S %p"), # Replaces {{date}} with actual date
-            "date": datetime.now().strftime("%A, %B %d, %Y"), # Replaces {{date}} with actual date
-            "time": datetime.now().strftime("%H:%M:%S"), # Replaces {{time}} with actual time
-        }
 
     @property
     def logo(self):
@@ -2364,7 +2344,7 @@ Don't forget encapsulate the code inside a html code tag. This is mandatory.
         Returns:
             str: The personality conditioning of the AI assistant.
         """
-        return self.replace_keys(self._personality_conditioning, self.conditionning_commands)
+        return self._personality_conditioning
 
     @personality_conditioning.setter
     def personality_conditioning(self, conditioning: str):
@@ -2404,7 +2384,7 @@ Don't forget encapsulate the code inside a html code tag. This is mandatory.
         Returns:
             str: The welcome message of the AI assistant.
         """
-        return self.replace_keys(self._welcome_message, self.conditionning_commands)
+        return self._welcome_message
 
     @welcome_message.setter
     def welcome_message(self, message: str):
@@ -2791,34 +2771,6 @@ Don't forget encapsulate the code inside a html code tag. This is mandatory.
             if prompt.lower() in text.lower():
                 return prompt.lower()
         return None
-
-
-    # Helper functions
-    @staticmethod
-    def replace_keys(input_string, replacements):
-        """
-        Replaces all occurrences of keys in the input string with their corresponding
-        values from the replacements dictionary.
-
-        Args:
-            input_string (str): The input string to replace keys in.
-            replacements (dict): A dictionary of key-value pairs, where the key is the
-                string to be replaced and the value is the replacement string.
-
-        Returns:
-            str: The input string with all occurrences of keys replaced by their
-                corresponding values.
-        """
-        pattern = r"\{\{(\w+)\}\}"
-        # The pattern matches "{{key}}" and captures "key" in a group.
-        # The "\w+" matches one or more word characters (letters, digits, or underscore).
-
-        def replace(match):
-            key = match.group(1)
-            return replacements.get(key, match.group(0))
-
-        output_string = re.sub(pattern, replace, input_string)
-        return output_string
 
     def verify_rag_entry(self, query, rag_entry):
         return self.yes_no("Are there any useful information in the document chunk that can be used to answer the query?", self.app.system_custom_header("Query")+query+"\n"+self.app.system_custom_header("document chunk")+"\n"+rag_entry)
@@ -3700,7 +3652,7 @@ class APScript(StateMachine):
         return self.personality.generate_structured_content(prompt, images, template, output_format, callback)
 
             
-    def run_workflow(self,  context_details:dict=None, client:Client=None,  callback: Callable[[str | list | None, MSG_OPERATION_TYPE, str, AIPersonality| None], bool]=None):
+    def run_workflow(self,  context_details:LollmsContextDetails=None, client:Client=None,  callback: Callable[[str | list | None, MSG_OPERATION_TYPE, str, AIPersonality| None], bool]=None):
         """
         This function generates code based on the given parameters.
 
@@ -4046,106 +3998,6 @@ class APScript(StateMachine):
             summeries.append(summary)
             self.step_end(f" Summary of {doc_name} - Processing chunk : {i+1}/{len(chunks)}")
         return "\n".join(summeries)
-
-    def build_prompt_from_context_details(self, context_details:dict, custom_entries="", suppress=[]):
-        """
-        Builds a prompt from the provided context details.
-
-        This function concatenates various parts of the context into a single string, which is then used to build a prompt.
-        The context details can include conditioning, documentation, knowledge, user description, positive and negative boosts,
-        current language, fun mode, discussion window, and any extra information.
-
-        Parameters:
-        context_details (dict): A dictionary containing various context details.
-        custom_entries (str): Additional custom entries to be included in the prompt.
-
-        Returns:
-        str: The constructed prompt.
-
-        Raises:
-        KeyError: If any required key is missing in the context_details dictionary.
-        """
-        full_context = []
-        sacrifice_id = 0
-        if context_details["conditionning"] and "conditionning" not in suppress:
-            full_context.append( self.separator_template.join([
-                context_details["conditionning"]
-            ]))
-            sacrifice_id += 1
-        if context_details["documentation"] and "documentation" not in suppress:
-            full_context.append( self.separator_template.join([
-                self.system_custom_header("documentation"),
-                context_details["documentation"]
-            ]))
-            sacrifice_id += 1
-
-
-        if context_details["user_description"] and "user_description" not in suppress:
-            full_context.append( self.separator_template.join([
-                self.system_custom_header("user_description"),
-                context_details["user_description"]
-            ]))
-            sacrifice_id += 1
-
-        if context_details["positive_boost"] and "positive_boost" not in suppress:
-            full_context.append( self.separator_template.join([
-                self.system_custom_header("positive_boost"),
-                context_details["positive_boost"]
-            ]))
-            sacrifice_id += 1
-
-        if context_details["negative_boost"] and "negative_boost" not in suppress:
-            full_context.append( self.separator_template.join([
-                self.system_custom_header("negative_boost"),
-                context_details["negative_boost"]
-            ]))
-            sacrifice_id += 1
-
-        if context_details["current_language"] and "current_language" not in suppress:
-            full_context.append( self.separator_template.join([
-                self.system_custom_header("current_language"),
-                context_details["current_language"]
-            ]))
-            sacrifice_id += 1
-
-        if context_details["fun_mode"] and "fun_mode" not in suppress:
-            full_context.append( self.separator_template.join([
-                self.system_custom_header("fun_mode"),
-                context_details["fun_mode"]
-            ]))
-            sacrifice_id += 1
-
-
-        if context_details["discussion_messages"] and "discussion_messages" not in suppress:
-            full_context.append( self.separator_template.join([
-                self.system_custom_header("discussion_messages"),
-                context_details["discussion_messages"]
-            ]))
-
-        if context_details["extra"] and "extra" not in suppress:
-            full_context.append( self.separator_template.join([
-                context_details["extra"]
-            ]))
-
-        if custom_entries:
-            full_context.append( self.separator_template.join([
-                custom_entries
-            ]))
-
-        if "ai_prefix" not in suppress:
-            full_context.append( self.separator_template.join([
-                self.ai_custom_header(context_details["ai_prefix"])
-            ]))
-        
-        prompt = self.build_prompt(full_context, sacrifice_id)
-        
-        if self.config.debug:
-            nb_prompt_tokens = len(self.personality.model.tokenize(prompt))
-            nb_tokens = min(self.config.ctx_size - nb_prompt_tokens, self.config.max_n_predict if self.config.max_n_predict else self.config.ctx_size-nb_prompt_tokens)
-            ASCIIColors.info(f"Prompt size : {nb_prompt_tokens}")
-            ASCIIColors.info(f"Requested generation max size : {nb_tokens}")
-
-        return prompt
     
     def build_prompt(self, prompt_parts:List[str], sacrifice_id:int=-1, context_size:int=None, minimum_spare_context_size:int=None):
         """
@@ -5294,18 +5146,18 @@ transition-all duration-300 ease-in-out">
 
         return rounds_info
 
-    def answer(self, context_details, custom_entries = "", send_full=True, callback=None):
-        if context_details["is_continue"]:
-            full_prompt = self.build_prompt_from_context_details(context_details, custom_entries=custom_entries, suppress= ["ai_prefix"])
+    def answer(self, context_details:LollmsContextDetails, custom_entries = "", send_full=True, callback=None):
+        if context_details.is_continue:
+            full_prompt = context_details.build_prompt(self.personality.app.template, custom_entries=custom_entries, suppress= ["ai_prefix"])
         else:
-            full_prompt = self.build_prompt_from_context_details(context_details, custom_entries=custom_entries)
+            full_prompt = context_details.build_prompt(self.personality.app.template, custom_entries=custom_entries)
 
         out = self.fast_gen(full_prompt)
         nb_tokens = len(self.personality.model.tokenize(out))
         if nb_tokens >= (self.config.max_n_predict if self.config.max_n_predict else self.config.ctx_size)-1:
             out = out+self.fast_gen(full_prompt+out, callback=callback)
-        if context_details["is_continue"]:
-            out = context_details["previous_chunk"] + out
+        if context_details.is_continue:
+            out = context_details.previous_chunk + out
         if send_full:
             self.set_message_content(out)
         return out
@@ -5458,7 +5310,7 @@ transition-all duration-300 ease-in-out">
 
         return tools
 
-    def _upgrade_prompt_with_function_info(self, context_details: dict, functions: List[Dict[str, Any]]) -> str:
+    def _upgrade_prompt_with_function_info(self, context_details: LollmsContextDetails, functions: List[Dict[str, Any]]) -> str:
         """
         Upgrades the prompt with information about function calls.
 
@@ -5492,8 +5344,8 @@ transition-all duration-300 ease-in-out">
         # Combine the function descriptions with the original prompt.
         function_info = '\n'.join(function_descriptions)
 
-        cd["conditionning"]=function_info
-        upgraded_prompt = self.build_prompt_from_context_details(cd)
+        cd.conditionning=function_info
+        upgraded_prompt = cd.build_prompt(self.personality.app.template)
 
         
         return upgraded_prompt
@@ -5533,10 +5385,10 @@ transition-all duration-300 ease-in-out">
 
     def interact(
                     self, 
-                    context_details, 
+                    context_details:LollmsContextDetails, 
                     callback = None
                     ):
-        upgraded_prompt = self.build_prompt_from_context_details(context_details)
+        upgraded_prompt = context_details.build_prompt(self.personality.app.template)
         if len(self.personality.image_files)>0:
             # Generate the initial text based on the upgraded prompt.
             generated_text = self.fast_gen_with_images(upgraded_prompt, self.personality.image_files, callback=callback)
@@ -5577,7 +5429,7 @@ transition-all duration-300 ease-in-out">
                 if separate_output:
                     self.set_message_content(final_output)
                     self.new_message("")
-                context_details["discussion_messages"] +=out
+                context_details.discussion_messages +=out
                 if len(self.personality.image_files)>0:
                     out, function_calls, twc = self.generate_with_function_calls_and_images(context_details, self.personality.image_files, function_definitions, callback=callback)
                 else:

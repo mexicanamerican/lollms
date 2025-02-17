@@ -4,7 +4,9 @@ from typing import Callable, Any
 import socketio
 from enum import Enum
 from lollms.types import MSG_OPERATION_TYPE
+from lollms.templating import LollmsLLMTemplate
 from typing import Any, List
+
 class NotificationType(Enum):
     """Notification types."""
     
@@ -44,6 +46,7 @@ class LoLLMsCom:
         self.sio= sio
         self.verbose = verbose
         self.config = None 
+        self.template:LollmsLLMTemplate = None
         self.tti = None
         self.tts = None
         self.stt = None
