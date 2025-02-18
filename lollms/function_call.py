@@ -33,6 +33,10 @@ class FunctionCall:
             raise NotImplementedError("Subclasses must implement the update_context method for AI_FIRST_CALL functions.")
         elif self.function_type == FunctionType.POST_GENERATION:
             raise NotImplementedError("Subclasses must implement the update_context method for POST_GENERATION functions.")
+        
+    def process_output(self, context, llm_output:str):
+        if self.function_type == FunctionType.CONTEXT_UPDATE:
+            raise NotImplementedError("Subclasses must implement the process_output for CONTEXT_UPDATE functions.")
 
 
 

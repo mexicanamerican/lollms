@@ -139,9 +139,6 @@ async def mount_function_call(request: Request):
     # Check if already mounted
     for fc in lollmsElfServer.config.mounted_function_calls:
         if fc["name"] == function_name:
-            if fc["mounted"]:
-                return {"status": False, "message": "Function already mounted"}
-            fc["mounted"] = True
             lollmsElfServer.config.save_config()
             return {"status": True, "message": "Function mounted"}
 
@@ -190,10 +187,6 @@ async def toggle_function_call(request: Request):
     function_name = data.get("name")
     if not check_access(lollmsElfServer, client_id):
         raise HTTPException(status_code=403, detail="Access denied")
-    p_dir = Path(fn_dir)
-    if not p_dir.exists() or not (p_dir / "config.yaml").exists() or not (p_dir / "function.py").exists():
-        raise HTTPException(status_code=404, detail="Function not found")
-
 
     # Add new entry
     for entry in lollmsElfServer.config.mounted_function_calls:
