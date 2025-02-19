@@ -82,7 +82,6 @@ class LollmsPaths:
         self.personal_ttm_services_path     = self.personal_services_path / "ttm"
 
         self.apps_zoo_path                  = self.personal_path / "apps_zoo"
-        self.custom_functions_zoo_path      = self.personal_path / "functions_zoo"
 
 
 
@@ -90,7 +89,7 @@ class LollmsPaths:
         self.gptqlora_path                  = self.personal_trainers_path / "gptqlora"
 
         self.custom_personalities_path      = self.personal_path / "custom_personalities"
-        self.custom_function_calls_path     = self.personal_path / "custom_function_calls"
+        self.custom_function_calls_path      = self.personal_path / "custom_function_calls"
         self.custom_voices_path             = self.personal_path / "custom_voices"
 
         self.binding_models_paths   = []
@@ -273,7 +272,7 @@ class LollmsPaths:
         self.custom_voices_path.mkdir(parents=True, exist_ok=True)
 
         self.apps_zoo_path.mkdir(parents=True, exist_ok=True)
-        self.custom_functions_zoo_path.mkdir(parents=True, exist_ok=True)
+        self.custom_function_calls_path.mkdir(parents=True, exist_ok=True)
 
         
         if not self.bindings_zoo_path.exists():

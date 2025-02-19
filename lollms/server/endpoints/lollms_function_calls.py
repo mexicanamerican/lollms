@@ -47,7 +47,7 @@ from pathlib import Path
 async def list_function_calls():
     """List all available function calls in the functions zoo and custom functions zoo"""
     functions_zoo_path = lollmsElfServer.lollms_paths.functions_zoo_path
-    custom_functions_zoo_path = lollmsElfServer.lollms_paths.custom_functions_zoo_path
+    custom_function_calls_path = lollmsElfServer.lollms_paths.custom_function_calls_path
     function_calls = []
     
     # Helper function to process a directory and append function calls
@@ -109,8 +109,8 @@ async def list_function_calls():
             process_directory(category_dir, category_dir.name)
     
     # Process the custom functions zoo under the "custom" category
-    if custom_functions_zoo_path.exists():
-        process_directory(custom_functions_zoo_path, "custom")
+    if custom_function_calls_path.exists():
+        process_directory(custom_function_calls_path, "custom")
     
     return {"function_calls": function_calls}
 
