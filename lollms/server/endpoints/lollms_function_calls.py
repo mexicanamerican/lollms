@@ -132,7 +132,10 @@ async def mount_function_call(request: Request):
         raise HTTPException(status_code=403, detail="Access denied")
 
     # Validate function exists
-    fn_dir = lollmsElfServer.lollms_paths.functions_zoo_path / function_category / function_name
+    if function_category!="custom":
+        fn_dir = lollmsElfServer.lollms_paths.functions_zoo_path / function_category / function_name
+    else:
+        fn_dir = lollmsElfServer.lollms_paths.custom_function_calls_path / function_name
     if not fn_dir.exists() or not (fn_dir / "config.yaml").exists() or not (fn_dir / "function.py").exists():
         raise HTTPException(status_code=404, detail="Function not found")
 
