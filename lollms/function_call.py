@@ -11,9 +11,10 @@ class FunctionType(Enum):
 
 # Step 2: Update the FunctionCall base class
 class FunctionCall:
-    def __init__(self, function_type: FunctionType, client: Client):
+    def __init__(self, function_type: FunctionType, client: Client, static_parameters=dict):
         self.function_type = function_type
         self.client = client
+        self.static_parameters = static_parameters
 
     def execute(self, *args, **kwargs):
         """
