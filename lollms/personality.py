@@ -527,7 +527,8 @@ class AIPersonality:
             context: str = "", 
             max_answer_length: int = None, 
             conditionning: str = "", 
-            return_explanation: bool = False
+            return_explanation: bool = False,
+            callback = None
         ) -> dict:
         """
         Interprets a multi-choice question from a user's response. This function expects only one choice as true. 
@@ -590,7 +591,8 @@ class AIPersonality:
             context: str = "", 
             max_answer_length: int = 50, 
             conditionning: str = "", 
-            return_explanation: bool = False
+            return_explanation: bool = False,
+            callback = None
         ) -> dict:
         """
         Ranks answers for a question from best to worst. Returns a JSON object containing the ranked order.
