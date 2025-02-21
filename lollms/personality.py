@@ -568,7 +568,7 @@ class AIPersonality:
             prompt += "{\"index\": (the selected answer index)}"
         
         response = self.generate_code(prompt, language="json", max_size=max_answer_length, 
-            accept_all_if_no_code_tags_is_present=True, return_full_generated_code=False)
+            accept_all_if_no_code_tags_is_present=True, return_full_generated_code=False, callback=callback)
         
         try:
             result = json.loads(response)
@@ -589,7 +589,7 @@ class AIPersonality:
             question: str, 
             possible_answers: list, 
             context: str = "", 
-            max_answer_length: int = 50, 
+            max_answer_length: int = 512, 
             conditionning: str = "", 
             return_explanation: bool = False,
             callback = None
@@ -629,7 +629,7 @@ class AIPersonality:
         else:
             prompt += "{\"ranking\": (list of indices ordered from best to worst)}"
         
-        response = self.generate_code(prompt, language="json", return_full_generated_code=False)
+        response = self.generate_code(prompt, language="json", return_full_generated_code=False, callback=callback)
         
         try:
             result = json.loads(response)
@@ -4806,7 +4806,8 @@ transition-all duration-300 ease-in-out">
             context: str = "", 
             max_answer_length: int = None, 
             conditionning: str = "", 
-            return_explanation: bool = False
+            return_explanation: bool = False,
+            callback = None
         ) -> dict:
         """
         Interprets a multi-choice question from a users response. This function expects only one choice as true. All other choices are considered false. If none are correct, returns -1.
@@ -4820,9 +4821,18 @@ transition-all duration-300 ease-in-out">
         Returns:
             int: Index of the selected option within the possible_ansers list. Or -1 if there was not match found among any of them.
         """
-        return self.personality.multichoice_question(question, possible_answers, context, max_answer_length, conditionning, return_explanation)
+        return self.personality.multichoice_question(question, possible_answers, context, max_answer_length, conditionning, return_explanation, callback=callback)
 
-    def multichoice_ranking(self, question: str, possible_answers:list, context:str = "", max_answer_length: int = 50, conditionning="") -> int:
+    def multichoice_ranking(
+                                self, 
+                                question: str, 
+                                possible_answers:list, 
+                                context:str = "", 
+                                max_answer_length: int = 50, 
+                                conditionning="", 
+                                return_explanation:bool = False,
+                                callback=None
+                            ) -> int:
         """
         Ranks answers for a question from best to worst. returns a list of integers
 
@@ -4835,41 +4845,8 @@ transition-all duration-300 ease-in-out">
         Returns:
             int: Index of the selected option within the possible_ansers list. Or -1 if there was not match found among any of them.
         """
-        start_header_id_template    = self.config.start_header_id_template
-        end_header_id_template      = self.config.end_header_id_template
+        return self.personality.multichoice_ranking(question, possible_answers, context, max_answer_length, conditionning, return_explanation, callback)
 
-        choices = "\n".join([f"{i}. {possible_answer}" for i, possible_answer in enumerate(possible_answers)])
-        elements = [conditionning] if conditionning!="" else []
-        elements += [
-                f"{start_header_id_template}instructions{end_header_id_template}",
-                "Answer this multi choices question.",
-                "Answer with an id from the possible answers.",
-                "Do not answer with an id outside this possible answers.",
-                f"{start_header_id_template}question{end_header_id_template}{question}",
-                f"{start_header_id_template}possible answers{end_header_id_template}",
-                f"{choices}",
-        ]
-        if context!="":
-            elements+=[
-                        f"{start_header_id_template}context{end_header_id_template}",
-                        f"{context}",
-                    ]
-
-        elements += [f"{start_header_id_template}answer{end_header_id_template}"]
-        prompt = self.build_prompt(elements)
-
-        gen = self.generate(prompt, max_answer_length, temperature=0.1, top_k=50, top_p=0.9, repeat_penalty=1.0, repeat_last_n=50).strip().replace("</s>","").replace("<s>","")
-        self.print_prompt("Multi choice ranking",prompt+gen)
-        if gen.index("]")>=0:
-            try:
-                ranks = eval(gen.split("]")[0]+"]")
-                return ranks
-            except:
-                ASCIIColors.red("Model failed to rank inputs")
-                return None
-        else:
-            ASCIIColors.red("Model failed to rank inputs")
-            return None
 
     def build_html5_integration(self, html, ifram_name="unnamed"):
         """
