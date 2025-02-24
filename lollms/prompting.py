@@ -146,12 +146,13 @@ class LollmsContextDetails:
         # Append each field to the full context if it exists and is not suppressed
         append_context("conditionning")
         append_context("documentation", template.system_custom_header("documentation"))
+        append_context("internet_search_results", template.system_custom_header("Internet search results"))
         append_context("user_description", template.system_custom_header("user_description"))
         append_context("positive_boost", template.system_custom_header("positive_boost"))
         append_context("negative_boost", template.system_custom_header("negative_boost"))
         append_context("current_language", template.system_custom_header("current_language"))
-        append_context("fun_mode", template.system_custom_header("fun_mode"))
-        append_context("think_first_mode", template.system_custom_header("think_first_mode"))
+        append_context("fun_mode")
+        append_context("think_first_mode")
         
         append_context("extra")
         found_classic_function = False

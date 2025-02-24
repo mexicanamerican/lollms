@@ -476,8 +476,22 @@ class LollmsApplication(LoLLMsCom):
                         if rag_server["type"]=="lightrag":
                             try:
                                 self.ShowBlockingMessage("Installing Lightrag\nPlease wait...")
+                                # Define the path to the apps folder
                                 if not pm.is_installed("lightrag-hku"):
-                                    pm.install("https://github.com/ParisNeo/LightRAG.git[api,tools]")
+                                    apps_folder = self.lollms_paths.personal_user_infos_path / "apps"
+                                    apps_folder.mkdir(parents=True, exist_ok=True)  # Ensure the apps folder exists
+                                    # Define the path to clone the repository
+                                    clone_path = apps_folder / "LightRAG"
+                                    
+                                    # Clone the repository if it doesn't already exist
+                                    if not clone_path.exists():
+                                        subprocess.run(["git", "clone", "https://github.com/ParisNeo/LightRAG.git", str(clone_path)])
+                                        print(f"Repository cloned to: {clone_path}")
+                                    else:
+                                        print(f"Repository already exists at: {clone_path}")
+                                    
+                                    # Install the package in editable mode with extras
+                                    subprocess.run([sys.executable, "-m", "pip", "install", "-e", f"{str(clone_path)}[api,tools]"])                                    
                                 subprocess.Popen(
                                 ["lightrag-server", "--llm-binding", "lollms", "--embedding-binding", "lollms", "--input-dir", rag_server["input_path"], "--working-dir", rag_server["working_path"]],
                                 text=True,

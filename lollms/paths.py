@@ -73,7 +73,7 @@ class LollmsPaths:
         self.personal_certificates          = self.personal_path / "certs"
         self.personal_outputs_path          = self.personal_path / "outputs"
         self.personal_user_infos_path       = self.personal_path / "user_infos"
-
+        self.personal_apps_path             = self.personal_path / "apps"
 
         self.personal_services_path         = self.personal_path / "services"
         self.personal_stt_services_path     = self.personal_services_path / "stt"
@@ -173,6 +173,7 @@ class LollmsPaths:
             ("Skills Path", self.personal_skills_path),
             ("Models Path", self.personal_models_path),
             ("User Info Path", self.personal_user_infos_path),
+            ("User Info Path", self.personal_apps_path),
             ("Custom Personalities", self.custom_personalities_path),
             ("Custom Voices", self.custom_voices_path),
             ("Custom function calls",self.custom_function_calls_path)
@@ -230,6 +231,7 @@ class LollmsPaths:
             "Bindings Zoo Path": self.bindings_zoo_path,
             "Personalities Zoo Path": self.personalities_zoo_path,
             "Personal user infos path": self.personal_user_infos_path,
+            "apps path": self.personal_apps_path,
             "Personal trainers path": self.personal_trainers_path,
             "Personal gptqlora trainer path": self.gptqlora_path,
 
@@ -260,6 +262,7 @@ class LollmsPaths:
         self.personal_outputs_path.mkdir(parents=True, exist_ok=True)
         self.personal_uploads_path.mkdir(parents=True, exist_ok=True)
         self.personal_user_infos_path.mkdir(parents=True, exist_ok=True)
+        self.personal_apps_path.mkdir(parents=True, exist_ok=True)
 
         self.personal_services_path.mkdir(parents=True, exist_ok=True)
         self.personal_stt_services_path.mkdir(parents=True, exist_ok=True)
