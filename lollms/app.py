@@ -1171,6 +1171,7 @@ Answer directly with the reformulation of the last prompt.
                             show_progress=True,
                             callback=self.personality.sink
                         )
+                        query = self.personality.remove_thinking_blocks(query)
                         self.personality.step_end("Building vector store query")
                         self.personality.step(f"Query: {query}")
                     else:
@@ -1276,6 +1277,7 @@ Answer directly with the reformulation of the last prompt.
                         f"{self.ai_custom_header('websearch query')}"
                     ])
                     query = self.personality.fast_gen(q, max_generation_size=256, show_progress=True, callback=self.personality.sink)
+                    query = self.personality.remove_thinking_blocks(query)
                     query = query.replace("\"","")
                     self.personality.step_end("Crafting internet search query")
                     self.personality.step(f"web search query: {query}")
