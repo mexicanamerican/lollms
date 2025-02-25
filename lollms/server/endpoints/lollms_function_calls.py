@@ -180,6 +180,21 @@ async def unmount_function_call(request: Request):
     lollmsElfServer.config.save_config()
     return {"status": True, "message": "Function unmounted successfully"}
 
+@router.post("/unmount_all_functions")
+async def unmount_all_functions(request: Request):
+    """Unmount a function call to remove it from LLM's availability"""
+    data = await request.json()
+    client_id = data.get("client_id")
+
+    if not check_access(lollmsElfServer, client_id):
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    # Find and update the function call
+    found = False
+    lollmsElfServer.config.mounted_function_calls=[]
+
+    lollmsElfServer.config.save_config()
+    return {"status": True, "message": "Function unmounted successfully"}
 
 @router.post("/toggle_function_call")
 async def toggle_function_call(request: Request):
