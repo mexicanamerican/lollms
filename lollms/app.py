@@ -1399,7 +1399,7 @@ Answer directly with the reformulation of the last prompt.
                                     
                                     # Extract default values from fc_dict's static_parameters
                                     for param in fc_dict['static_parameters']:
-                                        static_parameters[param['name']] = param['default']
+                                        static_parameters[param['name']] = param.get('default',"")
                                     
                                     # Create parent directories if they don't exist
                                     config_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1431,6 +1431,7 @@ Answer directly with the reformulation of the last prompt.
                             fc_dict["class"] = class_(self, client, static_parameters)
                             function_calls.append(fc_dict)
                     except Exception as ex:
+                        self.error("Couldn't add function call to context")
                         trace_exception(ex)
         # Calculate the total number of tokens between conditionning, documentation, and knowledge
         total_tokens = n_cond_tk + n_isearch_tk + n_doc_tk + n_user_description_tk + n_positive_boost + n_negative_boost + n_fun_mode + n_think_first_mode

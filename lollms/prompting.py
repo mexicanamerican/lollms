@@ -92,6 +92,7 @@ class LollmsContextDetails:
         self.ctx_size = ctx_size
         self.max_n_predict = max_n_predict
         self.model = model
+        self.ai_output = ""
 
 
     def transform_function_to_text(self, template, func):
@@ -111,7 +112,7 @@ class LollmsContextDetails:
         function_texts.append(function_text.strip())
         return "\n\n".join(function_texts)
 
-    def build_prompt(self, template: LollmsLLMTemplate, custom_entries: str = "", suppress: List[str] = []) -> str:
+    def build_prompt(self, template: LollmsLLMTemplate, custom_entries: str = "", suppress: List[str] = [], ignore_function_calls:bool=False) -> str:
         """
         Builds a prompt from the context details using the integrated template system.
 
@@ -147,7 +148,7 @@ class LollmsContextDetails:
         append_context("conditionning")
         append_context("documentation", template.system_custom_header("documentation"))
         append_context("internet_search_results", template.system_custom_header("Internet search results"))
-        append_context("user_description", template.system_custom_header("user_description"))
+        append_context("user_description")
         append_context("positive_boost", template.system_custom_header("positive_boost"))
         append_context("negative_boost", template.system_custom_header("negative_boost"))
         append_context("current_language", template.system_custom_header("current_language"))
@@ -156,35 +157,36 @@ class LollmsContextDetails:
         
         append_context("extra")
         found_classic_function = False
-
-        for function_call in self.function_calls:
-            fc:FunctionCall = function_call["class"]
-            if fc.function_type == FunctionType.CONTEXT_UPDATE:
-                full_context = fc.update_context(self, full_context)
-            elif fc.function_type == FunctionType.CLASSIC:
-                if not found_classic_function:
-                    found_classic_function = True
-                full_context.append(self.transform_function_to_text(template,function_call))
-                
-        if found_classic_function:
-            full_context.append(
-                template.system_custom_header("Function Calls")+"\n" + "\n".join([
-                    "You have access to functions presented to you in the available functions listed above.",
-                    "If you need to call a function, use this exact syntax:",
-                    "```function",
-                    "{",
-                    '  "function_name": "name_of_the_function_to_call",',
-                    '  "function_parameters": {',
-                    '    "parameter1": value1,',
-                    '    "parameter2": value2',
-                    "  }",
-                    "}",
-                    "```",
-                    "Important Notes:",
-                    "- **Always** enclose the function call in a `function` markdown code block.",
-                    "- Make sure the content of the function markdown code block is a valid json.",
-                ])
-            )              
+        if not ignore_function_calls:
+            for function_call in self.function_calls:
+                fc:FunctionCall = function_call["class"]
+                if fc.function_type == FunctionType.CONTEXT_UPDATE:
+                    full_context = fc.update_context(self, full_context)
+                elif fc.function_type == FunctionType.CLASSIC:
+                    if not found_classic_function:
+                        found_classic_function = True
+                    full_context.append(self.transform_function_to_text(template,function_call))
+                    full_context = fc.update_context(self, full_context)
+                    
+            if found_classic_function:
+                full_context.append(
+                    template.system_custom_header("Function Calls")+"\n" + "\n".join([
+                        "You have access to functions presented to you in the available functions listed above.",
+                        "If you need to call a function, use this exact syntax:",
+                        "```function",
+                        "{",
+                        '  "function_name": "name_of_the_function_to_call",',
+                        '  "function_parameters": {',
+                        '    "parameter1": value1,',
+                        '    "parameter2": value2',
+                        "  }",
+                        "}",
+                        "```",
+                        "Important Notes:",
+                        "- **Always** enclose the function call in a `function` markdown code block.",
+                        "- Make sure the content of the function markdown code block is a valid json.",
+                    ])
+                )              
 
         append_context("discussion_messages", template.system_custom_header("Discussion")+"\n")
         # Add custom entries if provided

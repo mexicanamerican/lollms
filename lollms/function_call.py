@@ -16,24 +16,19 @@ class FunctionCall:
         self.client = client
         self.static_parameters = static_parameters
 
-    def execute(self, *args, **kwargs):
+    def execute(self, context,  *args, **kwargs):
         """
         Execute the function based on its type.
         This method should be overridden by subclasses.
         """
         raise NotImplementedError("Subclasses must implement the execute method.")
 
-    def update_context(self, context, contructed_context:str):
+    def update_context(self, context, constructed_context:List[str]):
         """
         Update the context if needed.
         This method should be overridden by subclasses.
         """
-        if self.function_type == FunctionType.CONTEXT_UPDATE:
-            raise NotImplementedError("Subclasses must implement the update_context method for CONTEXT_UPDATE functions.")
-        elif self.function_type == FunctionType.AI_FIRST_CALL:
-            raise NotImplementedError("Subclasses must implement the update_context method for AI_FIRST_CALL functions.")
-        elif self.function_type == FunctionType.POST_GENERATION:
-            raise NotImplementedError("Subclasses must implement the update_context method for POST_GENERATION functions.")
+        return constructed_context
         
     def process_output(self, context, llm_output:str):
         if self.function_type == FunctionType.CONTEXT_UPDATE:
