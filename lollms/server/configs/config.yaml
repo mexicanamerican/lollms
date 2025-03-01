@@ -1,15 +1,16 @@
 # =================== Lord Of Large Language Multimodal Systems Configuration file =========================== 
-version: 149
+version: 157
 
 # video viewing and news recovering
 last_viewed_video: null
+last_viewed_changelog_version: null
 
 binding_name: null
 model_name: null
 model_variant: null
 model_type: null
 
-show_news_panel: true
+show_news_panel: false
 
 # Security measures
 turn_on_setting_update_validation: true
@@ -110,7 +111,7 @@ active_tts_service: "None" # xtts (offline), openai_tts (API key required), elev
 active_tti_service: "None" # autosd (offline), diffusers (offline), diffusers_client (online), dall-e (online), midjourney (online)
 active_stt_service: "None" # whisper (offline), asr (offline or online), openai_whiosper (API key required)
 active_ttm_service: "None" # musicgen (offline)
-active_ttv_service: "None" # cog_video_x, diffusers, lumalab (offline)
+active_ttv_service: "None" # novita_ai, cog_video_x, diffusers, lumalab (offline)
 # -------------------- Services --------------------------
 
 # ***************** STT *****************
@@ -220,6 +221,9 @@ motion_ctrl_base_url: http://localhost:7861
 
 
 # ***************** TTV *****************
+# Novita_ai configuration
+novita_ai_key: ""
+
 cog_video_x_model: "THUDM/CogVideoX-5b"
 
 # lumalabs configuration
@@ -336,10 +340,39 @@ positive_boost: null
 negative_boost: null
 current_language: english
 fun_mode: false
+think_first_mode: false
+thinking_prompt:   "Use a think first process to answer the user:
+  <think>
+  Ask yourself about the user's request and answer it with logical details.
+  If the user is requesting general information that does not require internet search and you are confident about it, then prepare to answer directly.
+  If the user is requesting general information that does require internet search and you have in the context enough information to answer, then use that data to answer.
+  If the user is requesting general information that does require internet search but you do not have any information, then ask him to activate internet search.
 
+  if the user is posing a riddle or asking a math question, make sure you use regourous math hypothisis, testing and analysis.
+  If the user is requesting to perform a task, then plan it through steps and prepare to answer
+  If the user is just discussing casually, do not perform the think first process
+
+  Make sure you continue thinking until you find a satisfactory answer
+  Assess any potential errors you may make
+  </think>
+
+  After thinking you can answer the user."
+
+
+
+
+mounted_function_calls: []
+# { name: the function name,
+#   author: the author of the function
+#   category: the category of the function
+#   value: the function name without spaces,
+#   selected: selected or not,
+#   icon: the icon in form feather:icon name or img:url or b64:base64,
+#   help: the help
+# }
 
 # webui configurations
 show_code_of_conduct: true
 activate_audio_infos: true
 
-
+keep_thoughts: false

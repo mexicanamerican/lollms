@@ -624,12 +624,18 @@ class LollmsApplication(LoLLMsCom):
         ASCIIColors.execute_with_animation("Loading loacal TTI services", start_tti, ASCIIColors.color_blue)
 
         def start_ttv(*args, **kwargs):
-            if self.config.active_ttv_service == "lumalabs" and (self.ttv is None or self.tti.name!="lumalabs"):
+            if self.config.active_ttv_service == "lumalabs" and (self.ttv is None or self.ttv.name!="lumalabs"):
                 try:
                     from lollms.services.ttv.lumalabs.lollms_lumalabs import LollmsLumaLabs
-                    self.sd = LollmsLumaLabs(self.config.lumalabs_key)
+                    self.ttv = LollmsLumaLabs(self.config.lumalabs_key)
                 except:
-                    self.warning(f"Couldn't load SD")
+                    self.warning(f"Couldn't create lumalabs binding")
+            if self.config.active_ttv_service == "novita_ai" and (self.ttv is None or self.ttv.name!="novita_ai"):
+                try:
+                    from lollms.services.ttv.novita_ai.lollms_novita_ai import LollmsNovitaAITextToVideo
+                    self.ttv = LollmsNovitaAITextToVideo(self.config.novita_ai_key)
+                except:
+                    self.warning(f"Couldn't create novita ai bvinding")
 
 
         ASCIIColors.execute_with_animation("Loading loacal TTV services", start_ttv, ASCIIColors.color_blue)
