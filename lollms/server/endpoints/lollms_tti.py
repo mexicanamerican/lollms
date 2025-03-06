@@ -147,9 +147,9 @@ async def set_active_ttv_settings(request: Request):
     """
 
     try:
-        print("- Setting ttv settings")
+        print("- Setting tti settings")
         
-        if lollmsElfServer.ttv is not None:
+        if lollmsElfServer.tti is not None:
             if hasattr(lollmsElfServer.tti,"service_config"):
                 lollmsElfServer.tti.service_config.update_template(settings)
                 lollmsElfServer.tti.service_config.config.save_config()
