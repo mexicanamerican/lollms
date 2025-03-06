@@ -714,7 +714,7 @@ class LollmsSD(LollmsTTI):
         #elif self.has_controlnet:
             # workaround : if not passed, webui will use previous args!
         #    payload["alwayson_scripts"]["ControlNet"] = {"args": []}
-
+        print(self.sd_base_url)
         return self.post_and_get_api_result(
             f"{self.sd_base_url}/txt2img", payload, use_async
         )
