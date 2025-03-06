@@ -333,7 +333,7 @@ class LollmsSD(LollmsTTI):
         root_dir = lollms_paths.personal_path
 
         # Store the path to the script
-        if service_config.auto_sd_base_url is None:
+        if service_config.base_url is None:
             self.service_config.base_url = "http://127.0.0.1:7860"
         if service_config.local_service and service_config.start_service_at_startup:
             if not LollmsSD.verify(app):
