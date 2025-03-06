@@ -308,6 +308,18 @@ class LollmsSD(LollmsTTI):
                     "help": "The base URL for the Auto SD service. If not provided, a default or local URL will be used."
                 },
                 {
+                    "name": "local_service",
+                    "type": "bool",
+                    "value": False,
+                    "help": "If set to true, a local instance of the service will be installed and used."
+                },
+                {
+                    "name": "start_service_at_startup",
+                    "type": "bool",
+                    "value": False,
+                    "help": "If set to true, the service will automatically start at startup. This also enables the local service option."
+                },
+                {
                     "name": "share",
                     "type": "bool",
                     "value": False,
@@ -327,10 +339,11 @@ class LollmsSD(LollmsTTI):
         root_dir = lollms_paths.personal_path
 
         # Store the path to the script
-        if service_config.auto_sd_base_url is None:
-            self.service_config.base_url = "http://127.0.0.1:7860"
-            if not LollmsSD.verify(app):
-                install_sd(app.lollms_paths)
+        if service_config.local_service and service_config.start_service_at_startup:
+            if service_config.auto_sd_base_url is None:
+                self.service_config.base_url = "http://127.0.0.1:7860"
+                if not LollmsSD.verify(app):
+                    install_sd(app)
 
 
         self.auto_sd_url = self.service_config.base_url+"/sdapi/v1"
