@@ -588,11 +588,8 @@ class LollmsApplication(LoLLMsCom):
                 from lollms.services.tti.diffusers_client.lollms_diffusers_client import LollmsDiffusersClient
                 self.tti = LollmsDiffusersClient(self)
             elif self.config.active_tti_service == "autosd":
-                if self.sd:
-                    self.tti = self.sd
-                else:
-                    from lollms.services.tti.sd.lollms_sd import LollmsSD
-                    self.tti = LollmsSD(self)
+                from lollms.services.tti.sd.lollms_sd import LollmsSD
+                self.tti = LollmsSD(self)
             elif self.config.active_tti_service == "dall-e":
                 from lollms.services.tti.dalle.lollms_dalle import LollmsDalle
                 self.tti = LollmsDalle(self)
@@ -702,11 +699,8 @@ class LollmsApplication(LoLLMsCom):
                 from lollms.services.tti.diffusers_client.lollms_diffusers_client import LollmsDiffusersClient
                 self.tti = LollmsDiffusersClient(self)
             elif self.config.active_tti_service == "autosd" and (self.tti is None or self.tti.name!="stable_diffusion"):
-                if self.sd:
-                    self.tti = self.sd
-                else:
-                    from lollms.services.tti.sd.lollms_sd import LollmsSD
-                    self.tti = LollmsSD(self)
+                from lollms.services.tti.sd.lollms_sd import LollmsSD
+                self.tti = LollmsSD(self)
             elif self.config.active_tti_service == "dall-e" and (self.tti is None or self.tti.name!="dall-e-2" or type(self.tti.name)!="dall-e-3"):
                 from lollms.services.tti.dalle.lollms_dalle import LollmsDalle
                 self.tti = LollmsDalle(self)
