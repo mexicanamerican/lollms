@@ -346,7 +346,7 @@ class LollmsSD(LollmsTTI):
                     install_sd(app)
 
 
-        self.auto_sd_url = self.service_config.base_url+"/sdapi/v1"
+        self.service_config.base_url = self.service_config.base_url+"/sdapi/v1"
         shared_folder = root_dir/"shared"
         self.sd_folder = shared_folder / "auto_sd"
         self.output_dir = root_dir / "outputs/sd"
@@ -722,7 +722,7 @@ class LollmsSD(LollmsTTI):
         #    payload["alwayson_scripts"]["ControlNet"] = {"args": []}
 
         return self.post_and_get_api_result(
-            f"{self.auto_sd_url}/txt2img", payload, use_async
+            f"{self.service_config.base_url}/txt2img", payload, use_async
         )
 
     def post_and_get_api_result(self, url, json, use_async):
@@ -863,7 +863,7 @@ class LollmsSD(LollmsTTI):
         #    payload["alwayson_scripts"]["ControlNet"] = {"args": []}
 
         return self.post_and_get_api_result(
-            f"{self.auto_sd_url}/img2img", payload, use_async
+            f"{self.service_config.base_url}/img2img", payload, use_async
         )
 
     def extra_single_image(
@@ -902,7 +902,7 @@ class LollmsSD(LollmsTTI):
         }
 
         return self.post_and_get_api_result(
-            f"{self.auto_sd_url}/extra-single-image", payload, use_async
+            f"{self.service_config.base_url}/extra-single-image", payload, use_async
         )
 
     def extra_batch_images(
@@ -953,7 +953,7 @@ class LollmsSD(LollmsTTI):
         }
 
         return self.post_and_get_api_result(
-            f"{self.auto_sd_url}/extra-batch-images", payload, use_async
+            f"{self.service_config.base_url}/extra-batch-images", payload, use_async
         )
 
     # XXX 500 error (2022/12/26)
@@ -962,7 +962,7 @@ class LollmsSD(LollmsTTI):
             "image": b64_img(image),
         }
 
-        response = self.session.post(url=f"{self.auto_sd_url}/png-info", json=payload)
+        response = self.session.post(url=f"{self.service_config.base_url}/png-info", json=payload)
         return self._to_api_result(response)
 
     """
@@ -975,108 +975,108 @@ class LollmsSD(LollmsTTI):
             "model": model,
         }
 
-        response = self.session.post(url=f"{self.auto_sd_url}/interrogate", json=payload)
+        response = self.session.post(url=f"{self.service_config.base_url}/interrogate", json=payload)
         return self._to_api_result(response)
 
     def interrupt(self):
-        response = self.session.post(url=f"{self.auto_sd_url}/interrupt")
+        response = self.session.post(url=f"{self.service_config.base_url}/interrupt")
         return response.json()
 
     def skip(self):
-        response = self.session.post(url=f"{self.auto_sd_url}/skip")
+        response = self.session.post(url=f"{self.service_config.base_url}/skip")
         return response.json()
 
     def get_options(self):
-        response = self.session.get(url=f"{self.auto_sd_url}/options")
+        response = self.session.get(url=f"{self.service_config.base_url}/options")
         return response.json()
 
     def set_options(self, options):
-        response = self.session.post(url=f"{self.auto_sd_url}/options", json=options)
+        response = self.session.post(url=f"{self.service_config.base_url}/options", json=options)
         return response.json()
 
     def get_cmd_flags(self):
-        response = self.session.get(url=f"{self.auto_sd_url}/cmd-flags")
+        response = self.session.get(url=f"{self.service_config.base_url}/cmd-flags")
         return response.json()
 
     def get_progress(self):
-        response = self.session.get(url=f"{self.auto_sd_url}/progress")
+        response = self.session.get(url=f"{self.service_config.base_url}/progress")
         return response.json()
 
     def get_cmd_flags(self):
-        response = self.session.get(url=f"{self.auto_sd_url}/cmd-flags")
+        response = self.session.get(url=f"{self.service_config.base_url}/cmd-flags")
         return response.json()
 
     def get_samplers(self):
-        response = self.session.get(url=f"{self.auto_sd_url}/samplers")
+        response = self.session.get(url=f"{self.service_config.base_url}/samplers")
         return response.json()
 
     def get_sd_vae(self):
-        response = self.session.get(url=f"{self.auto_sd_url}/sd-vae")
+        response = self.session.get(url=f"{self.service_config.base_url}/sd-vae")
         return response.json()
 
     def get_upscalers(self):
-        response = self.session.get(url=f"{self.auto_sd_url}/upscalers")
+        response = self.session.get(url=f"{self.service_config.base_url}/upscalers")
         return response.json()
 
     def get_latent_upscale_modes(self):
-        response = self.session.get(url=f"{self.auto_sd_url}/latent-upscale-modes")
+        response = self.session.get(url=f"{self.service_config.base_url}/latent-upscale-modes")
         return response.json()
 
     def get_loras(self):
-        response = self.session.get(url=f"{self.auto_sd_url}/loras")
+        response = self.session.get(url=f"{self.service_config.base_url}/loras")
         return response.json()
 
     def get_sd_models(self):
-        response = self.session.get(url=f"{self.auto_sd_url}/sd-models")
+        response = self.session.get(url=f"{self.service_config.base_url}/sd-models")
         return response.json()
 
     def get_hypernetworks(self):
-        response = self.session.get(url=f"{self.auto_sd_url}/hypernetworks")
+        response = self.session.get(url=f"{self.service_config.base_url}/hypernetworks")
         return response.json()
 
     def get_face_restorers(self):
-        response = self.session.get(url=f"{self.auto_sd_url}/face-restorers")
+        response = self.session.get(url=f"{self.service_config.base_url}/face-restorers")
         return response.json()
 
     def get_realesrgan_models(self):
-        response = self.session.get(url=f"{self.auto_sd_url}/realesrgan-models")
+        response = self.session.get(url=f"{self.service_config.base_url}/realesrgan-models")
         return response.json()
 
     def get_prompt_styles(self):
-        response = self.session.get(url=f"{self.auto_sd_url}/prompt-styles")
+        response = self.session.get(url=f"{self.service_config.base_url}/prompt-styles")
         return response.json()
 
     def get_artist_categories(self):  # deprecated ?
-        response = self.session.get(url=f"{self.auto_sd_url}/artist-categories")
+        response = self.session.get(url=f"{self.service_config.base_url}/artist-categories")
         return response.json()
 
     def get_artists(self):  # deprecated ?
-        response = self.session.get(url=f"{self.auto_sd_url}/artists")
+        response = self.session.get(url=f"{self.service_config.base_url}/artists")
         return response.json()
 
     def refresh_checkpoints(self):
-        response = self.session.post(url=f"{self.auto_sd_url}/refresh-checkpoints")
+        response = self.session.post(url=f"{self.service_config.base_url}/refresh-checkpoints")
         return response.json()
 
     def get_scripts(self):
-        response = self.session.get(url=f"{self.auto_sd_url}/scripts")
+        response = self.session.get(url=f"{self.service_config.base_url}/scripts")
         return response.json()
 
     def get_embeddings(self):
-        response = self.session.get(url=f"{self.auto_sd_url}/embeddings")
+        response = self.session.get(url=f"{self.service_config.base_url}/embeddings")
         return response.json()
 
     def get_memory(self):
-        response = self.session.get(url=f"{self.auto_sd_url}/memory")
+        response = self.session.get(url=f"{self.service_config.base_url}/memory")
         return response.json()
 
     def get_endpoint(self, endpoint, baseurl):
         if baseurl:
-            return f"{self.auto_sd_url}/{endpoint}"
+            return f"{self.service_config.base_url}/{endpoint}"
         else:
             from urllib.parse import urlparse, urlunparse
 
-            parsed_url = urlparse(self.auto_sd_url)
+            parsed_url = urlparse(self.service_config.base_url)
             basehost = parsed_url.netloc
             parsed_url2 = (parsed_url[0], basehost, endpoint, "", "", "")
             return urlunparse(parsed_url2)
@@ -1505,7 +1505,7 @@ class ControlNetInterface:
                     save_folder=None, 
                     script_name=""
                     ):
-        url = f"{self.auto_sd_url}/sdapi/v1/txt2img"
+        url = f"{self.service_config.base_url}/sdapi/v1/txt2img"
         
         if styles is None:
             styles = []
@@ -1607,7 +1607,7 @@ class ControlNetInterface:
                    save_folder=None, 
                    script_name=""
                 ):
-        url = f"{self.auto_sd_url}/sdapi/v1/img2img"
+        url = f"{self.service_config.base_url}/sdapi/v1/img2img"
 
         if styles is None:
             styles = []
