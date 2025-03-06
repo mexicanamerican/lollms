@@ -389,7 +389,8 @@ class LollmsSD(LollmsTTI):
             self.set_auth(self.service_config.username, self.service_config.password)
         else:
             self.check_controlnet()
-
+    def settings_updated(self):
+        pass # TODO: implement
     @staticmethod
     def verify(app:LollmsApplication):
         # Clone repository
