@@ -34,6 +34,7 @@ from tqdm import tqdm
 import threading
 
 
+from lollms.config import TypedConfig, ConfigTemplate, BaseConfig
 
 def download_file(url, folder_path, local_filename):
     # Make sure 'folder_path' exists
@@ -67,21 +68,42 @@ def upgrade_fooocus(lollms_app:LollmsApplication):
 
 
 class LollmsFooocus(LollmsTTI):
-    def __init__(
-                    self, 
-                    app:LollmsApplication, 
-                    wm = "Artbot",
-                    base_url="localhost:1024"
-                    ):
-        super().__init__("fooocus",app)
+    def __init__(self, app, output_folder:str|Path=None):
+        """
+        Initializes the LollmsDalle binding.
+
+        Args:
+            api_key (str): The API key for authentication.
+            output_folder (Path|str):  The output folder where to put the generated data
+        """
+        service_config = TypedConfig(
+            ConfigTemplate([
+                {
+                    "name": "base_url",
+                    "type": "str",
+                    "value": "localhost:1024",
+                    "help": "The base URL for the service. This is the address where the service is hosted (e.g., http://127.0.0.1:8188/)."
+                },
+                {
+                    "name": "wm",
+                    "type": "str",
+                    "value": "lollms",
+                    "help": "Watermarking text or identifier to be used in the service."
+                },
+                {"name":"model", "type":"str", "value":"v2ray/stable-diffusion-3-medium-diffusers", "help":"The model to be used"},
+                {"name":"wm", "type":"str", "value":"lollms", "help":"The water marking"},
+            ]),
+            BaseConfig(config={
+                "api_key": "",     # use avx2
+            })
+        )
+
+        super().__init__("fooocus", app, service_config)     
         self.ready = False
-        self.base_url = base_url
         # Get the current directory
         lollms_paths = app.lollms_paths
         root_dir = lollms_paths.personal_path
         
-        self.wm = wm
-
         shared_folder = root_dir/"shared"
         self.fooocus_folder = shared_folder / "fooocus"
         self.output_dir = root_dir / "outputs/fooocus"

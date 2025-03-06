@@ -27,14 +27,14 @@ import numpy as np
 
 
 # Ensure required packages are installed
-if not PackageManager.check_package_installed("TTS"):
-    PackageManager.install_or_update("TTS")
+if not pm.is_installed("TTS"):
+    pm.install("TTS")
 
-if not PackageManager.check_package_installed("simpleaudio"):
-    PackageManager.install_or_update("simpleaudio")
+if not pm.is_installed("simpleaudio"):
+    pm.install("simpleaudio")
 
-if not PackageManager.check_package_installed("wave"):
-    PackageManager.install_or_update("wave")
+if not pm.is_installed("wave"):
+    pm.install("wave")
 
 import re
 from pathlib import Path
@@ -48,6 +48,7 @@ import time
 from queue import Queue
 import re
 import pipmaster as pm
+from lollms.config import TypedConfig, ConfigTemplate, BaseConfig
 
 # List of common sampling rates
 common_sampling_rates = [8000, 11025, 16000, 22050, 32000, 44100, 48000, 96000, 192000]
@@ -60,11 +61,54 @@ def xtts_install():
     pm.install_or_update("tts", force_reinstall=True)
 
 class LollmsXTTS(LollmsTTS):
+    def __init__(
+                    self, 
+                    app:LollmsApplication,
+                    output_folder=None
+                    ):
+        """
+        Initializes the LollmsDalle binding.
+
+        Args:
+            api_key (str): The API key for authentication.
+            output_folder (Path|str):  The output folder where to put the generated data
+        """        
+        service_config = TypedConfig(
+            ConfigTemplate([
+                {
+                    "name": "model",
+                    "type": "str",
+                    "value": "",
+                    "options": [],
+                    "help": "The model to use for text-to-speech. Options: 'alloy', 'echo', 'fable', 'nova', 'shimmer'."
+                },
+                {
+                    "name": "voice",
+                    "type": "str",
+                    "value": "alloy",
+                    "help": "The voice to use for text-to-speech. Options: 'alloy', 'echo', 'fable', 'nova', 'shimmer'."
+                },
+            ]),
+            BaseConfig(config={
+                "api_key": "",     # use avx2
+            })
+        )
+        super().__init__("lollms_xtts", app, service_config, output_folder)  
+        voices_folder = app.lollms_paths.custom_voices_path/"xtts"
+        voices_folder.mkdir(exist_ok=True, parents=True)
+        self.voices_folders = [voices_folder] + [Path(__file__).parent/"voices"]
+        voices = self.get_voices()
+        service_config.config_template["model"]["options"]=voices
+
+        
+    def settings_updated(self):
+        voices = self.get_voices()
+        self.service_config.config_template["model"]["options"]=voices
+
     def __init__(self, app: LollmsApplication, voices_folders: List[str|Path], freq = 22050):
         super().__init__("lollms_xtts", app)
         self.freq = freq
         self.generation_threads = {}
-        self.voices_folders = [Path(v) for v in voices_folders] + [Path(__file__).parent/"voices"]
         self.stop_event = threading.Event()
 
         # Show a cool LOGO using ASCIIColors

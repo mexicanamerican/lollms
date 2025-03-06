@@ -87,12 +87,6 @@ class LollmsApplication(LoLLMsCom):
         # services
         self.ollama         = None
         self.vllm           = None
-        self.whisper        = None
-        self.xtts           = None
-        self.sd             = None
-        self.comfyui        = None
-        self.motion_ctrl    = None
-
         self.tti = None
         self.tts = None
         self.stt = None
@@ -535,16 +529,16 @@ class LollmsApplication(LoLLMsCom):
             if self.config.whisper_activate or self.config.active_stt_service == "whisper":
                 try:
                     from lollms.services.stt.whisper.lollms_whisper import LollmsWhisper
-                    self.whisper = LollmsWhisper(self, self.config.whisper_model, self.lollms_paths.personal_outputs_path)
+                    self.whisper = LollmsWhisper(self)
                     stt_services.append("whisper")
                 except Exception as ex:
                     trace_exception(ex)
             if self.config.active_stt_service == "openai_whisper":
                 from lollms.services.stt.openai_whisper.lollms_openai_whisper import LollmsOpenAIWhisper
-                self.stt = LollmsOpenAIWhisper(self, self.config.openai_whisper_model, self.config.openai_whisper_key)
+                self.stt = LollmsOpenAIWhisper(self)
             elif self.config.active_stt_service == "whisper":
                 from lollms.services.stt.whisper.lollms_whisper import LollmsWhisper
-                self.stt = LollmsWhisper(self, self.config.whisper_model)
+                self.stt = LollmsWhisper(self)
 
         ASCIIColors.execute_with_animation("Loading STT services", start_stt, ASCIIColors.color_blue)
 
@@ -553,31 +547,22 @@ class LollmsApplication(LoLLMsCom):
                 ASCIIColors.yellow("Loading XTTS")
                 try:
                     from lollms.services.tts.xtts.lollms_xtts import LollmsXTTS
-                    voice=self.config.xtts_current_voice
-                    if voice!="main_voice":
-                        voices_folder = self.lollms_paths.custom_voices_path
-                    else:
-                        voices_folder = Path(__file__).parent.parent.parent/"services/xtts/voices"
 
-                    self.xtts = LollmsXTTS(
-                                            self,
-                                            voices_folders=[voices_folder, self.lollms_paths.custom_voices_path], 
-                                            freq=self.config.xtts_freq
+                    self.tts = LollmsXTTS(
+                                            self
                                         )
                 except Exception as ex:
                     trace_exception(ex)
                     self.warning(f"Couldn't load XTTS")
             if self.config.active_tts_service == "eleven_labs_tts":
                 from lollms.services.tts.eleven_labs_tts.lollms_eleven_labs_tts import LollmsElevenLabsTTS
-                self.tts = LollmsElevenLabsTTS(self, self.config.elevenlabs_tts_model_id, self.config.elevenlabs_tts_voice_id,  self.config.elevenlabs_tts_key, stability=self.config.elevenlabs_tts_voice_stability, similarity_boost=self.config.elevenlabs_tts_voice_boost)
+                self.tts = LollmsElevenLabsTTS(self)
             elif self.config.active_tts_service == "openai_tts":
                 from lollms.services.tts.open_ai_tts.lollms_openai_tts import LollmsOpenAITTS
-                self.tts = LollmsOpenAITTS(self, self.config.openai_tts_model, self.config.openai_tts_voice,  self.config.openai_tts_key)
+                self.tts = LollmsOpenAITTS(self)
             elif self.config.active_tts_service == "fish_tts":
                 from lollms.services.tts.fish.lollms_fish_tts import LollmsFishAudioTTS
-                self.tts = LollmsFishAudioTTS(self, self.config.fish_tts_voice,  self.config.fish_tts_key)
-            elif self.config.active_tts_service == "xtts" and self.xtts:
-                self.tts = self.xtts
+                self.tts = LollmsFishAudioTTS(self)
 
         ASCIIColors.execute_with_animation("Loading TTS services", start_tts, ASCIIColors.color_blue)
 
@@ -585,14 +570,14 @@ class LollmsApplication(LoLLMsCom):
             if self.config.enable_sd_service:
                 try:
                     from lollms.services.tti.sd.lollms_sd import LollmsSD
-                    self.sd = LollmsSD(self, auto_sd_base_url=self.config.sd_base_url)
+                    self.sd = LollmsSD(self)
                 except:
                     self.warning(f"Couldn't load SD")
 
             if self.config.enable_comfyui_service:
                 try:
                     from lollms.services.tti.comfyui.lollms_comfyui import LollmsComfyUI
-                    self.comfyui = LollmsComfyUI(self, comfyui_base_url=self.config.comfyui_base_url)
+                    self.comfyui = LollmsComfyUI(self)
                 except:
                     self.warning(f"Couldn't load SD")
 
@@ -607,35 +592,37 @@ class LollmsApplication(LoLLMsCom):
                     self.tti = self.sd
                 else:
                     from lollms.services.tti.sd.lollms_sd import LollmsSD
-                    self.tti = LollmsSD(self, auto_sd_base_url = self.config.sd_base_url)
+                    self.tti = LollmsSD(self)
             elif self.config.active_tti_service == "dall-e":
                 from lollms.services.tti.dalle.lollms_dalle import LollmsDalle
-                self.tti = LollmsDalle(self, self.config.dall_e_key)
+                self.tti = LollmsDalle(self)
             elif self.config.active_tti_service == "midjourney":
                 from lollms.services.tti.midjourney.lollms_midjourney import LollmsMidjourney
-                self.tti = LollmsMidjourney(self, self.config.midjourney_key, self.config.midjourney_timeout, self.config.midjourney_retries)
+                self.tti = LollmsMidjourney(self)
             elif self.config.active_tti_service == "comfyui" and (self.tti is None or self.tti.name!="comfyui"):
                 if self.comfyui:
                     self.tti = self.comfyui
                 else:
                     from lollms.services.tti.comfyui.lollms_comfyui import LollmsComfyUI
-                    self.tti = LollmsComfyUI(self, comfyui_base_url=self.config.comfyui_base_url)
+                    self.tti = LollmsComfyUI(self)
 
         ASCIIColors.execute_with_animation("Loading loacal TTI services", start_tti, ASCIIColors.color_blue)
 
         def start_ttv(*args, **kwargs):
-            if self.config.active_ttv_service == "lumalabs" and (self.ttv is None or self.ttv.name!="lumalabs"):
+            if self.config.active_ttv_service == "lumalabs":
                 try:
                     from lollms.services.ttv.lumalabs.lollms_lumalabs import LollmsLumaLabs
-                    self.ttv = LollmsLumaLabs(self.config.lumalabs_key)
-                except:
+                    self.ttv = LollmsLumaLabs(self)
+                except Exception as ex:
+                    trace_exception(ex)
                     self.warning(f"Couldn't create lumalabs binding")
             if self.config.active_ttv_service == "novita_ai" and (self.ttv is None or self.ttv.name!="novita_ai"):
                 try:
                     from lollms.services.ttv.novita_ai.lollms_novita_ai import LollmsNovitaAITextToVideo
-                    self.ttv = LollmsNovitaAITextToVideo(self.config.novita_ai_key)
-                except:
-                    self.warning(f"Couldn't create novita ai bvinding")
+                    self.ttv = LollmsNovitaAITextToVideo(self)
+                except Exception as ex:
+                    trace_exception(ex)
+                    self.warning(f"Couldn't create novita ai binding")
 
 
         ASCIIColors.execute_with_animation("Loading loacal TTV services", start_ttv, ASCIIColors.color_blue)
@@ -670,12 +657,12 @@ class LollmsApplication(LoLLMsCom):
             if self.config.whisper_activate and self.whisper is None:
                 try:
                     from lollms.services.stt.whisper.lollms_whisper import LollmsWhisper
-                    self.whisper = LollmsWhisper(self, self.config.whisper_model, self.lollms_paths.personal_outputs_path)
+                    self.whisper = LollmsWhisper(self)
                 except Exception as ex:
                     trace_exception(ex)
                     
             ASCIIColors.blue("Loading loacal TTS services")
-            if self.config.active_tts_service == "xtts" and self.xtts is None:
+            if self.config.active_tts_service == "xtts" and (self.tts is None or self.tts.name!="xtts"):
                 ASCIIColors.yellow("Loading XTTS")
                 try:
                     from lollms.services.tts.xtts.lollms_xtts import LollmsXTTS
@@ -685,10 +672,8 @@ class LollmsApplication(LoLLMsCom):
                     else:
                         voices_folder = Path(__file__).parent.parent.parent/"services/xtts/voices"
 
-                    self.xtts = LollmsXTTS(
-                                            self,
-                                            voices_folders=[voices_folder, self.lollms_paths.custom_voices_path], 
-                                            freq=self.config.xtts_freq
+                    self.tts = LollmsXTTS(
+                                            self
                                         )
                 except Exception as ex:
                     trace_exception(ex)
@@ -698,14 +683,14 @@ class LollmsApplication(LoLLMsCom):
             if self.config.enable_sd_service and self.sd is None:
                 try:
                     from lollms.services.tti.sd.lollms_sd import LollmsSD
-                    self.sd = LollmsSD(self, auto_sd_base_url=self.config.sd_base_url)
+                    self.sd = LollmsSD(self)
                 except:
                     self.warning(f"Couldn't load SD")
 
             if self.config.enable_comfyui_service and self.comfyui is None:
                 try:
                     from lollms.services.tti.comfyui.lollms_comfyui import LollmsComfyUI
-                    self.comfyui = LollmsComfyUI(self, comfyui_base_url=self.config.comfyui_base_url)
+                    self.comfyui = LollmsComfyUI(self)
                 except:
                     self.warning(f"Couldn't load Comfyui")
 
@@ -713,21 +698,21 @@ class LollmsApplication(LoLLMsCom):
             if self.config.active_tti_service == "diffusers" and (self.tti is None or self.tti.name!="diffusers" or self.tti.model!=self.config.diffusers_model):
                 from lollms.services.tti.diffusers.lollms_diffusers import LollmsDiffusers
                 self.tti = LollmsDiffusers(self)
-            elif self.config.active_tti_service == "diffusers_client" and (self.tti.base_url!=self.config.diffusers_client_base_url or self.tti.name!="diffusers_client"):
+            elif self.config.active_tti_service == "diffusers_client" and (self.tti.name!="diffusers_client"):
                 from lollms.services.tti.diffusers_client.lollms_diffusers_client import LollmsDiffusersClient
-                self.tti = LollmsDiffusersClient(self, base_url=self.config.diffusers_client_base_url)
+                self.tti = LollmsDiffusersClient(self)
             elif self.config.active_tti_service == "autosd" and (self.tti is None or self.tti.name!="stable_diffusion"):
                 if self.sd:
                     self.tti = self.sd
                 else:
                     from lollms.services.tti.sd.lollms_sd import LollmsSD
-                    self.tti = LollmsSD(self, auto_sd_base_url=self.config.sd_base_url)
+                    self.tti = LollmsSD(self)
             elif self.config.active_tti_service == "dall-e" and (self.tti is None or self.tti.name!="dall-e-2" or type(self.tti.name)!="dall-e-3"):
                 from lollms.services.tti.dalle.lollms_dalle import LollmsDalle
-                self.tti = LollmsDalle(self, self.config.dall_e_key)
+                self.tti = LollmsDalle(self)
             elif self.config.active_tti_service == "midjourney" and (self.tti is None or self.tti.name!="midjourney"):
                 from lollms.services.tti.midjourney.lollms_midjourney import LollmsMidjourney
-                self.tti = LollmsMidjourney(self, self.config.midjourney_key, self.config.midjourney_timeout, self.config.midjourney_retries)
+                self.tti = LollmsMidjourney(self)
             elif self.config.active_tti_service == "comfyui" and (self.tti is None or self.tti.name!="comfyui"):
                 if self.comfyui:
                     self.tti = self.comfyui
@@ -738,31 +723,42 @@ class LollmsApplication(LoLLMsCom):
             ASCIIColors.blue("Activating TTS service")
             if self.config.active_tts_service == "eleven_labs_tts":
                 from lollms.services.tts.eleven_labs_tts.lollms_eleven_labs_tts import LollmsElevenLabsTTS
-                self.tts = LollmsElevenLabsTTS(self, self.config.elevenlabs_tts_model_id, self.config.elevenlabs_tts_voice_id,  self.config.elevenlabs_tts_key, stability=self.config.elevenlabs_tts_voice_stability, similarity_boost=self.config.elevenlabs_tts_voice_boost)
+                self.tts = LollmsElevenLabsTTS(self)
             elif self.config.active_tts_service == "openai_tts" and (self.tts is None or self.tts.name!="openai_tts"):
                 from lollms.services.tts.open_ai_tts.lollms_openai_tts import LollmsOpenAITTS
-                self.tts = LollmsOpenAITTS(self, self.config.openai_tts_model, self.config.openai_tts_voice,  self.config.openai_tts_key)
+                self.tts = LollmsOpenAITTS(self)
             elif self.config.active_tts_service == "fish_tts":
                 from lollms.services.tts.fish.lollms_fish_tts import LollmsFishAudioTTS
-                self.tts = LollmsFishAudioTTS(self, self.config.fish_tts_voice,  self.config.fish_tts_key)
-            elif self.config.active_tts_service == "xtts" and self.xtts:
-                self.tts = self.xtts
+                self.tts = LollmsFishAudioTTS(self)
 
             ASCIIColors.blue("Activating STT service")
             if self.config.active_stt_service == "openai_whisper" and (self.tts is None or self.tts.name!="openai_whisper"):
                 from lollms.services.stt.openai_whisper.lollms_openai_whisper import LollmsOpenAIWhisper
-                self.stt = LollmsOpenAIWhisper(self, self.config.openai_whisper_model, self.config.openai_whisper_key)
+                self.stt = LollmsOpenAIWhisper(self)
             elif self.config.active_stt_service == "whisper" and (self.tts is None or  self.tts.name!="whisper") :
                 from lollms.services.stt.whisper.lollms_whisper import LollmsWhisper
-                self.stt = LollmsWhisper(self, self.config.whisper_model)
+                self.stt = LollmsWhisper(self)
 
 
-            if self.config.active_ttv_service == "lumalabs" and (self.ttv is None or self.tti.name!="lumalabs"):
-                try:
-                    from lollms.services.ttv.lumalabs.lollms_lumalabs import LollmsLumaLabs
-                    self.sd = LollmsLumaLabs(self.config.lumalabs_key)
-                except:
-                    self.warning(f"Couldn't load SD")
+            def start_ttv(*args, **kwargs):
+                if self.config.active_ttv_service == "lumalabs" and (self.ttv is None or self.ttv.name!="lumalabs"):
+                    try:
+                        from lollms.services.ttv.lumalabs.lollms_lumalabs import LollmsLumaLabs
+                        self.ttv = LollmsLumaLabs(self, self.config.lumalabs_key)
+                    except:
+                        self.warning(f"Couldn't create lumalabs binding")
+                if self.config.active_ttv_service == "novita_ai" and (self.ttv is None or self.ttv.name!="novita_ai"):
+                    try:
+                        from lollms.services.ttv.novita_ai.lollms_novita_ai import LollmsNovitaAITextToVideo
+                        self.ttv = LollmsNovitaAITextToVideo(self,None)
+                    except Exception as ex:
+                        trace_exception(ex)
+                        self.warning(f"Couldn't create novita ai binding")
+
+
+            ASCIIColors.execute_with_animation("Loading loacal TTV services", start_ttv, ASCIIColors.color_blue)
+            print("OK")
+
 
         except Exception as ex:
             trace_exception(ex)

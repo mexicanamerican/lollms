@@ -15,6 +15,7 @@ from ascii_colors import ASCIIColors, trace_exception
 from lollms.paths import LollmsPaths
 import subprocess
 import pipmaster as pm
+from lollms.config import TypedConfig, ConfigTemplate, BaseConfig
 try:
     if not pm.is_installed("openai-whisper"):
         pm.install("openai-whisper")
@@ -40,17 +41,41 @@ class LollmsWhisper(LollmsSTT):
     def __init__(
                     self, 
                     app:LollmsApplication, 
-                    model="small",
-                    output_path=None
+                    output_folder:str|Path=None
                     ):
-        super().__init__("whisper",app, model, output_path)
+        """
+        Initializes the LollmsDalle binding.
+
+        Args:
+            api_key (str): The API key for authentication.
+            output_folder (Path|str):  The output folder where to put the generated data
+        """          
+        service_config = TypedConfig(
+            ConfigTemplate([
+                {
+                    "name": "model_name",
+                    "type": "str",
+                    "value": "base",
+                    "options": ["tiny", "tiny.en", "base", "base.en", "small", "small.en", "medium", "medium.en", "large", "large-v2", "large-v3", "turbo"],
+                    "help": "The engine to be used"
+                },
+                
+            ]),
+            BaseConfig(config={
+                "api_key": "",     # use avx2
+            })
+        )
+
+
+        super().__init__("whisper",app, service_config, output_folder)
         try:
-            self.whisper = whisper.load_model(model)
+            self.whisper = whisper.load_model(service_config.model_name)
         except:
             ASCIIColors.red("Couldn't load whisper model!\nWhisper will be disabled")
             self.whisper = None
         self.ready = True
-
+    def settings_updated(self):
+        pass
     def transcribe(
                 self,
                 wave_path: str|Path

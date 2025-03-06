@@ -65,24 +65,60 @@ def split_image(file_path, folder_path, i):
         return split_paths
 
 class LollmsMidjourney(LollmsTTI):
-    def __init__(
-                    self, 
-                    app:LollmsApplication, 
-                    key="",
-                    timeout=300,
-                    retries=2,
-                    interval=1,
-                    output_path=None
-                    ):
-        super().__init__("midjourney",app)
-        self.key = key 
-        self.output_path = output_path
-        self.timeout = timeout
-        self.retries = retries
-        self.interval = interval
+    def __init__(self, app, output_folder:str|Path=None):
+        """
+        Initializes the LollmsDalle binding.
+
+        Args:
+            api_key (str): The API key for authentication.
+            output_folder (Path|str):  The output folder where to put the generated data
+        """
+        # Check for the MIDJOURNEY_KEY environment variable if no API key is provided
+        api_key = os.getenv("MIDJOURNEY_KEY","")
+        service_config = TypedConfig(
+            ConfigTemplate([
+                {
+                    "name": "api_key",
+                    "type": "str",
+                    "value": api_key,
+                    "help": "A valid API key for Midjourney, used to access the text generation service via the Anthropic API."
+                },
+                {
+                    "name": "timeout",
+                    "type": "int",
+                    "value": 300,
+                    "help": "The maximum time (in seconds) to wait for a response from the API before timing out."
+                },
+                {
+                    "name": "retries",
+                    "type": "int",
+                    "value": 2,
+                    "help": "The number of times to retry the request if it fails or times out."
+                },
+                {
+                    "name": "interval",
+                    "type": "int",
+                    "value": 1,
+                    "help": "The time interval (in seconds) between retry attempts."
+                }        
+            ]),
+            BaseConfig(config={
+                "api_key": "",     # use avx2
+            })
+        )
+
+        super().__init__("midjourney", app, service_config)
+        self.output_folder = output_folder
+
         self.session = requests.Session()
         self.headers = {
-            "Authorization": f"Bearer {key}",
+            "Authorization": f"Bearer {self.service_config.api_key}",
+            "Content-Type": "application/json"
+        }
+    def settings_updated(self):
+        self.session = requests.Session()
+        self.headers = {
+            "Authorization": f"Bearer {self.service_config.api_key}",
             "Content-Type": "application/json"
         }
 
@@ -259,13 +295,13 @@ class LollmsMidjourney(LollmsTTI):
         try:
             # Send prompt and get initial response
             positive_prompt += self.get_nearest_aspect_ratio(width, height)
-            initial_response = self.send_prompt_with_retry(positive_prompt, self.retries)
+            initial_response = self.send_prompt_with_retry(positive_prompt, self.service_config.retries)
             message_id = initial_response.get("messageId")
             if not message_id:
                 raise ValueError("No messageId returned from initial prompt")
 
             # Poll progress until image generation is done
-            progress_response = self.poll_progress(message_id, self.timeout, self.interval)
+            progress_response = self.poll_progress(message_id, self.service_config.timeout, self.service_config.interval)
             if "error" in progress_response:
                 raise ValueError(progress_response["error"])
             
@@ -281,7 +317,7 @@ class LollmsMidjourney(LollmsTTI):
                 raise ValueError("No messageId returned from initial prompt")
 
             # Poll progress until image generation is done
-            progress_response = self.poll_progress(message_id, self.timeout, self.interval)
+            progress_response = self.poll_progress(message_id, self.service_config.timeout, self.service_config.interval)
             if "error" in progress_response:
                 raise ValueError(progress_response["error"])
             

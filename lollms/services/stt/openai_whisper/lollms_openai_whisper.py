@@ -39,14 +39,40 @@ class LollmsOpenAIWhisper(LollmsSTT):
     def __init__(
                     self, 
                     app:LollmsApplication, 
-                    model="whisper-1",
-                    api_key="",
-                    output_path=None
+                    output_folder:str|Path=None
                     ):
-        super().__init__("openai_whisper",app, model, output_path)
-        self.client = OpenAI(api_key=api_key)
-        self.ready = True
+        """
+        Initializes the LollmsDalle binding.
 
+        Args:
+            api_key (str): The API key for authentication.
+            output_folder (Path|str):  The output folder where to put the generated data
+        """          
+        api_key = os.getenv("OPENAI_KEY","")
+        service_config = TypedConfig(
+            ConfigTemplate([
+                {"name":"api_key", "type":"str", "value":api_key, "help":"A valid Open AI key to generate text using anthropic api"},
+                {
+                    "name": "model",
+                    "type": "str",
+                    "value": "whisper-1",
+                    "options": ["whisper-1"],
+                    "help": "The model to be used"
+                },                
+            ]),
+            BaseConfig(config={
+                "api_key": "",     # use avx2
+            })
+        )
+
+
+        super().__init__("openai_whisper",app, service_config, output_folder)    
+        self.client = OpenAI(api_key=self.service_config.api_key)
+        self.ready = True
+    def settings_updated(self):
+        self.client = OpenAI(api_key=self.service_config.api_key)
+        self.ready = True
+        
     def transcribe(
                 self,
                 wav_path: str|Path,

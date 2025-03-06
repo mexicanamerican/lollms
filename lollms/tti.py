@@ -10,27 +10,21 @@ Author: ParisNeo, a computer geek passionate about AI
 from lollms.app import LollmsApplication
 from pathlib import Path
 from typing import List, Dict
+from lollms.main_config import LOLLMSConfig
+from lollms.config import TypedConfig
+from lollms.service import LollmsSERVICE
 
-class LollmsTTI:
+class LollmsTTI(LollmsSERVICE):
     """
     LollmsTTI is a base class for implementing Text-to-Image (TTI) functionalities within the LollmsApplication.
-    
-    Attributes:
-        app (LollmsApplication): The instance of the main Lollms application.
-        model (str): The TTI model to be used for image generation.
-        api_key (str): API key for accessing external TTI services (if needed).
-        output_path (Path or str): Path where the output image files will be saved.
-        voices (List[str]): List of available voices for TTI (to be filled by the child class).
-        models (List[str]): List of available models for TTI (to be filled by the child class).
     """
     
     def __init__(
                     self,
                     name:str,
-                    app: LollmsApplication, 
-                    model="",
-                    api_key="",
-                    output_path=None
+                    app: LollmsApplication,
+                    service_config: TypedConfig,
+                    output_folder: str|Path=None
                     ):
         """
         Initializes the LollmsTTI class with the given parameters.
@@ -41,14 +35,12 @@ class LollmsTTI:
             api_key (str, optional): API key for accessing external TTI services. Defaults to an empty string.
             output_path (Path or str, optional): Path where the output image files will be saved. Defaults to None.
         """
-        self.ready = False
-        self.name = name
-        self.app = app
-        self.model = model
-        self.api_key = api_key
-        self.output_path = output_path
-        self.models = [] # To be filled by the child class
-
+        super().__init__(name, app, service_config)
+        if output_folder is not None:
+            self.output_folder = Path(output_folder)
+        else:
+            self.output_folder = app.lollms_paths.personal_outputs_path/name
+            self.output_folder.mkdir(exist_ok=True, parents=True)
     def paint(self, 
                 positive_prompt: str, 
                 negative_prompt: str = "",

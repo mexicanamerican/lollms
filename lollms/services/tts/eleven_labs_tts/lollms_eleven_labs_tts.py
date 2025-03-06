@@ -7,6 +7,7 @@
 from pathlib import Path
 from lollms.app import LollmsApplication
 from lollms.paths import LollmsPaths
+from lollms.config import TypedConfig, ConfigTemplate, BaseConfig
 import sys
 import requests
 from typing import List, Dict, Any
@@ -15,14 +16,15 @@ from ascii_colors import ASCIIColors, trace_exception
 from lollms.paths import LollmsPaths
 from lollms.utilities import PackageManager, find_next_available_filename
 from lollms.tts import LollmsTTS
-
-if not PackageManager.check_package_installed("sounddevice"):
-    PackageManager.install_package("sounddevice")
-if not PackageManager.check_package_installed("soundfile"):
-    PackageManager.install_package("soundfile")
+import pipmaster as pm
+if not pm.is_installed("sounddevice"):
+    pm.install("sounddevice")
+if not pm.is_installed("soundfile"):
+    pm.install("soundfile")
 
 import sounddevice as sd
 import soundfile as sf
+import os
 
 def get_Whisper(lollms_paths:LollmsPaths):
     return LollmsElevenLabsTTS
@@ -31,34 +33,82 @@ class LollmsElevenLabsTTS(LollmsTTS):
     def __init__(
                     self, 
                     app: LollmsApplication,
-                    model_id: str = "eleven_turbo_v2_5",
-                    voice_name: str = "Sarah",
-                    api_key: str = "",
-                    output_path: Path | str = None,
-                    stability: float = 0.5,
-                    similarity_boost: float = 0.5,
-                    streaming: bool = False
+                    output_folder: Path | str = None,
                     ):
-        super().__init__("elevenlabs_tts", app, model_id, voice_name, api_key, output_path)
-        self.voice_name = voice_name
-        self.model_id = model_id
-        self.api_key = api_key
-        self.output_path = output_path
-        self.stability = stability
-        self.similarity_boost = similarity_boost
-        self.streaming = streaming
+        """
+        Initializes the LollmsDalle binding.
+
+        Args:
+            api_key (str): The API key for authentication.
+            output_folder (Path|str):  The output folder where to put the generated data
+        """
+    
+        # Check for the ELEVENLABS_KEY environment variable if no API key is provided
+        api_key = os.getenv("ELEVENLABS_KEY","")
+        service_config = TypedConfig(
+            ConfigTemplate(
+            [
+                {
+                    "name": "model_id",
+                    "type": "str",
+                    "value": "eleven_turbo_v2_5",
+                    "options": ["eleven_turbo_v2_5","eleven_flash_v2","eleven_multilingual_v2","eleven_multilingual_v1","eleven_english_sts_v2","eleven_english_sts_v1"],
+                    "help": "The ID of the model to use for text-to-speech generation. Example: 'eleven_turbo_v2_5'."
+                },
+                {
+                    "name": "voice_name",
+                    "type": "str",
+                    "value": "Sarah",
+                    "help": "The name of the voice to use for text-to-speech generation. Example: 'Sarah'."
+                },
+                {
+                    "name": "language",
+                    "type": "str",
+                    "value": "en",
+                    "options": ["en", "ja", "zh", "de", "hi", "fr", "ko", "pt", "it", "es", "id", "nl", "tr", "fil", "pl", "sv", "bg", "ro", "ar", "cs", "el", "fi", "hr", "ms", "sk", "da", "ta", "uk", "ru", "hu", "no", "vi"],  # Dynamically populated based on the selected model_id
+                    "help": "The language to use for text-to-speech generation. Supported languages depend on the selected model."
+                },
+                {
+                    "name": "api_key",
+                    "type": "str",
+                    "value": api_key,
+                    "help": "A valid API key for accessing the Eleven Labs service."
+                },
+                {
+                    "name": "similarity_boost",
+                    "type": "bool",
+                    "value": False,
+                    "help": "If enabled, increases the similarity of the generated speech to the selected voice."
+                },
+                {
+                    "name": "streaming",
+                    "type": "bool",
+                    "value": False,
+                    "help": "If enabled, the text-to-speech output will be streamed in real-time instead of being generated all at once."
+                }
+            ]
+            ),
+            BaseConfig(config={
+                "api_key": "",     # use avx2
+            })
+        )
+        super().__init__("elevenlabs_tts", app, service_config, output_folder)
         self.ready = True
         
         self.voices = []
         self.voice_id_map = {}
         try:
             self._fetch_voices()
-            self.voice_id = self._get_voice_id(voice_name)
+            self.voice_id = self._get_voice_id(service_config.voice_name)
         except:
             pass
+    def settings_updated(self):
+        pass
+
+
     def _fetch_voices(self):
         url = "https://api.elevenlabs.io/v1/voices"
-        headers = {"xi-api-key": self.api_key}
+        headers = {"xi-api-key": self.service_config.api_key}
         
         try:
             response = requests.get(url, headers=headers)
@@ -82,7 +132,7 @@ class LollmsElevenLabsTTS(LollmsTTS):
 
     def set_voice(self, voice_name: str):
         if voice_name in self.voices:
-            self.voice_name = voice_name
+            self.service_config.voice_name = voice_name
             self.voice_id = self._get_voice_id(voice_name)
         else:
             raise ValueError(f"Voice '{voice_name}' not found. Available voices: {', '.join(self.voices)}")
@@ -94,18 +144,18 @@ class LollmsElevenLabsTTS(LollmsTTS):
         payload = {
             "text": text,
             "language_code": language,
-            "model_id": self.model_id,
+            "model_id": self.service_config.model_id,
                 "voice_settings": {
-                "stability": self.stability,
-                "similarity_boost": self.similarity_boost
+                "stability": self.service_config.stability,
+                "similarity_boost": self.service_config.similarity_boost
             }
         }
         headers = {
-            "xi-api-key": self.api_key,
+            "xi-api-key": self.service_config.api_key,
             "Content-Type": "application/json"
         }
         
-        if self.streaming:
+        if self.service_config.streaming:
             url = f"https://api.elevenlabs.io/v1/text-to-speech/{self.voice_id}/stream"
             response = requests.post(url, json=payload, headers=headers)
             # Handle streaming response if needed
@@ -126,18 +176,18 @@ class LollmsElevenLabsTTS(LollmsTTS):
         payload = {
             "text": text,
             "language_code": language,
-            "model_id": self.model_id,
+            "model_id": self.service_config.model_id,
             "voice_settings": {
-                "stability": self.stability,
-                "similarity_boost": self.similarity_boost
+                "stability": self.service_config.stability,
+                "similarity_boost": self.service_config.similarity_boost
             }
         }
         headers = {
-            "xi-api-key": self.api_key,
+            "xi-api-key": self.service_config.api_key,
             "Content-Type": "application/json"
         }
 
-        if self.streaming:
+        if self.service_config.streaming:
             url = f"https://api.elevenlabs.io/v1/text-to-speech/{self.voice_id}/stream"
             response = requests.post(url, json=payload, headers=headers)
             # Handle streaming response if needed

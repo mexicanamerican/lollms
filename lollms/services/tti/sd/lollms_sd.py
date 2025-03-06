@@ -243,38 +243,97 @@ class ControlNetUnit:
 
 class LollmsSD(LollmsTTI):
     has_controlnet = False
-    def __init__(
-                    self, 
-                    app:LollmsApplication, 
-                    wm = "Artbot", 
-                    max_retries=50,
-                    sampler="Euler a",
-                    steps=20,               
-                    use_https=False,
-                    username=None,
-                    password=None,
-                    auto_sd_base_url=None,
-                    share=False,
-                    wait_for_service=True
-                    ):
-        super().__init__("stable_diffusion",app)
-        if auto_sd_base_url=="" or auto_sd_base_url=="http://127.0.0.1:7860":
-            auto_sd_base_url = None
+    def __init__(self, app:LollmsApplication, output_folder:str|Path=None):
+        """
+        Initializes the LollmsDalle binding.
+
+        Args:
+            api_key (str): The API key for authentication.
+            output_folder (Path|str):  The output folder where to put the generated data
+        """
+        service_config = TypedConfig(
+            ConfigTemplate([
+                {
+                    "name": "base_url",
+                    "type": "str",
+                    "value": "http://127.0.0.1:7860",
+                    "help": "Watermarking text or identifier to be used in the generated content."
+                },
+                {
+                    "name": "wm",
+                    "type": "str",
+                    "value": "Artbot",
+                    "help": "Watermarking text or identifier to be used in the generated content."
+                },
+                {
+                    "name": "max_retries",
+                    "type": "int",
+                    "value": 50,
+                    "help": "The maximum number of retries to attempt before determining that the service is unavailable."
+                },
+                {
+                    "name": "sampler",
+                    "type": "str",
+                    "value": "Euler a",
+                    "help": "The sampler algorithm to use for image generation. Example: 'Euler a'."
+                },
+                {
+                    "name": "steps",
+                    "type": "int",
+                    "value": 20,
+                    "help": "The number of steps to use in the generation process. Higher values may improve quality but increase processing time."
+                },
+                {
+                    "name": "use_https",
+                    "type": "bool",
+                    "value": False,
+                    "help": "If set to true, the service will use HTTPS for secure communication."
+                },
+                {
+                    "name": "username",
+                    "type": "str",
+                    "value": None,
+                    "help": "The username for authentication, if required by the service."
+                },
+                {
+                    "name": "password",
+                    "type": "str",
+                    "value": None,
+                    "help": "The password for authentication, if required by the service."
+                },
+                {
+                    "name": "auto_sd_base_url",
+                    "type": "str",
+                    "value": None,
+                    "help": "The base URL for the Auto SD service. If not provided, a default or local URL will be used."
+                },
+                {
+                    "name": "share",
+                    "type": "bool",
+                    "value": False,
+                    "help": "If set to true, the server will be accessible from outside your local machine (e.g., over the internet)."
+                }
+            ]),
+            BaseConfig(config={
+                "api_key": "",     # use avx2
+            })
+        )
+
+        super().__init__("stable_diffusion", app, service_config, output_folder)
+
         self.ready = False
         # Get the current directory
         lollms_paths = app.lollms_paths
         root_dir = lollms_paths.personal_path
-        
-        self.wm = wm
+
         # Store the path to the script
-        if auto_sd_base_url is None:
-            self.auto_sd_base_url = "http://127.0.0.1:7860"
+        if service_config.auto_sd_base_url is None:
+            self.service_config.base_url = "http://127.0.0.1:7860"
             if not LollmsSD.verify(app):
                 install_sd(app.lollms_paths)
-        else:
-            self.auto_sd_base_url = auto_sd_base_url
 
-        self.auto_sd_url = self.auto_sd_base_url+"/sdapi/v1"
+
+        self.auto_sd_url = self.service_config.base_url+"/sdapi/v1"
         shared_folder = root_dir/"shared"
         self.sd_folder = shared_folder / "auto_sd"
         self.output_dir = root_dir / "outputs/sd"
@@ -291,43 +350,43 @@ class LollmsSD(LollmsTTI):
         ASCIIColors.red(" Forked from Auto1111's Stable diffusion api")
         ASCIIColors.red(" Integration in lollms by ParisNeo using mix1009's sdwebuiapi ")
 
-        if not self.wait_for_service(1,False) and auto_sd_base_url is None:
+        if not self.wait_for_service(1,False) and service_config.auto_sd_base_url is None:
             ASCIIColors.info("Loading lollms_sd")
             os.environ['SD_WEBUI_RESTARTING'] = '1' # To forbid sd webui from showing on the browser automatically
             # Launch the Flask service using the appropriate script for the platform
             if platform.system() == "Windows":
                 ASCIIColors.info("Running on windows")
                 script_path = self.sd_folder / "lollms_sd.bat"
-                if share:
-                    run_script_in_env("autosd", str(script_path) +" --share", cwd=self.sd_folder)
+                if self.service_config.share:
+                    pass # TODO : implement
+                    # run_script_in_env("autosd", str(script_path) +" --share", cwd=self.sd_folder)
                 else:
-                    run_script_in_env("autosd", str(script_path), cwd=self.sd_folder)
+                    pass # TODO : implement
+                    # run_script_in_env("autosd", str(script_path), cwd=self.sd_folder)
             else:
                 ASCIIColors.info("Running on linux/MacOs")
                 script_path = str(self.sd_folder / "lollms_sd.sh")
                 ASCIIColors.info(f"launcher path: {script_path}")
                 ASCIIColors.info(f"sd path: {self.sd_folder}")
 
-                if share:
-                    run_script_in_env("autosd","bash " + script_path +" --share", cwd=self.sd_folder)
+                if self.service_config.share:
+                    pass # TODO: implement
+                    # run_script_in_env("autosd","bash " + script_path +" --share", cwd=self.sd_folder)
                 else:
-                    run_script_in_env("autosd","bash " + script_path, cwd=self.sd_folder)
+                    pass # TODO: implement
+                    # run_script_in_env("autosd","bash " + script_path, cwd=self.sd_folder)
                 ASCIIColors.info("Process done")
                 ASCIIColors.success("Launching Auto1111's SD succeeded")
 
         # Wait until the service is available at http://127.0.0.1:7860/
-        if wait_for_service:
-            self.wait_for_service(max_retries=max_retries)
-        else:
-            self.wait_for_service_in_another_thread(max_retries=max_retries)
 
-        self.default_sampler = sampler
-        self.default_steps = steps
+        self.default_sampler = self.service_config.sampler
+        self.default_steps = self.service_config.steps
 
         self.session = requests.Session()
 
-        if username and password:
-            self.set_auth(username, password)
+        if self.service_config.username and self.service_config.password:
+            self.set_auth(self.service_config.username, self.service_config.password)
         else:
             self.check_controlnet()
 
@@ -1105,7 +1164,7 @@ class LollmsSD(LollmsTTI):
         return thread
 
     def wait_for_service(self, max_retries = 50, show_warning=True):
-        url = f"{self.auto_sd_base_url}/internal/ping"
+        url = f"{self.service_config.base_url}/internal/ping"
         # Adjust this value as needed
         retries = 0
 

@@ -38,10 +38,10 @@ if not pm.is_installed("openai"):
     pm.install("openai")
 from openai import OpenAI
 
-if not PackageManager.check_package_installed("sounddevice"):
-    PackageManager.install_package("sounddevice")
-if not PackageManager.check_package_installed("soundfile"):
-    PackageManager.install_package("soundfile")
+if not pm.is_installed("sounddevice"):
+    pm.install("sounddevice")
+if not pm.is_installed("soundfile"):
+    pm.install("soundfile")
 
 import sounddevice as sd
 import soundfile as sf
@@ -53,34 +53,58 @@ class LollmsOpenAITTS(LollmsTTS):
     def __init__(
                     self, 
                     app:LollmsApplication,
-                    model ="tts-1",
-                    voice="alloy",
-                    api_key="",
-                    output_path=None
+                    output_folder=None
                     ):
-        super().__init__("openai_tts", app, model, voice, api_key, output_path)
-        self.client = OpenAI(api_key=api_key)
-        self.voices = [
-         "alloy",
-         "echo",
-         "fable",
-         "nova",
-         "shimmer"     
-        ]
-        self.models = [
-         "tts-1"   
-        ]
+        """
+        Initializes the LollmsDalle binding.
 
-        self.voice = voice
-        self.output_path = output_path
+        Args:
+            api_key (str): The API key for authentication.
+            output_folder (Path|str):  The output folder where to put the generated data
+        """        
+
+        # Check for the OPENAI_KEY environment variable if no API key is provided
+        api_key = os.getenv("OPENAI_KEY","")
+        service_config = TypedConfig(
+            ConfigTemplate([
+                {
+                    "name": "model",
+                    "type": "str",
+                    "value": "tts-1",
+                    "options": ["alloy", "echo", "fable", "nova", "shimmer"],
+                    "help": "The model to use for text-to-speech. Options: 'alloy', 'echo', 'fable', 'nova', 'shimmer'."
+                },
+                {
+                    "name": "voice",
+                    "type": "str",
+                    "value": "alloy",
+                    "help": "The voice to use for text-to-speech. Options: 'alloy', 'echo', 'fable', 'nova', 'shimmer'."
+                },
+                {
+                    "name": "api_key",
+                    "type": "str",
+                    "value": api_key,
+                    "help": "A valid API key for accessing the text-to-speech service."
+                },
+            ]),
+            BaseConfig(config={
+                "api_key": "",     # use avx2
+            })
+        )
+        super().__init__("openai_tts", app, service_config, output_folder)
+
+        self.client = OpenAI(api_key=self.service_config.api_key)
+        self.output_folder = output_folder
         self.ready = True
 
+    def settings_updated(self):
+        self.client = OpenAI(api_key=self.service_config.api_key)
 
     def tts_file(self, text, speaker, file_name_or_path, language="en"):
         speech_file_path = file_name_or_path
         response = self.client.audio.speech.create(
-        model=self.model,
-        voice=self.voice,
+        model=self.service_config.model,
+        voice=self.service_config.voice,
         input=text,
         response_format="wav"
         
@@ -91,8 +115,8 @@ class LollmsOpenAITTS(LollmsTTS):
     def tts_audio(self, text, speaker:str=None, file_name_or_path:Path|str=None, language="en", use_threading=False):
         speech_file_path = file_name_or_path
         response = self.client.audio.speech.create(
-        model=self.model,
-        voice=self.voice if speaker is None else speaker,
+        model=self.service_config.model,
+        voice=self.service_config.voice if speaker is None else speaker,
         input=text,
         response_format="wav"
         
@@ -114,8 +138,8 @@ class LollmsOpenAITTS(LollmsTTS):
         speech_file_path = file_name_or_path
         text = self.clean_text(text)
         response = self.client.audio.speech.create(
-        model=self.model,
-        voice=self.voice,
+        model=self.service_config.model,
+        voice=self.service_config.voice,
         input=text,
         response_format="wav"
         

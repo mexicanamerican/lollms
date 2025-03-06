@@ -29,6 +29,8 @@ lollmsElfServer:LOLLMSWebUI = LOLLMSWebUI.get_instance()
 class Identification(BaseModel):
     client_id: str
 
+class ServiceListingRequest(BaseModel):
+    client_id: str
 # ----------------------- voice ------------------------------
 
 @router.get("/list_voices")
@@ -44,17 +46,6 @@ def list_voices():
 
     ASCIIColors.yellow("Listing voices")
     return {"voices":lollmsElfServer.tts.get_voices()}
-
-@router.get("/list_stt_models")
-def list_stt_models():
-    if lollmsElfServer.config.headless_server_mode:
-        return {"status":False,"error":"Code execution is blocked when in headless mode for obvious security reasons!"}
-
-    if lollmsElfServer.config.host!="localhost" and lollmsElfServer.config.host!="127.0.0.1":
-        return {"status":False,"error":"Code execution is blocked when the server is exposed outside for very obvious reasons!"}
-
-    ASCIIColors.yellow("Listing voices")
-    return {"voices":lollmsElfServer.stt.get_models()}
 
 @router.get("/list_tts_models")
 def list_tts_models():
@@ -91,23 +82,6 @@ async def set_voice(request: Request):
         trace_exception(ex)
         lollmsElfServer.error(ex)
         return {"status":False,"error":str(ex)}
-
-
-class LollmsAudio2TextRequest(BaseModel):
-    wave_file_path: str
-    model: str = None
-    fn:str = None
-
-@router.post("/audio2text")
-async def audio2text(request: LollmsAudio2TextRequest):
-    if lollmsElfServer.config.headless_server_mode:
-        return {"status":False,"error":"Code execution is blocked when in headless mode for obvious security reasons!"}
-
-    if lollmsElfServer.config.host!="localhost" and lollmsElfServer.config.host!="127.0.0.1":
-        return {"status":False,"error":"Code execution is blocked when the server is exposed outside for very obvious reasons!"}
-
-    result = lollmsElfServer.whisper.transcribe(str(request.wave_file_path))
-    return PlainTextResponse(result)
 
 
 
@@ -276,3 +250,71 @@ def get_snd_output_devices():
     else:
         return []
 
+
+@router.post("/list_tts_services")
+async def list_tts_services(request: ServiceListingRequest):
+    """
+    Dumb endpoint that returns a static list of TTS services.
+    
+    Args:
+        request (ServiceListingRequest): The request body containing the client_id.
+    
+    Returns:
+        List[str]: A list of TTS service names.
+    """
+    # Validate the client_id (dumb validation for demonstration)
+    check_access(lollmsElfServer, request.client_id)
+    
+    
+    # Static list of TTS services
+    tts_services = [
+                    {"name": "xtts", "caption":"XTTS",  "help":"Xtts local text to speach service"},
+                    {"name": "eleven_labs", "caption":"Eleven labs", "help":"Eleven labs remote text to speach service"},
+                    {"name": "lollms_fish_tts", "caption":"Fish TTS", "help":"Fish remote text to speach service"},
+                    {"name": "lollms_openai_tts", "caption":"Open AI TTS", "help":"Open ai remote text to speach service"},
+                ]
+    
+    return tts_services
+
+@router.post("/get_active_tts_settings")
+async def get_active_tts_settings(request: Request):
+    data = await request.json()
+    check_access(lollmsElfServer,data["client_id"])
+    print("- Retreiving tts settings")
+    if lollmsElfServer.tts is not None:
+        if hasattr(lollmsElfServer.tts,"service_config"):
+            return lollmsElfServer.tts.service_config.config_template.template
+        else:
+            return {}
+    else:
+        return {}
+
+@router.post("/set_active_tts_settings")
+async def set_active_tts_settings(request: Request):
+    data = await request.json()
+    check_access(lollmsElfServer,data["client_id"])
+    settings = data["settings"]
+    """
+    Sets the active tts settings.
+
+    :param request: The ttsSettingsRequest object.
+    :return: A JSON response with the status of the operation.
+    """
+
+    try:
+        print("- Setting tts settings")
+        
+        if lollmsElfServer.tts is not None:
+            if hasattr(lollmsElfServer.tts,"service_config"):
+                lollmsElfServer.tts.service_config.update_template(settings)
+                lollmsElfServer.tts.service_config.config.save_config()
+                lollmsElfServer.tts.settings_updated()
+                return {'status':True}
+            else:
+                return {'status':False}
+        else:
+            return {'status':False}
+    except Exception as ex:
+        trace_exception(ex)
+        lollmsElfServer.error(ex)
+        return {"status":False,"error":str(ex)}

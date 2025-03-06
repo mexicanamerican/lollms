@@ -8,6 +8,7 @@ import sys
 from lollms.app import LollmsApplication
 from lollms.utilities import PackageManager, check_and_install_torch, find_next_available_filename, install_cuda, check_torch_version
 
+from lollms.config import TypedConfig, ConfigTemplate, BaseConfig
 import sys
 import requests
 from typing import List, Dict, Any
@@ -67,21 +68,42 @@ def upgrade_diffusers(lollms_app:LollmsApplication):
 
 class LollmsDiffusersClient(LollmsTTI):
     has_controlnet = False
-    def __init__(
-                    self, 
-                    app:LollmsApplication, 
-                    wm = "Artbot", 
-                    base_url:str="http://localhost:8593"
-                    ):
-        super().__init__("diffusers_client",app)
+    def __init__(self, app, output_folder:str|Path=None):
+        """
+        Initializes the LollmsDalle binding.
+
+        Args:
+            api_key (str): The API key for authentication.
+            output_folder (Path|str):  The output folder where to put the generated data
+        """
+        service_config = TypedConfig(
+            ConfigTemplate([
+                {
+                    "name": "base_url",
+                    "type": "str",
+                    "value": "http://127.0.0.1:8188/",
+                    "help": "The base URL for the service. This is the address where the service is hosted (e.g., http://127.0.0.1:8188/)."
+                },
+                {
+                    "name": "wm",
+                    "type": "str",
+                    "value": "lollms",
+                    "help": "Watermarking text or identifier to be used in the service."
+                },
+                {"name":"model", "type":"str", "value":"v2ray/stable-diffusion-3-medium-diffusers", "help":"The model to be used"},
+                {"name":"wm", "type":"str", "value":"lollms", "help":"The water marking"},
+            ]),
+            BaseConfig(config={
+                "api_key": "",     # use avx2
+            })
+        )
+
+        super().__init__("diffusers_client", app, service_config)    
         self.ready = False
         # Get the current directory
         lollms_paths = app.lollms_paths
         root_dir = lollms_paths.personal_path
 
-        self.base_url = base_url
-        
-        self.wm = wm
 
         shared_folder = root_dir/"shared"
         self.diffusers_folder = shared_folder / "diffusers"
@@ -137,7 +159,7 @@ class LollmsDiffusersClient(LollmsTTI):
         restore_faces=True,
         output_path=None
     ):
-        url = f"{self.base_url}/generate-image"
+        url = f"{self.service_config.base_url}/generate-image"
         
         payload = {
             "positive_prompt": positive_prompt,

@@ -8,6 +8,7 @@ import sys
 from lollms.app import LollmsApplication
 from lollms.utilities import PackageManager, check_and_install_torch, find_next_available_filename
 
+from lollms.config import TypedConfig, ConfigTemplate, BaseConfig
 import sys
 import requests
 from typing import List, Dict, Any
@@ -17,7 +18,6 @@ from lollms.paths import LollmsPaths
 from lollms.tti import LollmsTTI
 from lollms.utilities import git_pull
 from tqdm import tqdm
-import threading
 
 import pipmaster as pm
 if not pm.is_installed("torch"):
@@ -28,6 +28,11 @@ import torch
 if not torch.cuda.is_available():
     ASCIIColors.yellow("Diffusers: Torch not using cuda. Reinstalling it")
     pm.install_multiple(["torch","torchvision","torchaudio"], "https://download.pytorch.org/whl/cu121", force_reinstall=True)
+if not pm.is_installed("transformers"):
+    pm.install("transformers")
+
+if not pm.is_installed("diffusers"):
+    pm.install("diffusers")
 
 
 
@@ -55,19 +60,8 @@ def install_model(lollms_app:LollmsApplication, model_url):
     root_dir = lollms_app.lollms_paths.personal_path
     shared_folder = root_dir/"shared"
     diffusers_folder = shared_folder / "diffusers"
-    if not PackageManager.check_package_installed("diffusers"):
-        PackageManager.install_or_update("diffusers")
-    if not PackageManager.check_package_installed("torch"):
-        check_and_install_torch(True)
 
-    if not PackageManager.check_package_installed("torch"):
-        PackageManager.install_package("torch torchvision torchaudio", "https://download.pytorch.org/whl/cu121")
 
-    if not PackageManager.check_package_installed("transformers"):
-        PackageManager.install_package("transformers")
-
-    if not PackageManager.check_package_installed("diffusers"):
-        PackageManager.install_package("diffusers")
 
     import torch
     from diffusers import PixArtSigmaPipeline
@@ -78,16 +72,6 @@ def install_model(lollms_app:LollmsApplication, model_url):
     )    
 
 
-def install_diffusers(lollms_app:LollmsApplication):
-    root_dir = lollms_app.lollms_paths.personal_path
-    shared_folder = root_dir/"shared"
-    diffusers_folder = shared_folder / "diffusers"
-    diffusers_folder.mkdir(exist_ok=True, parents=True)
-    models_dir = diffusers_folder / "models"
-    models_dir.mkdir(parents=True, exist_ok=True)
-
-    PackageManager.reinstall("diffusers")
-    PackageManager.reinstall("xformers")
         
 
 
@@ -99,19 +83,33 @@ def upgrade_diffusers(lollms_app:LollmsApplication):
 
 class LollmsDiffusers(LollmsTTI):
     has_controlnet = False
-    def __init__(
-                    self, 
-                    app:LollmsApplication, 
-                    wm = "Artbot", 
-                    ):
-        if not PackageManager.check_package_installed("torch"):
-            PackageManager.install_package("torch torchvision torchaudio", "https://download.pytorch.org/whl/cu121")
+    def __init__(self, app, output_folder:str|Path=None):
+        """
+        Initializes the LollmsDalle binding.
 
-        if not PackageManager.check_package_installed("transformers"):
-            PackageManager.install_package("transformers")
+        Args:
+            api_key (str): The API key for authentication.
+            output_folder (Path|str):  The output folder where to put the generated data
+        """
+        service_config = TypedConfig(
+            ConfigTemplate([
+                {"name":"model", "type":"str", "value":"v2ray/stable-diffusion-3-medium-diffusers", "help":"The model to be used"},
+                {"name":"wm", "type":"str", "value":"lollms", "help":"The water marking"},
+            ]),
+            BaseConfig(config={
+                "api_key": "",     # use avx2
+            })
+        )
 
-        if not PackageManager.check_package_installed("diffusers"):
-            PackageManager.install_package("diffusers")
+        super().__init__("diffusers", app, service_config)
+        if not pm.is_installed("torch"):
+            pm.install("torch torchvision torchaudio", "https://download.pytorch.org/whl/cu121")
+
+        if not pm.is_installed("transformers"):
+            pm.install("transformers")
+
+        if not pm.is_installed("diffusers"):
+            pm.install("diffusers")
         
         super().__init__("diffusers",app)
         self.ready = False
@@ -119,8 +117,6 @@ class LollmsDiffusers(LollmsTTI):
         lollms_paths = app.lollms_paths
         root_dir = lollms_paths.personal_path
         
-        self.wm = wm
-
         shared_folder = root_dir/"shared"
         self.diffusers_folder = shared_folder / "diffusers"
         self.output_dir = root_dir / "outputs/diffusers"
@@ -138,25 +134,21 @@ class LollmsDiffusers(LollmsTTI):
         ASCIIColors.red("                              ______                                       ")
         ASCIIColors.red("                             |______|                                      ")
         ASCIIColors.red("")       
-        ASCIIColors.yellow(f"Using model: {app.config.diffusers_model}")
+        ASCIIColors.yellow(f"Using model: {self.service_config.model}")
         import torch 
-        if not PackageManager.check_package_installed("diffusers"):
-            check_and_install_torch("nvidia" in self.app.config.hardware_mode)            
-            PackageManager.install_or_update("diffusers")
-            PackageManager.install_or_update("sentencepiece")
-            PackageManager.install_or_update("accelerate")
+
         try:
-            if "stable-diffusion-3" in app.config.diffusers_model:
+            if "stable-diffusion-3" in self.service_config.model:
                 from diffusers import StableDiffusion3Pipeline # AutoPipelineForImage2Image#PixArtSigmaPipeline
                 self.tti_model = StableDiffusion3Pipeline.from_pretrained(
-                    app.config.diffusers_model, torch_dtype=torch.float16, cache_dir=self.tti_models_dir,
+                    self.service_config.model, torch_dtype=torch.float16, cache_dir=self.tti_models_dir,
                     use_safetensors=True,
                 )
                 self.iti_model = None
             else:
                 from diffusers import AutoPipelineForText2Image # AutoPipelineForImage2Image#PixArtSigmaPipeline
                 self.tti_model = AutoPipelineForText2Image.from_pretrained(
-                    app.config.diffusers_model, torch_dtype=torch.float16, cache_dir=self.tti_models_dir,
+                    self.service_config.model, torch_dtype=torch.float16, cache_dir=self.tti_models_dir,
                     use_safetensors=True,
                 )
                 self.iti_model = None
@@ -165,7 +157,7 @@ class LollmsDiffusers(LollmsTTI):
             # self.tti_model = StableDiffusionPipeline.from_pretrained(
             #     "CompVis/stable-diffusion-v1-4", torch_dtype=torch.float16, cache_dir=self.tti_models_dir,
             #     use_safetensors=True,
-            # ) # app.config.diffusers_model
+            # ) # self.service_config.model
             # Enable memory optimizations.
             try:
                 if app.config.diffusers_offloading_mode=="sequential_cpu_offload":
@@ -177,6 +169,20 @@ class LollmsDiffusers(LollmsTTI):
         except Exception as ex:
             self.tti_model= None
             trace_exception(ex)
+
+
+    def install_diffusers(self):
+        root_dir = self.app.lollms_paths.personal_path
+        shared_folder = root_dir/"shared"
+        diffusers_folder = shared_folder / "diffusers"
+        diffusers_folder.mkdir(exist_ok=True, parents=True)
+        models_dir = diffusers_folder / "models"
+        models_dir.mkdir(parents=True, exist_ok=True)
+
+        pm.install("diffusers")
+        pm.install("xformers")
+
+
     @staticmethod
     def verify(app:LollmsApplication):
         # Clone repository
@@ -295,7 +301,7 @@ class LollmsDiffusers(LollmsTTI):
             from diffusers import AutoPipelineForImage2Image
             
             self.iti_model = AutoPipelineForImage2Image.from_pretrained(
-                self.app.config.diffusers_model, torch_dtype=torch.float16, variant="fp16", use_safetensors=True
+                self.self.service_config.model, torch_dtype=torch.float16, variant="fp16", use_safetensors=True
             )
         if sampler_name!="":
             sc = self.get_scheduler_by_name(sampler_name)

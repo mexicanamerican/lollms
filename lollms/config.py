@@ -586,6 +586,7 @@ class TypedConfig:
 
     def save(self, file_path:str|Path|None=None):
         self.config.save_config(file_path=file_path)
+        
     def to_dict(self, use_template=False):
         if not use_template:
             return self.config

@@ -229,8 +229,10 @@ def unInstall_binding(data:BindingInstallParams):
     
 # ----------------------------------- Bet binding settings ----------------------------------------
 
-@router.get("/get_active_binding_settings")
-def get_active_binding_settings():
+@router.post("/get_active_binding_settings")
+async def get_active_binding_settings(request: Request):
+    data = await request.json()
+    check_access(lollmsElfServer,data["client_id"])
     print("- Retreiving binding settings")
     if lollmsElfServer.binding is not None:
         if hasattr(lollmsElfServer.binding,"binding_config"):
@@ -245,6 +247,7 @@ def get_active_binding_settings():
 
 # @router.post("/set_active_binding_settings")
 # async def set_active_binding_settings(request: BindingSettingsRequest):
+
 @router.post("/set_active_binding_settings")
 async def set_active_binding_settings(request: Request):
     data = await request.json()

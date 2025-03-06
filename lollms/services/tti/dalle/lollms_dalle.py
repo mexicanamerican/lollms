@@ -36,17 +36,30 @@ import os
 
 
 class LollmsDalle(LollmsTTI):
-    def __init__(
-                    self, 
-                    app:LollmsApplication, 
-                    key="",
-                    generation_engine="dall-e-3",# other possibility "dall-e-2"
-                    output_path=None
-                    ):
-        super().__init__(generation_engine,app)
-        self.key = key or os.getenv('OPENAI_API_KEY')
-        self.generation_engine = generation_engine
-        self.output_path = output_path
+    def __init__(self, app, output_folder:str|Path=None):
+        """
+        Initializes the LollmsDalle binding.
+
+        Args:
+            api_key (str): The API key for authentication.
+            output_folder (Path|str):  The output folder where to put the generated data
+        """
+        # Check for the OPENAI_KEY environment variable if no API key is provided
+        api_key = os.getenv("OPENAI_KEY","")
+        service_config = TypedConfig(
+            ConfigTemplate([
+                {"name":"api_key", "type":"str", "value":api_key, "help":"A valid Open AI key to generate text using anthropic api"},
+                {"name":"generation_engine", "type":"str", "value":"dall-e-3", "options":["dall-e-2","dall-e-3"], "help":"The engine to be used"},
+            ]),
+            BaseConfig(config={
+                "api_key": "",     # use avx2
+            })
+        )
+
+        super().__init__("dall-e", app, service_config, output_folder)
+
+    def settings_updated(self):
+        pass
 
     def paint(
                 self,
@@ -66,11 +79,11 @@ class LollmsDalle(LollmsTTI):
         if output_path is None:
             output_path = self.output_path
         if generation_engine is None:
-            generation_engine = self.generation_engine
+            generation_engine = self.service_config.generation_engine
         if not PackageManager.check_package_installed("openai"):
             PackageManager.install_package("openai")
         import openai
-        openai.api_key = self.key
+        openai.api_key = self.service_config.api_key
         if generation_engine=="dall-e-2":
             supported_resolutions = [
                 [512, 512],
@@ -134,7 +147,7 @@ class LollmsDalle(LollmsTTI):
         if not PackageManager.check_package_installed("openai"):
             PackageManager.install_package("openai")
         import openai
-        openai.api_key = self.key
+        openai.api_key = self.service_config.api_key
         generation_engine="dall-e-2"
         supported_resolutions = [
             [512, 512],

@@ -1,14 +1,44 @@
 import requests
 from typing import Optional, Dict
 from lollms.ttv import LollmsTTV
+from lollms.config import TypedConfig, ConfigTemplate, BaseConfig
+import os
+from pathlib import Path
 
 class LollmsLumaLabs(LollmsTTV):
-    def __init__(self, api_key: str):
-        self.api_key = api_key
+    def __init__(self, app, output_folder:str|Path=None):
+        """
+        Initializes the NovitaAITextToVideo binding.
+
+        Args:
+            api_key (str): The API key for authentication.
+            base_url (str): The base URL for the Novita.ai API. Defaults to "https://api.novita.ai/v3/async".
+        """
+        # Check for the LUMALABS_KEY environment variable if no API key is provided
+        api_key = os.getenv("LUMALABS_KEY","")
+        service_config = TypedConfig(
+            ConfigTemplate([
+                {"name":"api_key", "type":"str", "value":api_key, "help":"A valid Lumalabs AI key to generate text using anthropic api"},
+            ]),
+            BaseConfig(config={
+                "api_key": "",     # use avx2
+            })
+        )
+
+        super().__init__("lumalabs", app, service_config, output_folder)
+
         self.base_url = "https://api.lumalabs.ai/dream-machine/v1/generations"
         self.headers = {
             "accept": "application/json",
-            "authorization": f"Bearer {self.api_key}",
+            "authorization": f"Bearer {self.service_config.api_key}",
+            "content-type": "application/json"
+        }
+
+    def settings_updated(self):
+        self.base_url = "https://api.lumalabs.ai/dream-machine/v1/generations"
+        self.headers = {
+            "accept": "application/json",
+            "authorization": f"Bearer {self.service_config.api_key}",
             "content-type": "application/json"
         }
 
@@ -39,6 +69,9 @@ class LollmsLumaLabs(LollmsTTV):
             f.write(video_response.content)
         
         return output_path
+
+    def generate_video_by_frames(self, prompts, frames, negative_prompt, fps = 8, num_inference_steps = 50, guidance_scale = 6, seed = None):
+        pass # TODO : implement
 
     def extend_video(self, prompt: str, generation_id: str, reverse: bool = False) -> str:
         keyframes = {

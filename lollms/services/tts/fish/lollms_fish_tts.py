@@ -6,14 +6,17 @@ from lollms.app import LollmsApplication
 from lollms.paths import LollmsPaths
 from lollms.tts import LollmsTTS
 from lollms.utilities import PackageManager, find_next_available_filename
+from lollms.config import TypedConfig, ConfigTemplate, BaseConfig
+import pipmaster as pm
+import os
 
-if not PackageManager.check_package_installed("sounddevice"):
-    PackageManager.install_package("sounddevice")
-if not PackageManager.check_package_installed("soundfile"):
-    PackageManager.install_package("soundfile")
+if not pm.is_installed("sounddevice"):
+    pm.install("sounddevice")
+if not pm.is_installed("soundfile"):
+    pm.install("soundfile")
 
-if not PackageManager.check_package_installed("ormsgpack"):
-    PackageManager.install_package("ormsgpack")
+if not pm.is_installed("ormsgpack"):
+    pm.install("ormsgpack")
 
 import ormsgpack
 
@@ -39,15 +42,35 @@ def get_FishAudioTTS(lollms_paths: LollmsPaths):
 
 class LollmsFishAudioTTS(LollmsTTS):
     def __init__(
-        self,
-        app: LollmsApplication,
-        voice_name: str = "default",
-        api_key: str = "",
-        output_path: Path | str = None,
-        reference_folder: Path | str = None
-    ):
-        super().__init__("fishaudio_tts", app, "default", voice_name, api_key, output_path)
-        self.reference_folder = Path(reference_folder) if reference_folder else None
+                    self, 
+                    app: LollmsApplication,
+                    output_folder: Path | str = None,
+                    ):
+        """
+        Initializes the LollmsDalle binding.
+
+        Args:
+            api_key (str): The API key for authentication.
+            output_folder (Path|str):  The output folder where to put the generated data
+        """
+    
+        # Check for the FISHTTS_KEY environment variable if no API key is provided
+        api_key = os.getenv("FISHTTS_KEY","")
+        service_config = TypedConfig(
+            ConfigTemplate([
+                {"name":"voice_name", "type":"str", "value":"default", "help":"A valid model id"},
+                {"name":"api_key", "type":"str", "value":api_key, "help":"A valid eleven labs key"},
+                {"name":"similarity_boost", "type":"bool", "value":False, "help":"A valid model id"},
+                {"name":"streaming", "type":"bool", "value":False, "help":"A valid model id"},
+            ]),
+            BaseConfig(config={
+                "api_key": "",     # use avx2
+            })
+        )
+        super().__init__("fishaudio_tts", app, service_config, output_folder)
+        self.output_folder = output_folder
+        self.reference_folder = app.lollms_paths.custom_voices_path/"fish_tts"
+        self.reference_folder.mkdir(exist_ok=True, parents=True)
         self.voices = self._load_voices()
         self.ready = True
 
@@ -97,7 +120,7 @@ class LollmsFishAudioTTS(LollmsTTS):
                 "https://api.fish.audio/v1/tts",
                 content=ormsgpack.packb(request, option=ormsgpack.OPT_SERIALIZE_PYDANTIC),
                 headers={
-                    "authorization": f"Bearer {self.api_key}",
+                    "authorization": f"Bearer {self.service_config.api_key}",
                     "content-type": "application/msgpack",
                 },
                 timeout=None,

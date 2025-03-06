@@ -911,9 +911,9 @@ class Discussion:
                     pth = str(view_file).replace("\\","/").split('/')
                     if "discussion_databases" in pth:
                         pth = discussion_path_to_url(view_file)
-                        self.lollms.new_message(client.client_id if client is not None else 0, content = "", message_type = MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_SET_CONTENT)
+                        self.lollms.personality.new_message()
                         output = f'<img src="{pth}" width="800">\n\n'
-                        self.lollms.personality.set_message_html(output, client_id=client.client_id if client is not None else 0)
+                        self.lollms.personality.set_message_html(output)
                         self.lollms.close_message(client.client_id if client is not None else 0)
 
                     if self.lollms.model.binding_type not in [BindingType.TEXT_IMAGE, BindingType.TEXT_IMAGE_VIDEO]:

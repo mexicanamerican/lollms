@@ -28,26 +28,22 @@ from typing import List, Dict, Any
 import uuid
 from ascii_colors import ASCIIColors, trace_exception
 from lollms.paths import LollmsPaths
-from lollms.utilities import git_pull, show_yes_no_dialog, run_script_in_env, create_conda_env, run_python_script_in_env, PackageManager
+from lollms.utilities import git_pull, show_yes_no_dialog, PackageManager
 from lollms.tti import LollmsTTI
 import subprocess
 import shutil
 from tqdm import tqdm
 import threading
+import pipmaster as pm
 
-if not PackageManager.check_package_installed("websocket"):
-    PackageManager.install_or_update("websocket-client")
+if not pm.is_installed("websocket"):
+    pm.install("websocket-client")
 import websocket
-if not PackageManager.check_package_installed("urllib"):
-    PackageManager.install_or_update("urllib")
+if not pm.is_installed("urllib"):
+    pm.install("urllib")
 from urllib import request, parse
 
-def verify_comfyui(lollms_paths:LollmsPaths):
-    # Clone repository
-    root_dir = lollms_paths.personal_path
-    shared_folder = root_dir/"shared"
-    comfyui_folder = shared_folder / "comfyui"
-    return comfyui_folder.exists()
+
 
 def download_file(url, folder_path, local_filename):
     # Make sure 'folder_path' exists
@@ -65,76 +61,7 @@ def download_file(url, folder_path, local_filename):
 
     return local_filename
 
-def install_comfyui(lollms_app:LollmsApplication):
-    root_dir = lollms_app.lollms_paths.personal_path
-    shared_folder = root_dir/"shared"
-    comfyui_folder = shared_folder / "comfyui"
-    if comfyui_folder.exists():
-        if show_yes_no_dialog("warning!","I have detected that there is a previous installation of Comfyui.\nShould I remove it and continue installing?"):
-            shutil.rmtree(comfyui_folder)
-        elif show_yes_no_dialog("warning!","Continue installation?"):
-            ASCIIColors.cyan("Installing comfyui conda environment with python 3.10")
-            create_conda_env("comfyui","3.10")
-            ASCIIColors.cyan("Done")
-            return
-        else:
-            return
 
-    subprocess.run(["git", "clone", "https://github.com/ParisNeo/ComfyUI.git", str(comfyui_folder)])
-    subprocess.run(["git", "clone", "https://github.com/ParisNeo/ComfyUI-Manager.git", str(comfyui_folder/"custom_nodes/ComfyUI-Manager")])    
-    subprocess.run(["git", "clone", "https://github.com/AlekPet/ComfyUI_Custom_Nodes_AlekPet.git", str(comfyui_folder/"custom_nodes/ComfyUI_Custom_Nodes_AlekPet")])
-    subprocess.run(["git", "clone", "https://github.com/ParisNeo/lollms_nodes_suite.git", str(comfyui_folder/"custom_nodes/lollms_nodes_suite")])
-
-
-    subprocess.run(["git", "clone", "https://github.com/jags111/efficiency-nodes-comfyui.git", str(comfyui_folder/"custom_nodes/efficiency-nodes-comfyui")]) 
-    subprocess.run(["git", "clone", "https://github.com/Kosinkadink/ComfyUI-Advanced-ControlNet.git", str(comfyui_folder/"custom_nodes/ComfyUI-Advanced-ControlNet")]) 
-    subprocess.run(["git", "clone", "https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite.git", str(comfyui_folder/"custom_nodes/ComfyUI-VideoHelperSuite")]) 
-    subprocess.run(["git", "clone", "https://github.com/LykosAI/ComfyUI-Inference-Core-Nodes.git", str(comfyui_folder/"custom_nodes/ComfyUI-Inference-Core-Nodes")]) 
-    subprocess.run(["git", "clone", "https://github.com/Fannovel16/comfyui_controlnet_aux.git", str(comfyui_folder/"custom_nodes/comfyui_controlnet_aux")]) 
-    subprocess.run(["git", "clone", "https://github.com/Kosinkadink/ComfyUI-AnimateDiff-Evolved.git", str(comfyui_folder/"custom_nodes/ComfyUI-AnimateDiff-Evolved")]) 
-
-    if show_yes_no_dialog("warning!","You will need to install an image generation model.\nDo you want to install an image model from civitai?\nI suggest Juggernaut XL.\nIt is a very good model.\nyou can always install more models afterwards in your comfyui folder/models.checkpoints"):
-        download_file("https://civitai.com/api/download/models/357609", comfyui_folder/"models/checkpoints","Juggernaut_XL.safetensors")
-
-    if show_yes_no_dialog("warning!","Do you want to install a video model from hugging face?\nIsuggest SVD XL."):
-        download_file("https://huggingface.co/stabilityai/stable-video-diffusion-img2vid-xt/blob/main/svd_xt.safetensors", comfyui_folder/"models/checkpoints","svd_xt.safetensors")
-
-    if show_yes_no_dialog("warning!","Do you want to install all control net models?"):
-        (comfyui_folder/"models/controlnet").mkdir(parents=True, exist_ok=True)        
-        download_file("https://huggingface.co/thibaud/controlnet-openpose-sdxl-1.0/resolve/main/OpenPoseXL2.safetensors", comfyui_folder/"models/controlnet","OpenPoseXL2.safetensors")
-        download_file("https://huggingface.co/diffusers/controlnet-depth-sdxl-1.0/resolve/main/diffusion_pytorch_model.safetensors", comfyui_folder/"models/controlnet","DepthMap_XL.safetensors")
-
-
-    if show_yes_no_dialog("warning!","Do you want to install all animation models?"):
-        (comfyui_folder/"models/animatediff_models").mkdir(parents=True, exist_ok=True)
-        download_file("https://huggingface.co/guoyww/animatediff/resolve/cd71ae134a27ec6008b968d6419952b0c0494cf2/mm_sdxl_v10_beta.ckpt", comfyui_folder/"models/animatediff_models","mm_sdxl_v10_beta.ckpt")
-        
-    
-    create_conda_env("comfyui","3.10")
-    if lollms_app.config.hardware_mode in ["nvidia", "nvidia-tensorcores"]:
-        run_python_script_in_env("comfyui", "-m pip install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu121")
-    if lollms_app.config.hardware_mode in ["amd", "amd-noavx"]:
-        run_python_script_in_env("comfyui", "-m pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/rocm5.7")
-    elif lollms_app.config.hardware_mode in ["cpu", "cpu-noavx"]:
-        run_python_script_in_env("comfyui", "-m pip install --pre torch torchvision torchaudio")
-    run_python_script_in_env("comfyui", f"-m pip install -r {comfyui_folder}/requirements.txt")
-    
-    lollms_app.comfyui = LollmsComfyUI(lollms_app)
-    ASCIIColors.green("Comfyui installed successfully")
-    lollms_app.HideBlockingMessage()
-
-def upgrade_comfyui(lollms_app:LollmsApplication):
-    root_dir = lollms_app.lollms_paths.personal_path
-    shared_folder = root_dir/"shared"
-    comfyui_folder = shared_folder / "comfyui"
-    if not comfyui_folder.exists():
-        lollms_app.InfoMessage("Comfyui is not installed, install it first")
-        return
-
-    subprocess.run(["git", "pull", str(comfyui_folder)])
-    subprocess.run(["git", "pull", str(comfyui_folder/"custom_nodes/ComfyUI-Manager")])
-    subprocess.run(["git",  "pull", str(comfyui_folder/"custom_nodes/efficiency-nodes-comfyui")])
-    ASCIIColors.success("DONE")
 
 
 def get_comfyui(lollms_paths:LollmsPaths):
@@ -154,33 +81,68 @@ def get_comfyui(lollms_paths:LollmsPaths):
 
 class LollmsComfyUI(LollmsTTI):
     has_controlnet = False
-    def __init__(
-                    self, 
-                    app:LollmsApplication, 
-                    wm = "Artbot", 
-                    max_retries=50,
-                    comfyui_base_url=None,
-                    share=False,
-                    wait_for_service=False
-                    ):
-        super().__init__("comfyui", app)
-        if comfyui_base_url=="" or comfyui_base_url=="http://127.0.0.1:8188/":
-            comfyui_base_url = None
+    def __init__(self, app:LollmsApplication, output_folder:str|Path=None):
+        """
+        Initializes the LollmsDalle binding.
+
+        Args:
+            api_key (str): The API key for authentication.
+            output_folder (Path|str):  The output folder where to put the generated data
+        """        
+        service_config = TypedConfig(
+            ConfigTemplate([
+                {
+                    "name": "base_url",
+                    "type": "str",
+                    "value": "http://127.0.0.1:8188/",
+                    "help": "The base URL for the service. This is the address where the service is hosted (e.g., http://127.0.0.1:8188/)."
+                },
+                {
+                    "name": "wm",
+                    "type": "str",
+                    "value": "lollms",
+                    "help": "Watermarking text or identifier to be used in the service."
+                },
+                {
+                    "name": "max_retries",
+                    "type": "int",
+                    "value": 50,
+                    "help": "The maximum number of retries to attempt before determining that the service is unavailable."
+                },
+                {
+                    "name": "local_service",
+                    "type": "bool",
+                    "value": False,
+                    "help": "If set to true, a local instance of the service will be installed and used."
+                },
+                {
+                    "name": "start_service_at_startup",
+                    "type": "bool",
+                    "value": False,
+                    "help": "If set to true, the service will automatically start at startup. This also enables the local service option."
+                },
+                {
+                    "name": "share",
+                    "type": "bool",
+                    "value": False,
+                    "help": "If set to true, the server will be accessible from outside your local machine (e.g., over the internet)."
+                }
+            ]),
+            BaseConfig(config={
+            })
+        )
+        super().__init__("comfyui",app, service_config)
         # Get the current directory
         lollms_paths = app.lollms_paths
         self.app = app
         root_dir = lollms_paths.personal_path
         
-        self.wm = wm
-        # Store the path to the script
-        if comfyui_base_url is None:
-            self.comfyui_base_url = "http://127.0.0.1:8188/"
-            if not verify_comfyui(lollms_paths):
-                install_comfyui(app.lollms_paths)
-        else:
-            self.comfyui_base_url = comfyui_base_url
+        # If this is requiring a local service then verify if it is on
+        if self.service_config.local_service:
+            if not self.verify_comfyui():
+                self.install()
 
-        self.comfyui_url = self.comfyui_base_url+"/comfyuiapi/v1"
+        self.comfyui_url = self.service_config.base_url+"/comfyuiapi/v1"
         shared_folder = root_dir/"shared"
         self.comfyui_folder = shared_folder / "comfyui"
         self.output_dir = root_dir / "outputs/comfyui"
@@ -198,17 +160,19 @@ class LollmsComfyUI(LollmsTTI):
         ASCIIColors.red(" Forked from comfyanonymous's Comfyui nodes system")
         ASCIIColors.red(" Integration in lollms by ParisNeo")
 
-        if not self.wait_for_service(1,False) and comfyui_base_url is None:
+        if not self.wait_for_service(1,False) and self.service_config.local_service and self.service_config.start_service_at_startup and self.service_config.base_url is None:
             ASCIIColors.info("Loading lollms_comfyui")
             if platform.system() == "Windows":
                 ASCIIColors.info("Running on windows")
                 script_path = self.comfyui_folder / "main.py"
 
-                if share:
-                    run_python_script_in_env("comfyui", str(script_path), cwd=self.comfyui_folder, wait=False)
+                if self.service_config.share:
+                    pass # TODO: implement
+                    #run_python_script_in_env("comfyui", str(script_path), cwd=self.comfyui_folder, wait=False)
                     # subprocess.Popen("conda activate " + str(script_path) +" --share", cwd=self.comfyui_folder)
                 else:
-                    run_python_script_in_env("comfyui", str(script_path), cwd=self.comfyui_folder, wait=False)
+                    pass # TODO: implement
+                    # run_python_script_in_env("comfyui", str(script_path), cwd=self.comfyui_folder, wait=False)
                     # subprocess.Popen(script_path, cwd=self.comfyui_folder)
             else:
                 ASCIIColors.info("Running on linux/MacOs")
@@ -216,19 +180,97 @@ class LollmsComfyUI(LollmsTTI):
                 ASCIIColors.info(f"launcher path: {script_path}")
                 ASCIIColors.info(f"comfyui path: {self.comfyui_folder}")
 
-                if share:
-                    run_script_in_env("comfyui","bash " + script_path +" --share", cwd=self.comfyui_folder)
+                if self.service_config.share:
+                    pass # TODO: implement
+                    # run_script_in_env("comfyui","bash " + script_path +" --share", cwd=self.comfyui_folder)
                     # subprocess.Popen("conda activate " + str(script_path) +" --share", cwd=self.comfyui_folder)
                 else:
-                    run_script_in_env("comfyui","bash " + script_path, cwd=self.comfyui_folder)
+                    pass # TODO: implement
+                    # run_script_in_env("comfyui","bash " + script_path, cwd=self.comfyui_folder)
                 ASCIIColors.info("Process done")
                 ASCIIColors.success("Launching Comfyui succeeded")
 
         # Wait until the service is available at http://127.0.0.1:8188//
-        if wait_for_service:
-            self.wait_for_service()
-        else:
-            self.wait_for_service_in_another_thread(max_retries=max_retries)
+
+    def verify_comfyui(self):
+        # Clone repository
+        root_dir = self.app.lollms_paths.personal_path
+        shared_folder = root_dir/"shared"
+        comfyui_folder = shared_folder / "comfyui"
+        return comfyui_folder.exists()
+    
+    def install(self):
+        root_dir = self.app.lollms_paths.personal_path
+        shared_folder = root_dir/"shared"
+        comfyui_folder = shared_folder / "comfyui"
+        if comfyui_folder.exists():
+            if show_yes_no_dialog("warning!","I have detected that there is a previous installation of Comfyui.\nShould I remove it and continue installing?"):
+                shutil.rmtree(comfyui_folder)
+            elif show_yes_no_dialog("warning!","Continue installation?"):
+                ASCIIColors.cyan("Installing comfyui conda environment with python 3.10")
+                create_conda_env("comfyui","3.10")
+                ASCIIColors.cyan("Done")
+                return
+            else:
+                return
+
+        subprocess.run(["git", "clone", "https://github.com/ParisNeo/ComfyUI.git", str(comfyui_folder)])
+        subprocess.run(["git", "clone", "https://github.com/ParisNeo/ComfyUI-Manager.git", str(comfyui_folder/"custom_nodes/ComfyUI-Manager")])    
+        subprocess.run(["git", "clone", "https://github.com/AlekPet/ComfyUI_Custom_Nodes_AlekPet.git", str(comfyui_folder/"custom_nodes/ComfyUI_Custom_Nodes_AlekPet")])
+        subprocess.run(["git", "clone", "https://github.com/ParisNeo/lollms_nodes_suite.git", str(comfyui_folder/"custom_nodes/lollms_nodes_suite")])
+
+
+        subprocess.run(["git", "clone", "https://github.com/jags111/efficiency-nodes-comfyui.git", str(comfyui_folder/"custom_nodes/efficiency-nodes-comfyui")]) 
+        subprocess.run(["git", "clone", "https://github.com/Kosinkadink/ComfyUI-Advanced-ControlNet.git", str(comfyui_folder/"custom_nodes/ComfyUI-Advanced-ControlNet")]) 
+        subprocess.run(["git", "clone", "https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite.git", str(comfyui_folder/"custom_nodes/ComfyUI-VideoHelperSuite")]) 
+        subprocess.run(["git", "clone", "https://github.com/LykosAI/ComfyUI-Inference-Core-Nodes.git", str(comfyui_folder/"custom_nodes/ComfyUI-Inference-Core-Nodes")]) 
+        subprocess.run(["git", "clone", "https://github.com/Fannovel16/comfyui_controlnet_aux.git", str(comfyui_folder/"custom_nodes/comfyui_controlnet_aux")]) 
+        subprocess.run(["git", "clone", "https://github.com/Kosinkadink/ComfyUI-AnimateDiff-Evolved.git", str(comfyui_folder/"custom_nodes/ComfyUI-AnimateDiff-Evolved")]) 
+
+        if show_yes_no_dialog("warning!","You will need to install an image generation model.\nDo you want to install an image model from civitai?\nI suggest Juggernaut XL.\nIt is a very good model.\nyou can always install more models afterwards in your comfyui folder/models.checkpoints"):
+            download_file("https://civitai.com/api/download/models/357609", comfyui_folder/"models/checkpoints","Juggernaut_XL.safetensors")
+
+        if show_yes_no_dialog("warning!","Do you want to install a video model from hugging face?\nIsuggest SVD XL."):
+            download_file("https://huggingface.co/stabilityai/stable-video-diffusion-img2vid-xt/blob/main/svd_xt.safetensors", comfyui_folder/"models/checkpoints","svd_xt.safetensors")
+
+        if show_yes_no_dialog("warning!","Do you want to install all control net models?"):
+            (comfyui_folder/"models/controlnet").mkdir(parents=True, exist_ok=True)        
+            download_file("https://huggingface.co/thibaud/controlnet-openpose-sdxl-1.0/resolve/main/OpenPoseXL2.safetensors", comfyui_folder/"models/controlnet","OpenPoseXL2.safetensors")
+            download_file("https://huggingface.co/diffusers/controlnet-depth-sdxl-1.0/resolve/main/diffusion_pytorch_model.safetensors", comfyui_folder/"models/controlnet","DepthMap_XL.safetensors")
+
+
+        if show_yes_no_dialog("warning!","Do you want to install all animation models?"):
+            (comfyui_folder/"models/animatediff_models").mkdir(parents=True, exist_ok=True)
+            download_file("https://huggingface.co/guoyww/animatediff/resolve/cd71ae134a27ec6008b968d6419952b0c0494cf2/mm_sdxl_v10_beta.ckpt", comfyui_folder/"models/animatediff_models","mm_sdxl_v10_beta.ckpt")
+            
+        # TODO: fix
+        # create_conda_env("comfyui","3.10")
+        # if self.app.config.hardware_mode in ["nvidia", "nvidia-tensorcores"]:
+        #     run_python_script_in_env("comfyui", "-m pip install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu121")
+        # if self.app.config.hardware_mode in ["amd", "amd-noavx"]:
+        #     run_python_script_in_env("comfyui", "-m pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/rocm5.7")
+        # elif self.app.config.hardware_mode in ["cpu", "cpu-noavx"]:
+        #     run_python_script_in_env("comfyui", "-m pip install --pre torch torchvision torchaudio")
+        # run_python_script_in_env("comfyui", f"-m pip install -r {comfyui_folder}/requirements.txt")
+        
+        self.app.comfyui = LollmsComfyUI(self.app)
+        ASCIIColors.green("Comfyui installed successfully")
+        self.app.HideBlockingMessage()
+
+
+    def upgrade(self):
+        root_dir = self.app.lollms_paths.personal_path
+        shared_folder = root_dir/"shared"
+        comfyui_folder = shared_folder / "comfyui"
+        if not comfyui_folder.exists():
+            self.app.InfoMessage("Comfyui is not installed, install it first")
+            return
+
+        subprocess.run(["git", "pull", str(comfyui_folder)])
+        subprocess.run(["git", "pull", str(comfyui_folder/"custom_nodes/ComfyUI-Manager")])
+        subprocess.run(["git",  "pull", str(comfyui_folder/"custom_nodes/efficiency-nodes-comfyui")])
+        ASCIIColors.success("DONE")
+
 
     def wait_for_service_in_another_thread(self, max_retries=150, show_warning=True):
         thread = threading.Thread(target=self.wait_for_service, args=(max_retries, show_warning))

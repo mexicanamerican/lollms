@@ -463,7 +463,29 @@ def discussion_path_to_url(file_path:str|Path)->str:
     url = "/"+file_path[file_path.index("discussion_databases"):].replace("\\","/").replace("discussion_databases","discussions")
     return "/".join([urllib.parse.quote(p, safe="") for p in url.split("/")])
 
+def always_get_an_event_loop() -> asyncio.AbstractEventLoop:
+    """
+    Ensure that there is always an event loop available.
 
+    This function tries to get the current event loop. If the current event loop is closed or does not exist,
+    it creates a new event loop and sets it as the current event loop.
+
+    Returns:
+        asyncio.AbstractEventLoop: The current or newly created event loop.
+    """
+    try:
+        # Try to get the current event loop
+        current_loop = asyncio.get_event_loop()
+        if current_loop.is_closed():
+            raise RuntimeError("Event loop is closed.")
+        return current_loop
+
+    except RuntimeError:
+        # If no event loop exists or it is closed, create a new one
+        ASCIIColors.info("Creating a new event loop in main thread.")
+        new_loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(new_loop)
+        return new_loop
 
 def yes_or_no_input(prompt):
     while True:
@@ -649,31 +671,33 @@ def is_asyncio_loop_running():
     except RuntimeError:  # This gets raised if there's no running event loop
         return False
 
-def run_async(func):
+import asyncio
+from typing import Callable, Coroutine, Any
+
+def run_async(func: Callable[[], Coroutine[Any, Any, None]]) -> None:
     """
     run_async(func) -> None
 
-    Utility function to run async functions in sync environment. Takes an async function as input and runs it within an async context.
+    Utility function to run async functions in a synchronous environment. 
+    Takes an async function as input and runs it within an async context.
 
     Parameters:
-    func (function): The async function to run.
+    func (Callable[[], Coroutine[Any, Any, None]]): The async function to run.
 
     Returns:
     None: Nothing is returned since the function is meant to perform side effects.
     """
-    if is_asyncio_loop_running():
-        # We're in a running event loop, so we can call the function with asyncio.create_task
-        #task = asyncio.run_coroutine_threadsafe(func(), asyncio.get_event_loop())
-        #task.result()        
-        loop = asyncio.get_running_loop()
-        task = loop.create_task(func())
-    else:
-        # We're not in a running event loop, so we need to create one and run the function in it
-        try:
-            asyncio.run(func()) 
-        except:
-            func()
-    asyncio.sleep(0)
+    try:
+        # Check if an event loop is already running
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        # If no event loop is running, create a new one
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+    # If the loop is not running, run the coroutine until it completes
+    loop.run_until_complete(func())
+
 
 def terminate_thread(thread):
     """ 
