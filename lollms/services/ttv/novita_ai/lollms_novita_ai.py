@@ -148,7 +148,7 @@ class LollmsNovitaAITextToVideo(LollmsTTV):
         if infos["task"]["status"]=="TASK_STATUS_SUCCEED":
             if output_dir:
                 output_dir = Path(output_dir)
-                file_name = output_dir/find_next_available_filename(output_dir, "vid_novita_")  # You can change the filename if needed
+                file_name = output_dir/find_next_available_filename(output_dir, "vid_novita_","mp4")  # You can change the filename if needed
                 self.download_video(infos["videos"][0]["video_url"], file_name )
                 return file_name
         return None
