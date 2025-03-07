@@ -463,6 +463,18 @@ def discussion_path_to_url(file_path:str|Path)->str:
     url = "/"+file_path[file_path.index("discussion_databases"):].replace("\\","/").replace("discussion_databases","discussions")
     return "/".join([urllib.parse.quote(p, safe="") for p in url.split("/")])
 
+def outputs_path_to_url(file_path:str|Path)->str:
+    """
+    This function takes a file path as an argument and converts it into a URL format. It first removes the initial part of the file path until the "outputs" string is reached, then replaces backslashes with forward slashes and quotes each segment with urllib.parse.quote() before joining them with forward slashes to form the final URL.
+
+    :param file_path: str, the file path in the format of a Windows system
+    :return: str, the converted URL format of the given file path
+    """
+    file_path = str(file_path)
+    url = "/"+file_path[file_path.index("outputs"):].replace("\\","/").replace("outputs","outputs")
+    return "/".join([urllib.parse.quote(p, safe="") for p in url.split("/")])
+
+
 def always_get_an_event_loop() -> asyncio.AbstractEventLoop:
     """
     Ensure that there is always an event loop available.
