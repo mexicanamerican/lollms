@@ -219,7 +219,7 @@ async def toggle_function_call(request: Request):
 async def get_function_call_settings(request: Request):
     data = await request.json()
     client = check_access(lollmsElfServer,data["client_id"])
-    fn_dir = data.get("dir")
+    fn_dir = data.get("category")
     function_name = data.get("name")
 
     # Add new entry
@@ -251,7 +251,7 @@ async def set_function_call_settings(request: Request):
 
     try:
         print("- Setting function call settings")
-        fn_dir = data.get("dir")
+        fn_dir = data.get("category")
         function_name = data.get("name")
 
         # Add new entry

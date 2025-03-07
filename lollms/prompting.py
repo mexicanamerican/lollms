@@ -195,10 +195,7 @@ class LollmsContextDetails:
             full_context+=custom_entries
 
         # Build the final prompt
-        if self.model is None:
-            prompt = template.separator_template.join(full_context)
-        else:
-            prompt = template.separator_template.join(full_context)
+        prompt = template.separator_template.join(full_context)
 
         # Debugging information
         if self.debug and self.model:

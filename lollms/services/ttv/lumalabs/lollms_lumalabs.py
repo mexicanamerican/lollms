@@ -37,11 +37,19 @@ class LollmsLumaLabs(LollmsTTV):
                 "api_key": "",     # use avx2
             })
         )
-        super().__init__("lumalabs", app, service_config, output_folder, api_key)
-        self.client = LumaAI(auth_token=api_key)
+        super().__init__("lumalabs", app, service_config, output_folder)
+        try:
+            self.client = LumaAI(auth_token=self.service_config.api_key)
+        except:
+            ASCIIColors.error("Couldn't create a client")
+            self.client = None
 
     def settings_updated(self):
-        self.client = LumaAI(auth_token=self.service_config.api_key)
+        try:
+            self.client = LumaAI(auth_token=self.service_config.api_key)
+        except:
+            ASCIIColors.error("Couldn't create a client")
+            self.client = None
 
 
     def generate_video(
