@@ -30,6 +30,7 @@ from lollms.utilities import PackageManager, find_next_available_filename
 from lollms.tts import LollmsTTS
 import subprocess
 import shutil
+from pathlib import Path
 from tqdm import tqdm
 import threading
 from io import BytesIO
@@ -53,7 +54,7 @@ class LollmsOpenAITTS(LollmsTTS):
     def __init__(
                     self, 
                     app:LollmsApplication,
-                    output_folder=None
+                    output_folder:str|Path=None
                     ):
         """
         Initializes the LollmsDalle binding.

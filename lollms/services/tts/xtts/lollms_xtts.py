@@ -64,7 +64,7 @@ class LollmsXTTS(LollmsTTS):
     def __init__(
                     self, 
                     app:LollmsApplication,
-                    output_folder=None
+                    output_folder:str|Path=None
                     ):
         """
         Initializes the LollmsDalle binding.

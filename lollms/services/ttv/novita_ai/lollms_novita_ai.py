@@ -17,7 +17,7 @@ class LollmsNovitaAITextToVideo(LollmsTTV):
     def __init__(
                     self,
                     app:LollmsApplication,
-                    output_folder:str|Path
+                    output_folder:str|Path=None
                 ):
         """
         Initializes the NovitaAITextToVideo binding.
@@ -94,6 +94,8 @@ class LollmsNovitaAITextToVideo(LollmsTTV):
         """
         if model_name=="":
             model_name = self.model_name
+        if output_dir is None:
+            output_dir = self.output_folder
         url = f"{self.base_url}/txt2video"
         headers = {
             "Authorization": f"Bearer {self.service_config.api_key}",
@@ -148,12 +150,8 @@ class LollmsNovitaAITextToVideo(LollmsTTV):
                 output_dir = Path(output_dir)
                 file_name = output_dir/find_next_available_filename(output_dir, "vid_novita_")  # You can change the filename if needed
                 self.download_video(infos["videos"][0]["video_url"], file_name )
-            else:
-                
-                file_name = self.app.personality.personality_output_folder/find_next_available_filename(output_dir, "vid_novita_")  # You can change the filename if needed
-                self.download_video(infos["videos"][0]["video_url"], self.app.personality.personality_output_folder/"video_{}.mp4" )
-        return infos
-
+                return file_name
+        return None
 
     def settings_updated(self):
         pass
