@@ -182,6 +182,7 @@ class LollmsContextDetails:
                         "  }",
                         "}",
                         "```",
+                        "It is mandatory to use the function markdown tag (not json) or it won't be executed."
                         "Important Notes:",
                         "- **Always** enclose the function call in a `function` markdown code block.",
                         "- Make sure the content of the function markdown code block is a valid json.",

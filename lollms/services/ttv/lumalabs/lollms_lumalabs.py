@@ -1,132 +1,155 @@
+import os
+import time
 import requests
-from typing import Optional, Dict
+from pathlib import Path
+from typing import List, Optional
+import pipmaster as pm
+if not pm.is_installed("lumaai"):
+    pm.install("lumaai")
+from lumaai import LumaAI
+from lollms.app import LollmsApplication
+from lollms.main_config import LOLLMSConfig
+from lollms.config import TypedConfig
+from lollms.utilities import find_next_available_filename
+from lollms.service import LollmsSERVICE
 from lollms.ttv import LollmsTTV
 from lollms.config import TypedConfig, ConfigTemplate, BaseConfig
-import os
-from pathlib import Path
-
+from ascii_colors import ASCIIColors
 class LollmsLumaLabs(LollmsTTV):
-    def __init__(self, app, output_folder:str|Path=None):
-        """
-        Initializes the NovitaAITextToVideo binding.
-
-        Args:
-            api_key (str): The API key for authentication.
-            base_url (str): The base URL for the Novita.ai API. Defaults to "https://api.novita.ai/v3/async".
-        """
-        # Check for the LUMALABS_KEY environment variable if no API key is provided
-        api_key = os.getenv("LUMALABS_KEY","")
+    """
+    LollmsLumaLabs is an implementation of LollmsTTV using LumaAI for text-to-image generation.
+    Note: LumaAI currently supports image generation, so video output will be limited to single-frame representations.
+    """
+    
+    def __init__(
+            self,
+            app: LollmsApplication,
+            output_folder: str | Path = None
+    ):
+        
+        # Initialize LumaAI client
+        api_key = os.environ.get("LUMAAI_API_KEY")
         service_config = TypedConfig(
             ConfigTemplate([
-                {"name":"api_key", "type":"str", "value":api_key, "help":"A valid Lumalabs AI key to generate text using anthropic api"},
+                {"name":"api_key", "type":"str", "value":api_key, "help":"A valid Novita AI key to generate text using anthropic api"},
             ]),
             BaseConfig(config={
                 "api_key": "",     # use avx2
             })
         )
-
-        super().__init__("lumalabs", app, service_config, output_folder)
-
-        self.base_url = "https://api.lumalabs.ai/dream-machine/v1/generations"
-        self.headers = {
-            "accept": "application/json",
-            "authorization": f"Bearer {self.service_config.api_key}",
-            "content-type": "application/json"
-        }
+        super().__init__("lumalabs", app, service_config, output_folder, api_key)
+        self.client = LumaAI(auth_token=api_key)
 
     def settings_updated(self):
-        self.base_url = "https://api.lumalabs.ai/dream-machine/v1/generations"
-        self.headers = {
-            "accept": "application/json",
-            "authorization": f"Bearer {self.service_config.api_key}",
-            "content-type": "application/json"
-        }
-    def determine_aspect_ratio(self, width, height):
-        # Define common aspect ratios and their tolerances
-        aspect_ratios = {
-            "1:1": (1, 1, 0.05),
-            "4:3": (4, 3, 0.1),
-            "16:9": (16, 9, 0.1),
-            "16:10": (16, 10, 0.1),
-            "21:9": (21, 9, 0.1),
-            "3:2": (3, 2, 0.1),
-            "5:4": (5, 4, 0.1),
-            "2:1": (2, 1, 0.1)
-        }
+        self.client = LumaAI(auth_token=self.service_config.api_key)
 
-        # Calculate the aspect ratio of the input dimensions
-        current_aspect = width / height
-        
-        best_match = None
-        min_diff = float('inf')
-        
-        for ratio, (w, h, tolerance) in aspect_ratios.items():
-            expected_aspect = w / h
-            diff = abs(expected_aspect - current_aspect)
-            if diff < min_diff and diff < tolerance:
-                min_diff = diff
-                best_match = ratio
 
-        if best_match:
-            return best_match
-        else:
-            # If no standard aspect ratio matches within tolerance, return the closest one
-            return f"{int(width)}:{int(height)}"
+    def generate_video(
+        self,
+        prompt: str,
+        negative_prompt: Optional[str] = None,
+        model_name: str = "",
+        height: int = 512,
+        width: int = 512,
+        steps: int = 20,
+        seed: int = -1,
+        nb_frames: int = None,
+        output_dir: str | Path = None,
+    ) -> str:
+        """
+        Generates a 'video' from a text prompt using LumaAI. Currently limited to a single image due to API constraints.
 
-    def generate_video(self, prompt: str, width, height,                  
-                       loop: bool = False, num_frames: int = 60, 
-                       fps: int = 30, keyframes: Optional[Dict] = None)-> str:
-    
-        aspect_ratio = self.determine_aspect_ratio(width, height)
-        payload = {
+        Args:
+            prompt (str): The text prompt describing the content.
+            negative_prompt (Optional[str]): Text describing elements to avoid (not supported by LumaAI, ignored).
+            model_name (str): Model name (not supported by LumaAI, ignored).
+            height (int): Desired height of the output image (default 512, LumaAI may override).
+            width (int): Desired width of the output image (default 512, LumaAI may override).
+            steps (int): Number of inference steps (default 20, ignored by LumaAI).
+            seed (int): Random seed for reproducibility (default -1, ignored by LumaAI).
+            nb_frames (int): Number of frames (default None, limited to 1 due to LumaAI image-only support).
+            output_dir (str | Path): Optional custom output directory.
+
+        Returns:
+            str: Path to the generated image file (single-frame 'video').
+        """
+        output_path = Path(output_dir) if output_dir else self.output_folder
+        output_path.mkdir(exist_ok=True, parents=True)
+
+        # Warn about unsupported features
+        if negative_prompt:
+            ASCIIColors.warning("Warning: LumaAI does not support negative prompts. Ignoring negative_prompt.")
+        if model_name:
+            ASCIIColors.warning("Warning: LumaAI does not support model selection in this implementation. Ignoring model_name.")
+        if steps != 20:
+            ASCIIColors.warning("Warning: LumaAI controls inference steps internally. Ignoring steps parameter.")
+        if seed != -1:
+            ASCIIColors.warning("Warning: LumaAI does not support seed specification. Ignoring seed.")
+        if nb_frames and nb_frames > 1:
+            ASCIIColors.warning("Warning: LumaAI only supports single-image generation. Generating 1 frame instead of requested nb_frames.")
+
+        # Note: LumaAI's API (as shown) doesn't support width/height directly in the provided example,
+        # but we'll include them in case the API supports it in a newer version
+        generation_params = {
             "prompt": prompt,
-            "aspect_ratio": aspect_ratio,
-            "loop": loop
+            # Uncomment and use these if LumaAI supports them in the future:
+            # "height": height,
+            # "width": width,
         }
-        
-        if keyframes:
-            payload["keyframes"] = keyframes
 
-        response = requests.post(self.base_url, headers=self.headers, json=payload)
-        response.raise_for_status()
-        
-        generation_data = response.json()
-        video_url = generation_data['assets']['video']
-        
-        # Download the video
-        video_response = requests.get(video_url)
-        video_response.raise_for_status()
-        
-        output_path = "output.mp4"
-        with open(output_path, 'wb') as f:
-            f.write(video_response.content)
-        
-        return output_path
+        # Create generation request
+        try:
+            generation = self.client.generations.image.create(**generation_params)
+        except Exception as e:
+            raise RuntimeError(f"Failed to initiate generation: {str(e)}")
 
-    def generate_video_by_frames(self, prompts, frames, negative_prompt, fps = 8, num_inference_steps = 50, guidance_scale = 6, seed = None):
-        pass # TODO : implement
+        # Poll for completion
+        completed = False
+        while not completed:
+            try:
+                generation = self.client.generations.get(id=generation.id)
+                if generation.state == "completed":
+                    completed = True
+                elif generation.state == "failed":
+                    raise RuntimeError(f"Generation failed: {generation.failure_reason}")
+                print("Dreaming...")
+                time.sleep(2)
+            except Exception as e:
+                raise RuntimeError(f"Error polling generation status: {str(e)}")
 
-    def extend_video(self, prompt: str, generation_id: str, reverse: bool = False) -> str:
-        keyframes = {
-            "frame0" if not reverse else "frame1": {
-                "type": "generation",
-                "id": generation_id
-            }
-        }
-        return self.generate_video(prompt, keyframes=keyframes)
+        # Download the image
+        image_url = generation.assets.image
+        output_filename = find_next_available_filename(output_path, f"{generation.id}.jpg")
+        
+        try:
+            response = requests.get(image_url, stream=True)
+            response.raise_for_status()
+            with open(output_filename, 'wb') as file:
+                file.write(response.content)
+            print(f"File downloaded as {output_filename}")
+        except Exception as e:
+            raise RuntimeError(f"Failed to download image: {str(e)}")
 
-    def image_to_video(self, prompt: str, image_url: str, is_end_frame: bool = False) -> str:
-        keyframes = {
-            "frame0" if not is_end_frame else "frame1": {
-                "type": "image",
-                "url": image_url
-            }
-        }
-        return self.generate_video(prompt, keyframes=keyframes)
+        return str(output_filename)
 
-# Usage example:
-if __name__ == "__main__":
-    luma_video = LumaLabsVideo("your-api-key-here")
-    prompt = "A panda, dressed in a small, red jacket and a tiny hat, sits on a wooden stool in a serene bamboo forest. The panda's fluffy paws strum a miniature acoustic guitar, producing soft, melodic tunes."
-    output_video = luma_video.generate_video(prompt)
-    print(f"Video generated and saved to: {output_video}")
+    def generate_video_by_frames(self, prompts: List[str], frames: List[int], negative_prompt: str, fps: int = 8, 
+                                num_inference_steps: int = 50, guidance_scale: float = 6.0, 
+                                seed: Optional[int] = None) -> str:
+        """
+        Generates a 'video' from a list of prompts. Since LumaAI only supports single images,
+        this will generate the first prompt's image and return it as a static representation.
+        """
+        if not prompts:
+            raise ValueError("Prompts list cannot be empty.")
+        
+        return self.generate_video(
+            prompt=prompts[0],
+            negative_prompt=negative_prompt,
+            seed=seed if seed is not None else -1
+        )
+
+    def getModels(self):
+        """
+        Gets the list of models. LumaAI doesn't expose model selection, so returns a placeholder.
+        """
+        return ["LumaAI_Default"]

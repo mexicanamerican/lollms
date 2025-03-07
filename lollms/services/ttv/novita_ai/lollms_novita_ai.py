@@ -252,9 +252,6 @@ class LollmsNovitaAITextToVideo(LollmsTTV):
                         width: int = 512,
                         steps: int = 20,
                         seed: int = -1,
-                        guidance_scale: float = 6.0,
-                        closed_loop: Optional[bool] = None,
-                        clip_skip: Optional[int] = None,
                         output_dir:str | Path =None,
                        ) -> str:
         """

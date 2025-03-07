@@ -38,10 +38,18 @@ class LollmsTTV(LollmsSERVICE):
 
 
     @abstractmethod
-    def generate_video(self, prompt: str, negative_prompt: str, num_frames: int = 49, fps: int = 8, 
-                       num_inference_steps: int = 50, guidance_scale: float = 6.0, 
-                       seed: Optional[int] = None,
-                       output_dir:str | Path =None,) -> str:
+    def generate_video(
+        self,
+        prompt: str,
+        negative_prompt: Optional[str] = None,
+        model_name: str = "",
+        height: int = 512,
+        width: int = 512,
+        steps: int = 20,
+        seed: int = -1,
+        nb_frames: int = None,
+        output_dir:str | Path =None,
+    ) -> str:
         """
         Generates a video from a single text prompt.
 
