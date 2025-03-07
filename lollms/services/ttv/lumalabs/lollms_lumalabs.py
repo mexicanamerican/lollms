@@ -41,10 +41,43 @@ class LollmsLumaLabs(LollmsTTV):
             "authorization": f"Bearer {self.service_config.api_key}",
             "content-type": "application/json"
         }
+    def determine_aspect_ratio(self, width, height):
+        # Define common aspect ratios and their tolerances
+        aspect_ratios = {
+            "1:1": (1, 1, 0.05),
+            "4:3": (4, 3, 0.1),
+            "16:9": (16, 9, 0.1),
+            "16:10": (16, 10, 0.1),
+            "21:9": (21, 9, 0.1),
+            "3:2": (3, 2, 0.1),
+            "5:4": (5, 4, 0.1),
+            "2:1": (2, 1, 0.1)
+        }
 
-    def generate_video(self, prompt: str, aspect_ratio: str = "16:9",                  
+        # Calculate the aspect ratio of the input dimensions
+        current_aspect = width / height
+        
+        best_match = None
+        min_diff = float('inf')
+        
+        for ratio, (w, h, tolerance) in aspect_ratios.items():
+            expected_aspect = w / h
+            diff = abs(expected_aspect - current_aspect)
+            if diff < min_diff and diff < tolerance:
+                min_diff = diff
+                best_match = ratio
+
+        if best_match:
+            return best_match
+        else:
+            # If no standard aspect ratio matches within tolerance, return the closest one
+            return f"{int(width)}:{int(height)}"
+
+    def generate_video(self, prompt: str, width, height,                  
                        loop: bool = False, num_frames: int = 60, 
                        fps: int = 30, keyframes: Optional[Dict] = None)-> str:
+    
+        aspect_ratio = self.determine_aspect_ratio(width, height)
         payload = {
             "prompt": prompt,
             "aspect_ratio": aspect_ratio,

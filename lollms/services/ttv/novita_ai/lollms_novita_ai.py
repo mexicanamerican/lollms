@@ -32,8 +32,13 @@ class LollmsNovitaAITextToVideo(LollmsTTV):
             ConfigTemplate([
                 {"name":"api_key", "type":"str", "value":api_key, "help":"A valid Novita AI key to generate text using anthropic api"},
                 {"name":"generation_engine","type":"str","value":"stable_diffusion", "options": ["stable_diffusion", "hunyuan-video-fast", "wan-t2v"], "help":"The engine name"},
-                {"name":"sd_model_name","type":"str","value":"darkSushiMixMix_225D_64380.safetensors", "options": ["darkSushiMixMix_225D_64380.safetensors"], "help":"The model name"}
-                {"name":"n_frames","type":"int","value":129, "help":"The number of frames in the video"}
+                {"name":"sd_model_name","type":"str","value":"darkSushiMixMix_225D_64380.safetensors", "options": ["darkSushiMixMix_225D_64380.safetensors"], "help":"The model name"},
+                {"name":"n_frames","type":"int","value":129, "help":"The number of frames in the video"},
+                {"name":"guidance_scale", "type":"float", "value":7.5, "help":"The guidance scale for the generation"},
+                {"name":"loras", "type":"str", "value":None, "help":"List of LoRA configurations"},
+                {"name":"embeddings", "type":"str", "value":None, "help":"List of embedding configurations"},
+                {"name":"closed_loop", "type":"bool", "value":False, "help":"Whether to use closed loop generation"},
+                {"name":"clip_skip", "type":"int", "value":0, "help":"Number of layers to skip in CLIP"}
             ]),
             BaseConfig(config={
                 "api_key": "",     # use avx2
@@ -75,11 +80,6 @@ class LollmsNovitaAITextToVideo(LollmsTTV):
         steps: int = 20,
         seed: int = -1,
         nb_frames: int = None,
-        guidance_scale: Optional[float] = None,
-        loras: Optional[List[Dict[str, Any]]] = None,
-        embeddings: Optional[List[Dict[str, Any]]] = None,
-        closed_loop: Optional[bool] = None,
-        clip_skip: Optional[int] = None,
         output_dir:str | Path =None,
     ) -> str:
         """
@@ -174,12 +174,12 @@ class LollmsNovitaAITextToVideo(LollmsTTV):
                     }
                 ],
                 "negative_prompt": negative_prompt,
-                "guidance_scale": guidance_scale,
+                "guidance_scale": self.service_config.guidance_scale,
                 "seed": seed,
-                "loras": loras,
-                "embeddings": embeddings,
-                "closed_loop": closed_loop,
-                "clip_skip": clip_skip
+                "loras": self.service_config.loras,
+                "embeddings": self.service_config.embeddings,
+                "closed_loop": self.service_config.closed_loop,
+                "clip_skip": self.service_config.clip_skip
             }  
             # Remove None values from the payload to avoid sending null fields
             payload = {k: v for k, v in payload.items() if v is not None}
