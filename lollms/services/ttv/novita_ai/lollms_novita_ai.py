@@ -31,7 +31,8 @@ class LollmsNovitaAITextToVideo(LollmsTTV):
         service_config = TypedConfig(
             ConfigTemplate([
                 {"name":"api_key", "type":"str", "value":api_key, "help":"A valid Novita AI key to generate text using anthropic api"},
-                {"name":"model_name","type":"str","value":"darkSushiMixMix_225D_64380.safetensors", "options": ["darkSushiMixMix_225D_64380.safetensors"], "help":"The model name"}
+                {"name":"generation_engine","type":"str","value":"stable_diffusion", "options": ["stable_diffusion", "hunyuan-video-fast"], "help":"The engine name"},
+                {"name":"sd_model_name","type":"str","value":"darkSushiMixMix_225D_64380.safetensors", "options": ["darkSushiMixMix_225D_64380.safetensors"], "help":"The model name"}
             ]),
             BaseConfig(config={
                 "api_key": "",     # use avx2
@@ -39,15 +40,15 @@ class LollmsNovitaAITextToVideo(LollmsTTV):
         )
 
         super().__init__("novita_ai", app, service_config,output_folder)
-        self.model_name = self.service_config.model_name
+        self.sd_model_name = self.service_config.sd_model_name
         self.base_url = "https://api.novita.ai/v3/async"
 
         models = self.getModels()
-        service_config.config_template["model_name"]["options"] = [model["sd_name"] for model in models]
+        service_config.config_template["sd_model_name"]["options"] = [model["model_name"] for model in models]
 
     def settings_updated(self):
         models = self.getModels()
-        self.service_config.config_template["model_name"]["options"] = models
+        self.service_config.config_template["sd_model_name"]["options"] = models
 
     def getModels(self):
         """
@@ -100,44 +101,69 @@ class LollmsNovitaAITextToVideo(LollmsTTV):
         Returns:
             str: The task_id for retrieving the generated video.
         """
-        if model_name=="":
-            model_name = self.model_name
         if output_dir is None:
             output_dir = self.output_folder
 
+        if self.service_config.generation_engine=="hunyuan-video-fast":
+            width, height, nb_frames, steps = self.pin_dimensions_frames_steps(width, height, nb_frames, steps)
+            url = "https://api.novita.ai/v3/async/hunyuan-video-fast"
 
-        url = f"{self.base_url}/txt2video"
-        headers = {
-            "Authorization": f"Bearer {self.service_config.api_key}",
-            "Content-Type": "application/json",
-        }
-        payload = {
-            "extra": {
-                "response_video_type": "mp4", # gif
-                "enterprise_plan": {"enabled": False}
-            },
-            "model_name": model_name,
-            "height": height,
-            "width": width,
-            "steps": steps,
-            "prompts": [
-                {
-                    "frames": nb_frames,
-                    "prompt": prompt
-                }
-            ],
-            "negative_prompt": negative_prompt,
-            "guidance_scale": guidance_scale,
-            "seed": seed,
-            "loras": loras,
-            "embeddings": embeddings,
-            "closed_loop": closed_loop,
-            "clip_skip": clip_skip
-        }  
-        # Remove None values from the payload to avoid sending null fields
-        payload = {k: v for k, v in payload.items() if v is not None}
+            payload = {
+                "model_name": "hunyuan-video-fast",
+                "width": width,
+                "height": height,
+                "seed": seed,
+                "steps": steps,
+                "prompt": prompt,
+                "frames": nb_frames
+            }
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self.service_config.api_key}"
+            }
 
-        response = requests.post(url, headers=headers, data=json.dumps(payload))
+            response = requests.request("POST", url, json=payload, headers=headers)
+        elif self.service_config.generation_engine=="stable_diffusion":
+            print(response.text)
+            if model_name=="":
+                model_name = self.sd_model_name
+
+
+            url = f"{self.base_url}/txt2video"
+            headers = {
+                "Authorization": f"Bearer {self.service_config.api_key}",
+                "Content-Type": "application/json",
+            }
+            payload = {
+                "extra": {
+                    "response_video_type": "mp4", # gif
+                    "enterprise_plan": {"enabled": False}
+                },
+                "sd_model_name": model_name,
+                "height": height,
+                "width": width,
+                "steps": steps,
+                "prompts": [
+                    {
+                        "frames": nb_frames,
+                        "prompt": prompt
+                    }
+                ],
+                "negative_prompt": negative_prompt,
+                "guidance_scale": guidance_scale,
+                "seed": seed,
+                "loras": loras,
+                "embeddings": embeddings,
+                "closed_loop": closed_loop,
+                "clip_skip": clip_skip
+            }  
+            # Remove None values from the payload to avoid sending null fields
+            payload = {k: v for k, v in payload.items() if v is not None}
+
+            response = requests.post(url, headers=headers, data=json.dumps(payload))
+        else:
+            return "Unsupported engine name"
+        
         response.raise_for_status()  # Raise an exception for HTTP errors
         task_id = response.json().get("task_id")
 
@@ -162,15 +188,50 @@ class LollmsNovitaAITextToVideo(LollmsTTV):
                 self.download_video(infos["videos"][0]["video_url"], file_name )
                 return file_name
         return None
-
-
+    
+    def pin_dimensions_frames_steps(self, width, height, nframes, steps):
+        # Supported widths
+        standard_widths = [480, 640, 720, 864, 1280]
+        
+        # Width-to-height mapping
+        width_height_map = {
+            480: [640, 864],    # 480 width supports 640 or 864 height
+            640: [480],         # 640 width supports 480 height
+            720: [1280],        # 720 width supports 1280 height
+            864: [480],         # 864 width supports 480 height
+            1280: [720]         # 1280 width supports 720 height
+        }
+        
+        # Supported nframes
+        standard_nframes = [85, 129]
+        
+        # Supported steps range
+        min_steps, max_steps = 2, 30
+        
+        # Pin the width to the nearest standard width
+        pinned_width = min(standard_widths, key=lambda x: abs(x - width))
+        
+        # Pin the height to the nearest supported height for the pinned width
+        supported_heights = width_height_map[pinned_width]
+        pinned_height = min(supported_heights, key=lambda x: abs(x - height))
+        
+        # Pin the nframes to the nearest standard nframes
+        pinned_nframes = min(standard_nframes, key=lambda x: abs(x - nframes))
+        
+        # Pin the steps to the valid range (2 to 30)
+        pinned_steps = max(min_steps, min(max_steps, steps))
+        
+        return pinned_width, pinned_height, pinned_nframes, pinned_steps
     def generate_video_by_frames(self, prompts: List[str], frames: List[int], negative_prompt: str, fps: int = 8, 
-                        model_name: str = "",
+                        sd_model_name: str = "",
                         height: int = 512,
                         width: int = 512,
                         steps: int = 20,
                         seed: int = -1,
-                        num_inference_steps: int = 50, guidance_scale: float = 6.0
+                        guidance_scale: float = 6.0,
+                        closed_loop: Optional[bool] = None,
+                        clip_skip: Optional[int] = None,
+                        output_dir:str | Path =None,
                        ) -> str:
         """
         Generates a video from a list of prompts and corresponding frames.
@@ -187,8 +248,8 @@ class LollmsNovitaAITextToVideo(LollmsTTV):
         Returns:
             str: The path to the generated video.
         """
-        if model_name=="":
-            model_name = self.model_name
+        if sd_model_name=="":
+            sd_model_name = self.sd_model_name
         if output_dir is None:
             output_dir = self.output_folder
 
@@ -203,21 +264,22 @@ class LollmsNovitaAITextToVideo(LollmsTTV):
                 "response_video_type": "mp4", # gif
                 "enterprise_plan": {"enabled": False}
             },
-            "model_name": model_name,
+            "sd_model_name": sd_model_name,
             "height": height,
             "width": width,
             "steps": steps,
             "prompts": [
                 {
                     "frames": nb_frames,
-                    "prompt": prompt
-                }
+                    "prompt": prompt,
+                    
+                } for nb_frames, prompt in zip(prompts, frames)
             ],
             "negative_prompt": negative_prompt,
             "guidance_scale": guidance_scale,
             "seed": seed,
-            "loras": loras,
-            "embeddings": embeddings,
+            "loras": [],
+            "embeddings": [],
             "closed_loop": closed_loop,
             "clip_skip": clip_skip
         }  
