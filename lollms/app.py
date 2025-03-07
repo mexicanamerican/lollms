@@ -178,6 +178,36 @@ class LollmsApplication(LoLLMsCom):
         self.tasks_library              = TasksLibrary(self)
 
 
+    def load_function_call(self, fc, client):
+        dr = Path(fc["dir"])
+        try:
+            with open(dr/"config.yaml", "r") as f:
+                fc_dict = yaml.safe_load(f.read())
+                # let us check static settings from fc_dict
+                # Step 1: Construct the full path to the function.py module
+                module_path = dr / "function.py"
+                module_name = "function"  # Name for the loaded module
+
+                # Step 2: Use importlib.util to load the module from the file path
+                spec = importlib.util.spec_from_file_location(module_name, module_path)
+                if spec is None:
+                    raise ImportError(f"Could not load module from {module_path}")
+                
+                module = importlib.util.module_from_spec(spec)
+                sys.modules[module_name] = module  # Add the module to sys.modules
+                spec.loader.exec_module(module)    # Execute the module
+
+                # Step 3: Retrieve the class from the module using the class name
+                class_name = fc_dict["class_name"]
+                class_ = getattr(module, class_name)
+                
+                # Step 4: Create an instance of the class and store it in fc_dict["class"]
+                fc_dict["class"] = class_(self, client)
+                return fc_dict
+        except Exception as ex:
+            self.error("Couldn't add function call to context")
+            trace_exception(ex)
+        return None
     def embed_function_call_in_prompt(self, original_prompt):
         """Embeds function call descriptions in the system prompt"""
         function_descriptions = [
@@ -1371,34 +1401,9 @@ Answer directly with the reformulation of the last prompt.
         if len(self.config.mounted_function_calls)>0:            
             for fc in self.config.mounted_function_calls:
                 if fc["selected"]:
-                    dr = Path(fc["dir"])
-                    try:
-                        with open(dr/"config.yaml", "r") as f:
-                            fc_dict = yaml.safe_load(f.read())
-                            # let us check static settings from fc_dict
-                            # Step 1: Construct the full path to the function.py module
-                            module_path = dr / "function.py"
-                            module_name = "function"  # Name for the loaded module
-
-                            # Step 2: Use importlib.util to load the module from the file path
-                            spec = importlib.util.spec_from_file_location(module_name, module_path)
-                            if spec is None:
-                                raise ImportError(f"Could not load module from {module_path}")
-                            
-                            module = importlib.util.module_from_spec(spec)
-                            sys.modules[module_name] = module  # Add the module to sys.modules
-                            spec.loader.exec_module(module)    # Execute the module
-
-                            # Step 3: Retrieve the class from the module using the class name
-                            class_name = fc_dict["class_name"]
-                            class_ = getattr(module, class_name)
-                            
-                            # Step 4: Create an instance of the class and store it in fc_dict["class"]
-                            fc_dict["class"] = class_(self, client)
-                            function_calls.append(fc_dict)
-                    except Exception as ex:
-                        self.error("Couldn't add function call to context")
-                        trace_exception(ex)
+                    fci = self.load_function_call(fc, client)
+                    if fci:
+                        function_calls.append(fci)
         # Calculate the total number of tokens between conditionning, documentation, and knowledge
         total_tokens = n_cond_tk + n_isearch_tk + n_doc_tk + n_user_description_tk + n_positive_boost + n_negative_boost + n_fun_mode + n_think_first_mode
 

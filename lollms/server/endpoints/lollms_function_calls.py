@@ -218,17 +218,23 @@ async def toggle_function_call(request: Request):
 @router.post("/get_function_call_settings")
 async def get_function_call_settings(request: Request):
     data = await request.json()
-    check_access(lollmsElfServer,data["client_id"])
+    client = check_access(lollmsElfServer,data["client_id"])
     fn_dir = data.get("dir")
     function_name = data.get("name")
 
     # Add new entry
     for entry in lollmsElfServer.config.mounted_function_calls:
         if entry["name"] == function_name and Path(entry["dir"]).parent.name == str(fn_dir):
-            if hasattr(entry,"static_params"):
-                return entry.static_params.config_template.template
-            else:
+            try:
+                fci = lollmsElfServer.load_function_call(entry, client)
+                if hasattr(fci,"static_params"):
+                    return fci.static_params.config_template.template
+                else:
+                    return {}
+            except Exception as ex:
+                trace_exception(ex)
                 return {}
+
     return {}
 
 @router.post("/set_function_call_settings")
