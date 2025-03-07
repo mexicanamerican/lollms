@@ -18,10 +18,11 @@ safe_store_repo = "https://github.com/ParisNeo/safe_store.git"
 personalities_zoo_repo = "https://github.com/ParisNeo/lollms_personalities_zoo.git"
 bindings_zoo_repo = "https://github.com/ParisNeo/lollms_bindings_zoo.git"
 models_zoo_repo = "https://github.com/ParisNeo/models_zoo.git"
+services_zoo_repo = "https://github.com/ParisNeo/lollms_services_zoo.git"
 functions_zoo_repo = "https://github.com/ParisNeo/lollms_functions_zoo.git"
 gptqlora_repo = "https://github.com/ParisNeo/gptqlora.git"
 
-lollms_webui_version = "v17 (codename Pulsar 💫)"
+lollms_webui_version = "v19 (codename Omni 🔗)"
 
 # Now we speify the personal folders
 class LollmsPaths:
@@ -106,6 +107,8 @@ class LollmsPaths:
             self.bindings_zoo_path              = rt / "bindings_zoo"
             self.personalities_zoo_path         = rt / "personalities_zoo"
             self.models_zoo_path                = rt / "models_zoo"
+            self.services_zoo_path              = rt / "services_zoo"
+            
             self.functions_zoo_path             = rt / "functions_zoo"
         else:
             ASCIIColors.orange("local zoos folder not found")
@@ -114,6 +117,7 @@ class LollmsPaths:
             self.bindings_zoo_path              = rt / "bindings_zoo"
             self.personalities_zoo_path         = rt / "personalities_zoo"
             self.models_zoo_path                = rt / "models_zoo"
+            self.services_zoo_path              = rt / "services_zoo"
             self.functions_zoo_path             = rt / "functions_zoo"
 
 
@@ -205,7 +209,8 @@ class LollmsPaths:
         zoos = [
             ("Bindings Zoo", self.bindings_zoo_path),
             ("Personalities Zoo", self.personalities_zoo_path),
-            ("Models Zoo", self.models_zoo_path)
+            ("Models Zoo", self.models_zoo_path),
+            ("Servicesq Zoo", self.services_zoo_path)
         ]
         
         for i, (name, path) in enumerate(zoos):
@@ -292,6 +297,12 @@ class LollmsPaths:
             # Clone the repository to the target path
             ASCIIColors.info("No models found in your personal space.\nCloning the models zoo")
             subprocess.run(["git", "clone", models_zoo_repo, self.models_zoo_path])
+
+        if not self.services_zoo_repo.exists():
+            # Clone the repository to the target path
+            ASCIIColors.info("No services found in your personal space.\nCloning the services zoo")
+            subprocess.run(["git", "clone", services_zoo_repo, self.services_zoo_path])
+            
 
         if not self.functions_zoo_path.exists():
             # Clone the repository to the target path

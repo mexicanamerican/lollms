@@ -124,6 +124,19 @@ class LollmsApplication(LoLLMsCom):
                     ASCIIColors.blue("Models zoo found in your personal space.")
                     ASCIIColors.execute_with_animation("Pulling last Models zoo", check_lollms_models_zoo)
 
+                    # Pull the repository if it already exists
+                    def check_lollms_function_calling_zoo():
+                        subprocess.run(["git", "-C", self.lollms_paths.functions_zoo_path, "pull"])            
+                    ASCIIColors.blue("Function calling zoo found in your personal space.")
+                    ASCIIColors.execute_with_animation("Pulling last Function calling zoo", check_lollms_function_calling_zoo)
+
+                    # Pull the repository if it already exists
+                    def check_lollms_services_zoo():
+                        subprocess.run(["git", "-C", self.lollms_paths.services_zoo_path, "pull"])            
+                    ASCIIColors.blue("Services zoo found in your personal space.")
+                    ASCIIColors.execute_with_animation("Pulling last services zoo", check_lollms_services_zoo)
+
+
             except Exception as ex:
                 ASCIIColors.error("Couldn't pull zoos. Please contact the main dev on our discord channel and report the problem.")
                 trace_exception(ex)
@@ -484,6 +497,39 @@ class LollmsApplication(LoLLMsCom):
                     self.active_datalakes.append(
                             rag_db | {"binding": lr}
                     )
+
+    def load_class_from_folder(self, folder_path, target_name):
+        # List all folders in the given directory
+        folders = [f for f in os.listdir(folder_path) if os.path.isdir(os.path.join(folder_path, f))]
+        
+        # Check if the target_name matches any folder name
+        if target_name in folders:
+            folder = os.path.join(folder_path, target_name)
+            
+            # Load the config.yaml file
+            config_path = os.path.join(folder, "config.yaml")
+            with open(config_path, 'r') as file:
+                config = yaml.safe_load(file)
+            
+            # Extract the class_name from the config
+            class_name = config.get('class_name')
+            if not class_name:
+                raise ValueError(f"class_name not found in {config_path}")
+            
+            # Load the Python file
+            python_file_path = os.path.join(folder, f"{target_name}.py")
+            spec = importlib.util.spec_from_file_location(target_name, python_file_path)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            
+            # Import the class and instantiate it
+            class_ = getattr(module, class_name)
+            instance = class_(self)  # Pass the config as a parameter to the constructor
+            
+            return instance
+        else:
+            raise FileNotFoundError(f"No folder named {target_name} found in {folder_path}")
+
     def start_servers(self):
         ASCIIColors.yellow("* - * - * - Starting services - * - * - *")
         def start_local_services(*args, **kwargs):
@@ -636,6 +682,8 @@ class LollmsApplication(LoLLMsCom):
         ASCIIColors.execute_with_animation("Loading loacal TTI services", start_tti, ASCIIColors.color_blue)
 
         def start_ttv(*args, **kwargs):
+            self.ttv = self.load_class_from_folder(self.lollms_paths.personal_services_path)
+
             if self.config.active_ttv_service == "lumalabs":
                 try:
                     from lollms.services.ttv.lumalabs.lollms_lumalabs import LollmsLumaLabs
