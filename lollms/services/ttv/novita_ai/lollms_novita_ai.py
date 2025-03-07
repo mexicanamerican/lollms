@@ -33,6 +33,7 @@ class LollmsNovitaAITextToVideo(LollmsTTV):
                 {"name":"api_key", "type":"str", "value":api_key, "help":"A valid Novita AI key to generate text using anthropic api"},
                 {"name":"generation_engine","type":"str","value":"stable_diffusion", "options": ["stable_diffusion", "hunyuan-video-fast", "wan-t2v"], "help":"The engine name"},
                 {"name":"sd_model_name","type":"str","value":"darkSushiMixMix_225D_64380.safetensors", "options": ["darkSushiMixMix_225D_64380.safetensors"], "help":"The model name"}
+                {"name":"n_frames","type":"int","value":129, "help":"The number of frames in the video"}
             ]),
             BaseConfig(config={
                 "api_key": "",     # use avx2
@@ -73,7 +74,7 @@ class LollmsNovitaAITextToVideo(LollmsTTV):
         width: int = 512,
         steps: int = 20,
         seed: int = -1,
-        nb_frames: int = 64,
+        nb_frames: int = None,
         guidance_scale: Optional[float] = None,
         loras: Optional[List[Dict[str, Any]]] = None,
         embeddings: Optional[List[Dict[str, Any]]] = None,
@@ -103,6 +104,9 @@ class LollmsNovitaAITextToVideo(LollmsTTV):
         """
         if output_dir is None:
             output_dir = self.output_folder
+
+        if nb_frames is None:
+            nb_frames =self.service_config.n_frames
 
         if self.service_config.generation_engine=="hunyuan-video-fast":
             width, height, nb_frames, steps = self.pin_dimensions_frames_steps(width, height, nb_frames, steps)
