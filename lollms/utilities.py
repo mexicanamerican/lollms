@@ -708,8 +708,10 @@ def run_async(func: Callable[[], Coroutine[Any, Any, None]]) -> None:
         asyncio.set_event_loop(loop)
 
     # If the loop is not running, run the coroutine until it completes
-    loop.run_until_complete(func())
-
+    try:
+        loop.run_until_complete(func())
+    except:
+        func()
 
 def terminate_thread(thread):
     """ 

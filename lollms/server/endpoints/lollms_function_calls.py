@@ -227,8 +227,8 @@ async def get_function_call_settings(request: Request):
         if entry["name"] == function_name and Path(entry["dir"]).parent.name == str(fn_dir):
             try:
                 fci = lollmsElfServer.load_function_call(entry, client)
-                if hasattr(fci,"static_params"):
-                    return fci.static_params.config_template.template
+                if hasattr(fci["class"],"static_parameters"):
+                    return fci["class"].static_parameters.config_template.template
                 else:
                     return {}
             except Exception as ex:
@@ -240,7 +240,7 @@ async def get_function_call_settings(request: Request):
 @router.post("/set_function_call_settings")
 async def set_function_call_settings(request: Request):
     data = await request.json()
-    check_access(lollmsElfServer,data["client_id"])
+    client = check_access(lollmsElfServer,data["client_id"])
     settings = data["settings"]
     """
     Sets the active ttv settings.
@@ -257,13 +257,19 @@ async def set_function_call_settings(request: Request):
         # Add new entry
         for entry in lollmsElfServer.config.mounted_function_calls:
             if entry["name"] == function_name and Path(entry["dir"]).parent.name == str(fn_dir):
-                if hasattr(entry,"static_params"):
-                    entry.static_params.update_template(settings)
-                    entry.static_params.config.save_config()
-                    entry.static_params.settings_updated()
-                    return {'status':True}
-                else:
-                    return {'status':False}
+                try:
+                    fci = lollmsElfServer.load_function_call(entry, client)
+                    if hasattr(fci["class"],"static_parameters"):
+                        fci["class"].static_parameters.update_template(settings)
+                        fci["class"].static_parameters.config.save_config()
+                        fci["class"].static_parameters.settings_updated()
+                        return {'status':True}
+                    else:
+                        return {'status':False}
+                except Exception as ex:
+                    trace_exception(ex)
+                    return {}
+                
             else:
                 return {'status':False}
         else:
