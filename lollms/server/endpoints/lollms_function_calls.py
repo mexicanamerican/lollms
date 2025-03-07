@@ -224,7 +224,7 @@ async def get_function_call_settings(request: Request):
 
     # Add new entry
     for entry in lollmsElfServer.config.mounted_function_calls:
-        if entry["name"] == function_name and entry["dir"] == str(fn_dir):
+        if entry["name"] == function_name and Path(entry["dir"]).parent.name == str(fn_dir):
             if hasattr(entry,"static_params"):
                 return entry.static_params.config_template.template
             else:
@@ -250,7 +250,7 @@ async def set_function_call_settings(request: Request):
 
         # Add new entry
         for entry in lollmsElfServer.config.mounted_function_calls:
-            if entry["name"] == function_name and entry["dir"] == str(fn_dir):
+            if entry["name"] == function_name and Path(entry["dir"]).parent.name == str(fn_dir):
                 if hasattr(entry,"static_params"):
                     entry.static_params.update_template(settings)
                     entry.static_params.config.save_config()
