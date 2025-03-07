@@ -213,3 +213,56 @@ async def toggle_function_call(request: Request):
     lollmsElfServer.config.save_config()
     
     return {"status": True, "message": "Function mounted successfully"}
+
+
+@router.post("/get_function_call_settings")
+async def get_function_call_settings(request: Request):
+    data = await request.json()
+    check_access(lollmsElfServer,data["client_id"])
+    fn_dir = data.get("dir")
+    function_name = data.get("name")
+
+    # Add new entry
+    for entry in lollmsElfServer.config.mounted_function_calls:
+        if entry["name"] == function_name and entry["dir"] == str(fn_dir):
+            if hasattr(entry,"static_params"):
+                return entry.static_params.config_template.template
+            else:
+                return {}
+    return {}
+
+@router.post("/set_function_call_settings")
+async def set_function_call_settings(request: Request):
+    data = await request.json()
+    check_access(lollmsElfServer,data["client_id"])
+    settings = data["settings"]
+    """
+    Sets the active ttv settings.
+
+    :param request: The ttvSettingsRequest object.
+    :return: A JSON response with the status of the operation.
+    """
+
+    try:
+        print("- Setting function call settings")
+        fn_dir = data.get("dir")
+        function_name = data.get("name")
+
+        # Add new entry
+        for entry in lollmsElfServer.config.mounted_function_calls:
+            if entry["name"] == function_name and entry["dir"] == str(fn_dir):
+                if hasattr(entry,"static_params"):
+                    entry.static_params.update_template(settings)
+                    entry.static_params.config.save_config()
+                    entry.static_params.settings_updated()
+                    return {'status':True}
+                else:
+                    return {'status':False}
+            else:
+                return {'status':False}
+        else:
+            return {'status':False}
+    except Exception as ex:
+        trace_exception(ex)
+        lollmsElfServer.error(ex)
+        return {"status":False,"error":str(ex)}

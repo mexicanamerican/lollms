@@ -1376,36 +1376,6 @@ Answer directly with the reformulation of the last prompt.
                         with open(dr/"config.yaml", "r") as f:
                             fc_dict = yaml.safe_load(f.read())
                             # let us check static settings from fc_dict
-                            if 'static_parameters' in fc_dict:
-                                # Extract category and name from fc_dict
-                                category = fc_dict.get('category')
-                                name = fc_dict.get('name')
-                                
-                                # Build the configuration file path
-                                config_path = self.lollms_paths.personal_configuration_path / "function_calls" / category / name / "config.yaml"
-                                
-                                # Check if the configuration file exists
-                                if config_path.exists():
-                                    # Load existing configuration
-                                    with open(config_path, 'r') as f:
-                                        static_parameters = yaml.safe_load(f)
-                                else:
-                                    # Create default configuration
-                                    static_parameters = {}
-                                    
-                                    # Extract default values from fc_dict's static_parameters
-                                    for param in fc_dict['static_parameters']:
-                                        static_parameters[param['name']] = param.get('default',"")
-                                    
-                                    # Create parent directories if they don't exist
-                                    config_path.parent.mkdir(parents=True, exist_ok=True)
-                                    
-                                    # Save the default configuration
-                                    with open(config_path, 'w') as f:
-                                        yaml.dump(static_parameters, f)
-                            else:
-                                # the function doesn't need static parameters
-                                static_parameters = {}
                             # Step 1: Construct the full path to the function.py module
                             module_path = dr / "function.py"
                             module_name = "function"  # Name for the loaded module
@@ -1424,7 +1394,7 @@ Answer directly with the reformulation of the last prompt.
                             class_ = getattr(module, class_name)
                             
                             # Step 4: Create an instance of the class and store it in fc_dict["class"]
-                            fc_dict["class"] = class_(self, client, static_parameters)
+                            fc_dict["class"] = class_(self, client)
                             function_calls.append(fc_dict)
                     except Exception as ex:
                         self.error("Couldn't add function call to context")

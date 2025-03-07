@@ -31,7 +31,7 @@ class LollmsNovitaAITextToVideo(LollmsTTV):
         service_config = TypedConfig(
             ConfigTemplate([
                 {"name":"api_key", "type":"str", "value":api_key, "help":"A valid Novita AI key to generate text using anthropic api"},
-                {"name":"generation_engine","type":"str","value":"stable_diffusion", "options": ["stable_diffusion", "hunyuan-video-fast"], "help":"The engine name"},
+                {"name":"generation_engine","type":"str","value":"stable_diffusion", "options": ["stable_diffusion", "hunyuan-video-fast", "wan-t2v"], "help":"The engine name"},
                 {"name":"sd_model_name","type":"str","value":"darkSushiMixMix_225D_64380.safetensors", "options": ["darkSushiMixMix_225D_64380.safetensors"], "help":"The model name"}
             ]),
             BaseConfig(config={
@@ -123,6 +123,26 @@ class LollmsNovitaAITextToVideo(LollmsTTV):
             }
 
             response = requests.request("POST", url, json=payload, headers=headers)
+        elif self.service_config.generation_engine=="wan-t2v":
+            width, height, nb_frames, steps = self.pin_dimensions_frames_steps(width, height, nb_frames, steps)
+            url = "https://api.novita.ai/v3/async/wan-t2v"
+
+            payload = {
+                "model_name": "wan-t2v",
+                "width": width,
+                "height": height,
+                "seed": seed,
+                "steps": steps,
+                "prompt": prompt,
+                "frames": nb_frames
+            }
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self.service_config.api_key}"
+            }
+
+            response = requests.request("POST", url, json=payload, headers=headers)
+            
         elif self.service_config.generation_engine=="stable_diffusion":
             print(response.text)
             if model_name=="":
