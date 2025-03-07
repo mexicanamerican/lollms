@@ -42,6 +42,13 @@ class LollmsNovitaAITextToVideo(LollmsTTV):
         self.model_name = self.service_config.model_name
         self.base_url = "https://api.novita.ai/v3/async"
 
+        models = self.getModels()
+        service_config.config_template["model_name"]["options"] = models
+
+    def settings_updated(self):
+        models = self.getModels()
+        self.service_config.config_template["model_name"]["options"] = models
+
     def getModels(self):
         """
         Gets the list of models
@@ -96,6 +103,8 @@ class LollmsNovitaAITextToVideo(LollmsTTV):
             model_name = self.model_name
         if output_dir is None:
             output_dir = self.output_folder
+
+
         url = f"{self.base_url}/txt2video"
         headers = {
             "Authorization": f"Bearer {self.service_config.api_key}",
@@ -153,8 +162,6 @@ class LollmsNovitaAITextToVideo(LollmsTTV):
                 return file_name
         return None
 
-    def settings_updated(self):
-        pass
 
     def generate_video_by_frames(self, prompts: List[str], frames: List[int], negative_prompt: str, fps: int = 8, 
                        num_inference_steps: int = 50, guidance_scale: float = 6.0, 
