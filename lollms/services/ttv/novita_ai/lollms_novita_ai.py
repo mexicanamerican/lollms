@@ -43,7 +43,7 @@ class LollmsNovitaAITextToVideo(LollmsTTV):
         self.base_url = "https://api.novita.ai/v3/async"
 
         models = self.getModels()
-        service_config.config_template["model_name"]["options"] = models
+        service_config.config_template["model_name"]["options"] = [model["sd_name"] for model in models]
 
     def settings_updated(self):
         models = self.getModels()
@@ -56,11 +56,12 @@ class LollmsNovitaAITextToVideo(LollmsTTV):
         url = "https://api.novita.ai/v3/model"
         headers = {
             "Content-Type": "<content-type>",
-            "Authorization": "<authorization>"
+            "Authorization": f"Bearer {self.service_config.api_key}"
         }
 
         response = requests.request("GET", url, headers=headers)
-        return response.json()["models"]
+        js = response.json()
+        return js["models"]
     
     def generate_video(
         self,
@@ -164,8 +165,13 @@ class LollmsNovitaAITextToVideo(LollmsTTV):
 
 
     def generate_video_by_frames(self, prompts: List[str], frames: List[int], negative_prompt: str, fps: int = 8, 
-                       num_inference_steps: int = 50, guidance_scale: float = 6.0, 
-                       seed: Optional[int] = None) -> str:
+                        model_name: str = "",
+                        height: int = 512,
+                        width: int = 512,
+                        steps: int = 20,
+                        seed: int = -1,
+                        num_inference_steps: int = 50, guidance_scale: float = 6.0
+                       ) -> str:
         """
         Generates a video from a list of prompts and corresponding frames.
 
@@ -181,7 +187,68 @@ class LollmsNovitaAITextToVideo(LollmsTTV):
         Returns:
             str: The path to the generated video.
         """
-        pass
+        if model_name=="":
+            model_name = self.model_name
+        if output_dir is None:
+            output_dir = self.output_folder
+
+
+        url = f"{self.base_url}/txt2video"
+        headers = {
+            "Authorization": f"Bearer {self.service_config.api_key}",
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "extra": {
+                "response_video_type": "mp4", # gif
+                "enterprise_plan": {"enabled": False}
+            },
+            "model_name": model_name,
+            "height": height,
+            "width": width,
+            "steps": steps,
+            "prompts": [
+                {
+                    "frames": nb_frames,
+                    "prompt": prompt
+                }
+            ],
+            "negative_prompt": negative_prompt,
+            "guidance_scale": guidance_scale,
+            "seed": seed,
+            "loras": loras,
+            "embeddings": embeddings,
+            "closed_loop": closed_loop,
+            "clip_skip": clip_skip
+        }  
+        # Remove None values from the payload to avoid sending null fields
+        payload = {k: v for k, v in payload.items() if v is not None}
+
+        response = requests.post(url, headers=headers, data=json.dumps(payload))
+        response.raise_for_status()  # Raise an exception for HTTP errors
+        task_id = response.json().get("task_id")
+
+
+        url = f"https://api.novita.ai/v3/async/task-result?task_id={task_id}"
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.service_config.api_key}",
+        }
+        done = False
+        while not done:
+            response = requests.request("GET", url, headers=headers)
+            infos = response.json()
+            if infos["task"]["status"]=="TASK_STATUS_SUCCEED" or infos["task"]["status"]=="TASK_STATUS_FAILED":
+                done = True
+            time.sleep(1)
+        if infos["task"]["status"]=="TASK_STATUS_SUCCEED":
+            if output_dir:
+                output_dir = Path(output_dir)
+                file_name = output_dir/find_next_available_filename(output_dir, "vid_novita_","mp4")  # You can change the filename if needed
+                self.download_video(infos["videos"][0]["video_url"], file_name )
+                return file_name
+        return None
 
     def get_task_result(self, task_id: str) -> Dict[str, Any]:
         """
