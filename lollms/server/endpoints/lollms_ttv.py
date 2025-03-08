@@ -7,10 +7,11 @@ from PIL import Image
 from fastapi import APIRouter
 from lollms_webui import LOLLMSWebUI
 from pydantic import BaseModel
-from typing import List
+from typing import List, Dict
 from ascii_colors import trace_exception
 from lollms.security import check_access
 from ascii_colors import ASCIIColors
+import yaml 
 
 router = APIRouter()
 lollmsElfServer = LOLLMSWebUI.get_instance()
@@ -30,27 +31,50 @@ class TTVServiceSetConfigRequest(BaseModel):
 
 
 @router.post("/list_ttv_services")
-async def list_ttv_services(request: ServiceListingRequest):
+async def list_ttv_services(request: ServiceListingRequest) -> List[Dict[str, str]]:
     """
-    Dumb endpoint that returns a static list of TTV services.
+    Endpoint that returns a list of TTV services by scanning subfolders in services_zoo_path.
     
     Args:
-        request (TTVServiceRequest): The request body containing the client_id.
+        request (ServiceListingRequest): The request body containing the client_id.
     
     Returns:
-        List[str]: A list of TTV service names.
+        List[Dict[str, str]]: A list of TTV service dictionaries containing name, caption, and help.
     """
-    # Validate the client_id (dumb validation for demonstration)
+    # Validate the client_id
     check_access(lollmsElfServer, request.client_id)
     
+    # Get the services directory path
+    services_path = lollmsElfServer.lollms_paths.services_zoo_path
     
-    # Static list of TTV services
-    ttv_services = [
-                    {"name": "novita_ai", "caption":"Novita AI",  "help":"Novita ai text to video services"},
-                    {"name": "diffusers", "caption":"Diffusers", "help":"Diffusers based Local text to video services"},
-                    {"name": "lumalabs", "caption":"Luma labs", "help":"Luma labs text to video services"},
-                    {"name": "cog_video_x", "caption":"Cog Video", "help":"Cog video"},
-                ]
+    # Initialize empty list for services
+    ttv_services = []
+    
+    # Check if the directory exists
+    if not services_path.exists() or not services_path.is_dir():
+        return ttv_services  # Return empty list if directory doesn't exist
+    
+    # Iterate through subfolders
+    for service_folder in services_path.iterdir():
+        if service_folder.is_dir():
+            # Look for config.yaml in each subfolder
+            config_file = service_folder / "config.yaml"
+            if config_file.exists():
+                try:
+                    # Read and parse the YAML file
+                    with open(config_file, 'r') as f:
+                        config = yaml.safe_load(f)
+                    
+                    # Build service dictionary
+                    service_info = {
+                        "name": service_folder.name,
+                        "caption": config.get("caption", service_folder.name),
+                        "help": config.get("help", f"{service_folder.name} text to video services")
+                    }
+                    ttv_services.append(service_info)
+                except Exception as e:
+                    # Log error if needed, skip invalid config files
+                    continue
     
     return ttv_services
 

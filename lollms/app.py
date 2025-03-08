@@ -531,7 +531,7 @@ class LollmsApplication(LoLLMsCom):
 
             return instance
         else:
-            raise FileNotFoundError(f"No folder named {target_name} found in {folder_path}")
+            ASCIIColors.error(f"No folder named {target_name} found in {folder_path}")
 
     def start_servers(self):
         ASCIIColors.yellow("* - * - * - Starting services - * - * - *")
