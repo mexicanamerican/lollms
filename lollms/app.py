@@ -619,21 +619,8 @@ class LollmsApplication(LoLLMsCom):
         ASCIIColors.execute_with_animation("Loading TTT services", start_ttt,ASCIIColors.color_blue)
 
         def start_stt(*args, **kwargs):
-            if self.config.whisper_activate or self.config.active_stt_service == "whisper":
-                try:
-                    from lollms.services.stt.whisper.lollms_whisper import LollmsWhisper
-                    self.whisper = LollmsWhisper(self)
-                    stt_services.append("whisper")
-                except Exception as ex:
-                    trace_exception(ex)
-            if self.config.active_stt_service == "openai_whisper":
-                from lollms.services.stt.openai_whisper.lollms_openai_whisper import LollmsOpenAIWhisper
-                self.stt = LollmsOpenAIWhisper(self)
-            elif self.config.active_stt_service == "whisper":
-                from lollms.services.stt.whisper.lollms_whisper import LollmsWhisper
-                self.stt = LollmsWhisper(self)
-
-        ASCIIColors.execute_with_animation("Loading STT services", start_stt, ASCIIColors.color_blue)
+            self.stt = self.load_service_from_folder(self.lollms_paths.services_zoo_path/"stt", self.config.active_stt_service)
+        ASCIIColors.execute_with_animation("Loading loacal STT services", start_stt, ASCIIColors.color_blue)
 
         def start_tts(*args, **kwargs):
             if self.config.active_tts_service == "xtts":
@@ -694,56 +681,19 @@ class LollmsApplication(LoLLMsCom):
                     trace_exception(ex)
                     self.warning(f"Couldn't load vllm")
 
-            ASCIIColors.blue("Loading local STT services")
-
-            if self.config.whisper_activate and self.whisper is None:
-                try:
-                    from lollms.services.stt.whisper.lollms_whisper import LollmsWhisper
-                    self.whisper = LollmsWhisper(self)
-                except Exception as ex:
-                    trace_exception(ex)
-                    
-            ASCIIColors.blue("Loading loacal TTS services")
-            if self.config.active_tts_service == "xtts" and (self.tts is None or self.tts.name!="xtts"):
-                ASCIIColors.yellow("Loading XTTS")
-                try:
-                    from lollms.services.tts.xtts.lollms_xtts import LollmsXTTS
-                    voice=self.config.xtts_current_voice
-                    if voice!="main_voice":
-                        voices_folder = self.lollms_paths.custom_voices_path
-                    else:
-                        voices_folder = Path(__file__).parent.parent.parent/"services/xtts/voices"
-
-                    self.tts = LollmsXTTS(
-                                            self
-                                        )
-                except Exception as ex:
-                    trace_exception(ex)
-                    self.warning(f"Couldn't load XTTS")
 
             def start_tti(*args, **kwargs):
                 self.tti = self.load_service_from_folder(self.lollms_paths.services_zoo_path/"tti", self.config.active_tti_service)
             ASCIIColors.execute_with_animation("Loading loacal TTI services", start_tti, ASCIIColors.color_blue)
 
 
-            ASCIIColors.blue("Activating TTS service")
-            if self.config.active_tts_service == "eleven_labs_tts":
-                from lollms.services.tts.eleven_labs_tts.lollms_eleven_labs_tts import LollmsElevenLabsTTS
-                self.tts = LollmsElevenLabsTTS(self)
-            elif self.config.active_tts_service == "openai_tts" and (self.tts is None or self.tts.name!="openai_tts"):
-                from lollms.services.tts.open_ai_tts.lollms_openai_tts import LollmsOpenAITTS
-                self.tts = LollmsOpenAITTS(self)
-            elif self.config.active_tts_service == "fish_tts":
-                from lollms.services.tts.fish.lollms_fish_tts import LollmsFishAudioTTS
-                self.tts = LollmsFishAudioTTS(self)
+            def start_stt(*args, **kwargs):
+                self.stt = self.load_service_from_folder(self.lollms_paths.services_zoo_path/"stt", self.config.active_stt_service)
+            ASCIIColors.execute_with_animation("Loading loacal STT services", start_stt, ASCIIColors.color_blue)
 
-            ASCIIColors.blue("Activating STT service")
-            if self.config.active_stt_service == "openai_whisper" and (self.tts is None or self.tts.name!="openai_whisper"):
-                from lollms.services.stt.openai_whisper.lollms_openai_whisper import LollmsOpenAIWhisper
-                self.stt = LollmsOpenAIWhisper(self)
-            elif self.config.active_stt_service == "whisper" and (self.tts is None or  self.tts.name!="whisper") :
-                from lollms.services.stt.whisper.lollms_whisper import LollmsWhisper
-                self.stt = LollmsWhisper(self)
+            def start_tts(*args, **kwargs):
+                self.tts = self.load_service_from_folder(self.lollms_paths.services_zoo_path/"tts", self.config.active_tts_service)
+            ASCIIColors.execute_with_animation("Loading loacal STT services", start_tts, ASCIIColors.color_blue)
 
 
             def start_ttv(*args, **kwargs):

@@ -18,8 +18,8 @@ from lollms.utilities import find_next_available_filename, output_file_path_to_u
 from lollms.security import sanitize_path, validate_path, check_access
 from pathlib import Path
 from ascii_colors import ASCIIColors
-import os
-import platform
+from typing import List, Dict
+import yaml
 
 # ----------------------- Defining router and main class ------------------------------
 
@@ -62,34 +62,60 @@ async def audio2text(request: LollmsAudio2TextRequest):
 
 
 
+
 @router.post("/list_stt_services")
-async def list_stt_services(request: ServiceListingRequest):
+async def list_stt_services(request: ServiceListingRequest) -> List[Dict[str, str]]:
     """
-    Dumb endpoint that returns a static list of STT services.
+    Endpoint that returns a list of STT services by scanning subfolders in services_zoo_path.
     
     Args:
         request (ServiceListingRequest): The request body containing the client_id.
     
     Returns:
-        List[str]: A list of STT service names.
+        List[Dict[str, str]]: A list of STT service dictionaries containing name, caption, and help.
     """
-    # Validate the client_id (dumb validation for demonstration)
+    # Validate the client_id
     check_access(lollmsElfServer, request.client_id)
     
+    # Get the services directory path
+    services_path = lollmsElfServer.lollms_paths.services_zoo_path/"stt"
     
-    # Static list of STT services
-    stt_services = [
-                    {"name": "whisper", "caption":"Whisper",  "help":"Whisper local speech to text service"},
-                    {"name": "openai_whisper", "caption":"Open AI Whisper STT", "help":"Open ai remote speech to text service"},
-                ]
+    # Initialize empty list for services
+    stt_services = []
+    
+    # Check if the directory exists
+    if not services_path.exists() or not services_path.is_dir():
+        return stt_services  # Return empty list if directory doesn't exist
+    
+    # Iterate through subfolders
+    for service_folder in services_path.iterdir():
+        if service_folder.is_dir() and service_folder.stem not in [".git", ".vscode"]:
+            # Look for config.yaml in each subfolder
+            config_file = service_folder / "config.yaml"
+            if config_file.exists():
+                try:
+                    # Read and parse the YAML file
+                    with open(config_file, 'r') as f:
+                        config = yaml.safe_load(f)
+                    
+                    # Build service dictionary
+                    service_info = {
+                        "name": service_folder.name,
+                        "caption": config.get("caption", service_folder.name),
+                        "help": config.get("help", f"{service_folder.name} text to image services")
+                    }
+                    stt_services.append(service_info)
+                except Exception as e:
+                    # Log error if needed, skip invalid config files
+                    continue
     
     return stt_services
 
-@router.post("/get_active_stt_settings")
-async def get_active_stt_settings(request: Request):
+@router.post("/get_active_stt_sesttngs")
+async def get_active_stt_sesttngs(request: Request):
     data = await request.json()
     check_access(lollmsElfServer,data["client_id"])
-    print("- Retreiving stt settings")
+    print("- Retreiving stt sesttngs")
     if lollmsElfServer.stt is not None:
         if hasattr(lollmsElfServer.stt,"service_config"):
             return lollmsElfServer.stt.service_config.config_template.template
@@ -98,26 +124,26 @@ async def get_active_stt_settings(request: Request):
     else:
         return {}
 
-@router.post("/set_active_stt_settings")
-async def set_active_stt_settings(request: Request):
+@router.post("/set_active_stt_sesttngs")
+async def set_active_stt_sesttngs(request: Request):
     data = await request.json()
     check_access(lollmsElfServer,data["client_id"])
-    settings = data["settings"]
+    sesttngs = data["sesttngs"]
     """
-    Sets the active stt settings.
+    Sets the active stt sesttngs.
 
-    :param request: The sttSettingsRequest object.
+    :param request: The sttSesttngsRequest object.
     :return: A JSON response with the status of the operation.
     """
 
     try:
-        print("- Setting stt settings")
+        print("- Sesttng stt sesttngs")
         
         if lollmsElfServer.stt is not None:
             if hasattr(lollmsElfServer.stt,"service_config"):
-                lollmsElfServer.stt.service_config.update_template(settings)
+                lollmsElfServer.stt.service_config.update_template(sesttngs)
                 lollmsElfServer.stt.service_config.config.save_config()
-                lollmsElfServer.stt.settings_updated()
+                lollmsElfServer.stt.sesttngs_updated()
                 return {'status':True}
             else:
                 return {'status':False}
