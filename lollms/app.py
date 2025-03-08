@@ -223,6 +223,20 @@ class LollmsApplication(LoLLMsCom):
             self.error("Couldn't add function call to context")
             trace_exception(ex)
         return None
+    
+    def execute_function(self, code, client):
+        function_call=json.loads(code)
+        name = function_call["function_name"]
+        for fc in self.config.mounted_function_calls:
+            if fc["selected"]:
+                if fc["name"] == name:
+                    fci = self.load_function_call(fc, client)
+                    if fci:
+                        output = fci["class"].execute(LollmsContextDetails(client),**function_call["function_parameters"])
+                        return output
+        
+
+
     def embed_function_call_in_prompt(self, original_prompt):
         """Embeds function call descriptions in the system prompt"""
         function_descriptions = [

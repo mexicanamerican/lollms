@@ -46,7 +46,6 @@ class LollmsTTI(LollmsSERVICE):
                 negative_prompt: str = "",
                 width=512,
                 height=512,
-                generation_engine=None,
                 output_path = None) -> List[Dict[str, str]]:
         """
         Generates images based on the given positive and negative prompts.
