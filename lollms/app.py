@@ -499,7 +499,7 @@ class LollmsApplication(LoLLMsCom):
                     self.active_datalakes.append(
                             rag_db | {"binding": lr}
                     )
-    def load_class_from_folder(folder_path, target_name):
+    def load_class_from_folder(self, folder_path, target_name):
         # Convert folder_path to a Path object
         folder_path = Path(folder_path)
 
