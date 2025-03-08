@@ -685,8 +685,7 @@ class LollmsApplication(LoLLMsCom):
         ASCIIColors.execute_with_animation("Loading loacal TTI services", start_tti, ASCIIColors.color_blue)
 
         def start_ttv(*args, **kwargs):
-            self.ttv = self.load_class_from_folder(self.lollms_paths.personal_services_path, self.config.active_ttv_service)
-
+            self.ttv = self.load_class_from_folder(self.lollms_paths.services_zoo_path, self.config.active_ttv_service)
 
 
         ASCIIColors.execute_with_animation("Loading loacal TTV services", start_ttv, ASCIIColors.color_blue)
@@ -802,23 +801,12 @@ class LollmsApplication(LoLLMsCom):
 
 
             def start_ttv(*args, **kwargs):
-                if self.config.active_ttv_service == "lumalabs" and (self.ttv is None or self.ttv.name!="lumalabs"):
-                    try:
-                        from lollms.services.ttv.lumalabs.lollms_lumalabs import LollmsLumaLabs
-                        self.ttv = LollmsLumaLabs(self, self.config.lumalabs_key)
-                    except:
-                        self.warning(f"Couldn't create lumalabs binding")
-                if self.config.active_ttv_service == "novita_ai" and (self.ttv is None or self.ttv.name!="novita_ai"):
-                    try:
-                        from lollms.services.ttv.novita_ai.lollms_novita_ai import LollmsNovitaAITextToVideo
-                        self.ttv = LollmsNovitaAITextToVideo(self,None)
-                    except Exception as ex:
-                        trace_exception(ex)
-                        self.warning(f"Couldn't create novita ai binding")
+                self.ttv = self.load_class_from_folder(self.lollms_paths.services_zoo_path, self.config.active_ttv_service)
 
 
             ASCIIColors.execute_with_animation("Loading loacal TTV services", start_ttv, ASCIIColors.color_blue)
             print("OK")
+
 
 
         except Exception as ex:

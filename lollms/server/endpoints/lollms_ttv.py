@@ -45,7 +45,7 @@ async def list_ttv_services(request: ServiceListingRequest) -> List[Dict[str, st
     check_access(lollmsElfServer, request.client_id)
     
     # Get the services directory path
-    services_path = lollmsElfServer.lollms_paths.services_zoo_path
+    services_path = lollmsElfServer.lollms_paths.services_zoo_path/"ttv"
     
     # Initialize empty list for services
     ttv_services = []
@@ -56,7 +56,7 @@ async def list_ttv_services(request: ServiceListingRequest) -> List[Dict[str, st
     
     # Iterate through subfolders
     for service_folder in services_path.iterdir():
-        if service_folder.is_dir():
+        if service_folder.is_dir() and service_folder.stem not in [".git", ".vscode"]:
             # Look for config.yaml in each subfolder
             config_file = service_folder / "config.yaml"
             if config_file.exists():
