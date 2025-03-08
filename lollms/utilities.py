@@ -685,13 +685,14 @@ def is_asyncio_loop_running():
 
 import asyncio
 from typing import Callable, Coroutine, Any
+from typing import Callable, Coroutine, Any
 
 def run_async(func: Callable[[], Coroutine[Any, Any, None]]) -> None:
     """
     run_async(func) -> None
 
-    Utility function to run async functions in a synchronous environment. 
-    Takes an async function as input and runs it within an async context.
+    Utility function to run async functions in either a synchronous or asynchronous environment.
+    Takes an async function as input and runs it appropriately based on the context.
 
     Parameters:
     func (Callable[[], Coroutine[Any, Any, None]]): The async function to run.
@@ -700,18 +701,46 @@ def run_async(func: Callable[[], Coroutine[Any, Any, None]]) -> None:
     None: Nothing is returned since the function is meant to perform side effects.
     """
     try:
-        # Check if an event loop is already running
-        loop = asyncio.get_event_loop()
+        # Try to get the currently running loop (works in async context)
+        loop = asyncio.get_running_loop()
+        # If we're here, a loop is already running, so schedule the coroutine
+        asyncio.ensure_future(func())
     except RuntimeError:
-        # If no event loop is running, create a new one
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+        # No running loop; we're in a synchronous context
+        # Get or create an event loop
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                # Edge case: loop exists and is running but get_running_loop() failed
+                asyncio.ensure_future(func())
+            else:
+                # No running loop; run the coroutine synchronously
+                loop.run_until_complete(func())
+        except RuntimeError:
+            # No existing loop at all; create a new one
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                loop.run_until_complete(func())
+            finally:
+                loop.close()
 
-    # If the loop is not running, run the coroutine until it completes
-    try:
-        loop.run_until_complete(func())
-    except:
-        func()
+# Example usage
+async def my_async_function():
+    await asyncio.sleep(1)
+    print("Async function executed!")
+
+# From a synchronous context
+def sync_caller():
+    print("Calling from sync context")
+    run_async(my_async_function)
+
+# From an asynchronous context
+async def async_caller():
+    print("Calling from async context")
+    run_async(my_async_function)
+    await asyncio.sleep(2)  # Give time for the async function to complete
+
 
 def terminate_thread(thread):
     """ 

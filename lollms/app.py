@@ -646,42 +646,7 @@ class LollmsApplication(LoLLMsCom):
         ASCIIColors.execute_with_animation("Loading TTS services", start_tts, ASCIIColors.color_blue)
 
         def start_tti(*args, **kwargs):
-            if self.config.enable_sd_service:
-                try:
-                    from lollms.services.tti.sd.lollms_sd import LollmsSD
-                    self.sd = LollmsSD(self)
-                except:
-                    self.warning(f"Couldn't load SD")
-
-            if self.config.enable_comfyui_service:
-                try:
-                    from lollms.services.tti.comfyui.lollms_comfyui import LollmsComfyUI
-                    self.comfyui = LollmsComfyUI(self)
-                except:
-                    self.warning(f"Couldn't load SD")
-
-            if self.config.active_tti_service == "diffusers":
-                from lollms.services.tti.diffusers.lollms_diffusers import LollmsDiffusers
-                self.tti = LollmsDiffusers(self)
-            elif self.config.active_tti_service == "diffusers_client":
-                from lollms.services.tti.diffusers_client.lollms_diffusers_client import LollmsDiffusersClient
-                self.tti = LollmsDiffusersClient(self)
-            elif self.config.active_tti_service == "autosd":
-                from lollms.services.tti.sd.lollms_sd import LollmsSD
-                self.tti = LollmsSD(self)
-            elif self.config.active_tti_service == "dall-e":
-                from lollms.services.tti.dalle.lollms_dalle import LollmsDalle
-                self.tti = LollmsDalle(self)
-            elif self.config.active_tti_service == "midjourney":
-                from lollms.services.tti.midjourney.lollms_midjourney import LollmsMidjourney
-                self.tti = LollmsMidjourney(self)
-            elif self.config.active_tti_service == "comfyui" and (self.tti is None or self.tti.name!="comfyui"):
-                if self.comfyui:
-                    self.tti = self.comfyui
-                else:
-                    from lollms.services.tti.comfyui.lollms_comfyui import LollmsComfyUI
-                    self.tti = LollmsComfyUI(self)
-
+            self.tti = self.load_service_from_folder(self.lollms_paths.services_zoo_path/"tti", self.config.active_tti_service)
         ASCIIColors.execute_with_animation("Loading loacal TTI services", start_tti, ASCIIColors.color_blue)
 
         def start_ttv(*args, **kwargs):
@@ -742,43 +707,10 @@ class LollmsApplication(LoLLMsCom):
                     trace_exception(ex)
                     self.warning(f"Couldn't load XTTS")
 
-            ASCIIColors.blue("Loading local TTI services")
-            if self.config.enable_sd_service and self.sd is None:
-                try:
-                    from lollms.services.tti.sd.lollms_sd import LollmsSD
-                    self.sd = LollmsSD(self)
-                except:
-                    self.warning(f"Couldn't load SD")
+            def start_tti(*args, **kwargs):
+                self.tti = self.load_service_from_folder(self.lollms_paths.services_zoo_path/"tti", self.config.active_tti_service)
+            ASCIIColors.execute_with_animation("Loading loacal TTI services", start_tti, ASCIIColors.color_blue)
 
-            if self.config.enable_comfyui_service and self.comfyui is None:
-                try:
-                    from lollms.services.tti.comfyui.lollms_comfyui import LollmsComfyUI
-                    self.comfyui = LollmsComfyUI(self)
-                except:
-                    self.warning(f"Couldn't load Comfyui")
-
-            ASCIIColors.blue("Activating TTI service")
-            if self.config.active_tti_service == "diffusers" and (self.tti is None or self.tti.name!="diffusers" or self.tti.model!=self.config.diffusers_model):
-                from lollms.services.tti.diffusers.lollms_diffusers import LollmsDiffusers
-                self.tti = LollmsDiffusers(self)
-            elif self.config.active_tti_service == "diffusers_client" and (self.tti.name!="diffusers_client"):
-                from lollms.services.tti.diffusers_client.lollms_diffusers_client import LollmsDiffusersClient
-                self.tti = LollmsDiffusersClient(self)
-            elif self.config.active_tti_service == "autosd" and (self.tti is None or self.tti.name!="stable_diffusion"):
-                from lollms.services.tti.sd.lollms_sd import LollmsSD
-                self.tti = LollmsSD(self)
-            elif self.config.active_tti_service == "dall-e" and (self.tti is None or self.tti.name!="dall-e-2" or type(self.tti.name)!="dall-e-3"):
-                from lollms.services.tti.dalle.lollms_dalle import LollmsDalle
-                self.tti = LollmsDalle(self)
-            elif self.config.active_tti_service == "midjourney" and (self.tti is None or self.tti.name!="midjourney"):
-                from lollms.services.tti.midjourney.lollms_midjourney import LollmsMidjourney
-                self.tti = LollmsMidjourney(self)
-            elif self.config.active_tti_service == "comfyui" and (self.tti is None or self.tti.name!="comfyui"):
-                if self.comfyui:
-                    self.tti = self.comfyui
-                else:
-                    from lollms.services.tti.comfyui.lollms_comfyui import LollmsComfyUI
-                    self.tti = LollmsComfyUI(self, comfyui_base_url=self.config.comfyui_base_url)
 
             ASCIIColors.blue("Activating TTS service")
             if self.config.active_tts_service == "eleven_labs_tts":
