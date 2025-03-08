@@ -685,7 +685,7 @@ class LollmsApplication(LoLLMsCom):
         ASCIIColors.execute_with_animation("Loading loacal TTI services", start_tti, ASCIIColors.color_blue)
 
         def start_ttv(*args, **kwargs):
-            self.ttv = self.load_class_from_folder(self.lollms_paths.services_zoo_path, self.config.active_ttv_service)
+            self.ttv = self.load_class_from_folder(self.lollms_paths.services_zoo_path/"ttv", self.config.active_ttv_service)
 
 
         ASCIIColors.execute_with_animation("Loading loacal TTV services", start_ttv, ASCIIColors.color_blue)
@@ -801,7 +801,7 @@ class LollmsApplication(LoLLMsCom):
 
 
             def start_ttv(*args, **kwargs):
-                self.ttv = self.load_class_from_folder(self.lollms_paths.services_zoo_path, self.config.active_ttv_service)
+                self.ttv = self.load_class_from_folder(self.lollms_paths.services_zoo_path/"ttv", self.config.active_ttv_service)
 
 
             ASCIIColors.execute_with_animation("Loading loacal TTV services", start_ttv, ASCIIColors.color_blue)
