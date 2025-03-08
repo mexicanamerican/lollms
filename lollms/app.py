@@ -499,7 +499,7 @@ class LollmsApplication(LoLLMsCom):
                     self.active_datalakes.append(
                             rag_db | {"binding": lr}
                     )
-    def load_class_from_folder(self, folder_path, target_name):
+    def load_service_from_folder(self, folder_path, target_name):
         # Convert folder_path to a Path object
         folder_path = Path(folder_path)
 
@@ -527,7 +527,7 @@ class LollmsApplication(LoLLMsCom):
 
             # Import the class and instantiate it
             class_ = getattr(module, class_name)
-            instance = class_(config)  # Pass the config as a parameter to the constructor
+            instance = class_(self)  # Pass the config as a parameter to the constructor
 
             return instance
         else:
@@ -685,7 +685,7 @@ class LollmsApplication(LoLLMsCom):
         ASCIIColors.execute_with_animation("Loading loacal TTI services", start_tti, ASCIIColors.color_blue)
 
         def start_ttv(*args, **kwargs):
-            self.ttv = self.load_class_from_folder(self.lollms_paths.services_zoo_path/"ttv", self.config.active_ttv_service)
+            self.ttv = self.load_service_from_folder(self.lollms_paths.services_zoo_path/"ttv", self.config.active_ttv_service)
 
 
         ASCIIColors.execute_with_animation("Loading loacal TTV services", start_ttv, ASCIIColors.color_blue)
@@ -801,7 +801,7 @@ class LollmsApplication(LoLLMsCom):
 
 
             def start_ttv(*args, **kwargs):
-                self.ttv = self.load_class_from_folder(self.lollms_paths.services_zoo_path/"ttv", self.config.active_ttv_service)
+                self.ttv = self.load_service_from_folder(self.lollms_paths.services_zoo_path/"ttv", self.config.active_ttv_service)
 
 
             ASCIIColors.execute_with_animation("Loading loacal TTV services", start_ttv, ASCIIColors.color_blue)
