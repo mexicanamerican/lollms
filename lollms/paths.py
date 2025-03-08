@@ -298,7 +298,7 @@ class LollmsPaths:
             ASCIIColors.info("No models found in your personal space.\nCloning the models zoo")
             subprocess.run(["git", "clone", models_zoo_repo, self.models_zoo_path])
 
-        if not self.services_zoo_repo.exists():
+        if not self.services_zoo_path.exists():
             # Clone the repository to the target path
             ASCIIColors.info("No services found in your personal space.\nCloning the services zoo")
             subprocess.run(["git", "clone", services_zoo_repo, self.services_zoo_path])

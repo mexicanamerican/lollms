@@ -34,6 +34,8 @@ from lollms.utilities import run_with_current_interpreter
 import socket
 import json
 import pipmaster as pm
+
+import importlib.util
 class LollmsApplication(LoLLMsCom):
     def __init__(
                     self, 
@@ -497,35 +499,36 @@ class LollmsApplication(LoLLMsCom):
                     self.active_datalakes.append(
                             rag_db | {"binding": lr}
                     )
+    def load_class_from_folder(folder_path, target_name):
+        # Convert folder_path to a Path object
+        folder_path = Path(folder_path)
 
-    def load_class_from_folder(self, folder_path, target_name):
         # List all folders in the given directory
-        folders = [f for f in os.listdir(folder_path) if os.path.isdir(os.path.join(folder_path, f))]
-        
+        folders = [f for f in folder_path.iterdir() if f.is_dir()]
+
         # Check if the target_name matches any folder name
-        if target_name in folders:
-            folder = os.path.join(folder_path, target_name)
-            
+        target_folder = folder_path / target_name
+        if target_folder in folders:
             # Load the config.yaml file
-            config_path = os.path.join(folder, "config.yaml")
+            config_path = target_folder / "config.yaml"
             with open(config_path, 'r') as file:
                 config = yaml.safe_load(file)
-            
+
             # Extract the class_name from the config
             class_name = config.get('class_name')
             if not class_name:
                 raise ValueError(f"class_name not found in {config_path}")
-            
+
             # Load the Python file
-            python_file_path = os.path.join(folder, f"{target_name}.py")
+            python_file_path = target_folder / f"service.py"
             spec = importlib.util.spec_from_file_location(target_name, python_file_path)
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
-            
+
             # Import the class and instantiate it
             class_ = getattr(module, class_name)
-            instance = class_(self)  # Pass the config as a parameter to the constructor
-            
+            instance = class_(config)  # Pass the config as a parameter to the constructor
+
             return instance
         else:
             raise FileNotFoundError(f"No folder named {target_name} found in {folder_path}")
@@ -682,22 +685,8 @@ class LollmsApplication(LoLLMsCom):
         ASCIIColors.execute_with_animation("Loading loacal TTI services", start_tti, ASCIIColors.color_blue)
 
         def start_ttv(*args, **kwargs):
-            self.ttv = self.load_class_from_folder(self.lollms_paths.personal_services_path)
+            self.ttv = self.load_class_from_folder(self.lollms_paths.personal_services_path, self.config.active_ttv_service)
 
-            if self.config.active_ttv_service == "lumalabs":
-                try:
-                    from lollms.services.ttv.lumalabs.lollms_lumalabs import LollmsLumaLabs
-                    self.ttv = LollmsLumaLabs(self)
-                except Exception as ex:
-                    trace_exception(ex)
-                    self.warning(f"Couldn't create lumalabs binding")
-            if self.config.active_ttv_service == "novita_ai" and (self.ttv is None or self.ttv.name!="novita_ai"):
-                try:
-                    from lollms.services.ttv.novita_ai.lollms_novita_ai import LollmsNovitaAITextToVideo
-                    self.ttv = LollmsNovitaAITextToVideo(self)
-                except Exception as ex:
-                    trace_exception(ex)
-                    self.warning(f"Couldn't create novita ai binding")
 
 
         ASCIIColors.execute_with_animation("Loading loacal TTV services", start_ttv, ASCIIColors.color_blue)
