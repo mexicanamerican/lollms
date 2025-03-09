@@ -224,7 +224,7 @@ async def get_function_call_settings(request: Request):
 
     # Add new entry
     for entry in lollmsElfServer.config.mounted_function_calls:
-        if entry["name"] == function_name and Path(entry["dir"]).parent.name == str(fn_dir):
+        if entry["name"] == function_name and (Path(entry["dir"]).parent.name == str(fn_dir) or (fn_dir=="custom" and Path(entry["dir"]).parent.name == "custom_function_calls")):
             try:
                 fci = lollmsElfServer.load_function_call(entry, client)
                 if hasattr(fci["class"],"static_parameters"):
@@ -256,24 +256,20 @@ async def set_function_call_settings(request: Request):
 
         # Add new entry
         for entry in lollmsElfServer.config.mounted_function_calls:
-            if entry["name"] == function_name and Path(entry["dir"]).parent.name == str(fn_dir):
+            if entry["name"] == function_name and (Path(entry["dir"]).parent.name == str(fn_dir) or (fn_dir=="custom" and Path(entry["dir"]).parent.name == "custom_function_calls")):
                 try:
                     fci = lollmsElfServer.load_function_call(entry, client)
                     if hasattr(fci["class"],"static_parameters"):
                         fci["class"].static_parameters.update_template(settings)
                         fci["class"].static_parameters.config.save_config()
-                        fci["class"].static_parameters.settings_updated()
+                        fci["class"].settings_updated()
                         return {'status':True}
                     else:
                         return {'status':False}
                 except Exception as ex:
                     trace_exception(ex)
                     return {}
-                
-            else:
-                return {'status':False}
-        else:
-            return {'status':False}
+        return {'status':False}
     except Exception as ex:
         trace_exception(ex)
         lollmsElfServer.error(ex)
