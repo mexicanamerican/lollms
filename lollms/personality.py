@@ -2901,7 +2901,7 @@ Do not discuss the information inside thememory, just put the relevant informati
             else:                
                 end_token_idx = min(start_token_idx + chunk_size, total_tokens)
             chunk_tokens = all_tokens[start_token_idx:end_token_idx]
-            chunk = self.detokenize(chunk_tokens)
+            chunk = self.model.detokenize(chunk_tokens)
             chunk_id +=1
             
             # Generate memory update
@@ -2942,7 +2942,7 @@ The updated memory must be put in a {chunk_processing_output_format} markdown ta
         
         memory_tokens = self.model.tokenize(memory)
         if len(memory_tokens) > available_final_tokens:
-            memory = self.detokenize(memory_tokens[:available_final_tokens])
+            memory = self.model.detokenize(memory_tokens[:available_final_tokens])
         
         # Generate final summary
         final_prompt = final_prompt_template
