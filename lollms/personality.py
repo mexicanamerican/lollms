@@ -2910,7 +2910,7 @@ Do not discuss the information inside thememory, just put the relevant informati
                 ASCIIColors.yellow(f" ----- {chunk_id-1} ------")
                 ASCIIColors.red(prompt)
             
-            memory = self.generate(prompt, max_size=ctx_size//4, streaming_callback=callback).strip()
+            memory = self.generate(prompt, max_size=ctx_size//4, callback=callback).strip()
             code = self.extract_code_blocks(memory)
             if code:
                 memory=code[0]["content"]
@@ -2946,7 +2946,7 @@ The updated memory must be put in a {chunk_processing_output_format} markdown ta
         
         # Generate final summary
         final_prompt = final_prompt_template
-        memory = self.generate(final_prompt, streaming_callback=callback)
+        memory = self.generate(final_prompt, callback=callback)
         code = self.extract_code_blocks(memory)
         if code:
             memory=code[0]["content"]
