@@ -2910,7 +2910,7 @@ Do not discuss the information inside thememory, just put the relevant informati
                 ASCIIColors.yellow(f" ----- {chunk_id-1} ------")
                 ASCIIColors.red(prompt)
             
-            memory = self.generate(prompt, n_predict=ctx_size//4, streaming_callback=callback).strip()
+            memory = self.generate(prompt, max_size=ctx_size//4, streaming_callback=callback).strip()
             code = self.extract_code_blocks(memory)
             if code:
                 memory=code[0]["content"]
