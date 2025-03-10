@@ -2797,20 +2797,20 @@ Don't forget encapsulate the code inside a html code tag. This is mandatory.
                                     max_generation_size=max_generation_size, callback=self.sink)
         return translated
     
-
     def sequential_summarize(
-                                self, 
-                                text:str,
-                                chunk_processing_prompt:str="Extract relevant information from the current text chunk and update the memory if needed.",
-                                chunk_processing_output_format="markdown",
-                                final_memory_processing_prompt="Create final summary using this memory.",
-                                final_output_format="markdown",
-                                ctx_size:int=None,
-                                chunk_size:int=None,
-                                bootstrap_chunk_size:int=None,
-                                bootstrap_steps:int=None,
-                                callback = None,
-                                debug:bool= False):
+                            self, 
+                            text:str,
+                            chunk_processing_prompt:str="Extract relevant information from the current text chunk and update the memory if needed.",
+                            chunk_processing_output_format="markdown",
+                            final_memory_processing_prompt="Create final summary using this memory.",
+                            final_output_format="markdown",
+                            ctx_size:int=None,
+                            chunk_size:int=None,
+                            bootstrap_chunk_size:int=None,
+                            bootstrap_steps:int=None,
+                            callback = None,
+                            step_callback: Callable[[str, int, int, str], None] = None,
+                            debug:bool= False):
         """
             This function processes a given text in chunks and generates a summary for each chunk.
             It then combines the summaries to create a final summary.
@@ -2831,20 +2831,21 @@ Don't forget encapsulate the code inside a html code tag. This is mandatory.
         """
         if ctx_size is None:
             ctx_size = self.app.config.ctx_size
-        
+
         if chunk_size is None:
-            chunk_size = ctx_size//4
-        
+            chunk_size = ctx_size // 4
+
         # Tokenize entire text
         all_tokens = self.model.tokenize(text)
         total_tokens = len(all_tokens)
-        
+
         # Initialize memory and chunk index
         memory = ""
         start_token_idx = 0
-        
+
         # Create static prompt template
-        static_prompt_template = f"""{self.system_full_header}
+        example_prompt = f"""
+{self.system_full_header}
 You are a structured sequential text summary assistant that processes documents chunk by chunk, updating a memory of previously generated information at each step.
 
 Your goal is to extract and combine relevant information from each text chunk with the existing memory, ensuring no key details are omitted or invented.
@@ -2857,13 +2858,12 @@ Only add information explicitly present in the chunk. Retain all relevant prior 
 
 ----
 # Text chunk:
-# Chunk number: {{chunk_id}}
+# Chunk number: 0
 ----
 ```markdown
-{{chunk}}
 ```
 
-{{custom_prompt}}
+{chunk_processing_prompt}
 
 Before updating, verify each requested detail:
 1. Does the chunk explicitly mention the information?
@@ -2871,30 +2871,29 @@ Before updating, verify each requested detail:
 
 Include only confirmed details in the output.
 Rewrite the full memory including the updates and keeping relevant data.
-Do not discuss the information inside thememory, just put the relevant information without comments.
+Do not discuss the information inside the memory, just put the relevant information without comments.
 
 ----
 # Current document analysis memory:
 ----
 ```{chunk_processing_output_format}
-{{memory}}
 ```
 {self.ai_full_header}
-""" 
+        """ 
+
         # Calculate static prompt tokens (with empty memory and chunk)
-        chunk_id=0
-        example_prompt = static_prompt_template.format(custom_prompt=chunk_processing_prompt if chunk_processing_prompt else '', memory="", chunk="", chunk_id=chunk_id)
+        chunk_id = 0
         static_tokens = len(self.model.tokenize(example_prompt))
-        
+
         # Process text in chunks
         while start_token_idx < total_tokens:
             # Calculate available tokens for chunk
             current_memory_tokens = len(self.model.tokenize(memory))
             available_tokens = ctx_size - static_tokens - current_memory_tokens
-            
+
             if available_tokens <= 0:
                 raise ValueError("Memory too large - consider reducing chunk size or increasing context window")
-            
+
             # Get chunk tokens
             if bootstrap_chunk_size is not None and chunk_id < bootstrap_steps:
                 end_token_idx = min(start_token_idx + bootstrap_chunk_size, total_tokens)
@@ -2902,55 +2901,97 @@ Do not discuss the information inside thememory, just put the relevant informati
                 end_token_idx = min(start_token_idx + chunk_size, total_tokens)
             chunk_tokens = all_tokens[start_token_idx:end_token_idx]
             chunk = self.model.detokenize(chunk_tokens)
-            chunk_id +=1
-            
+            chunk_id += 1
+
             # Generate memory update
-            prompt = static_prompt_template.format(custom_prompt=chunk_processing_prompt if chunk_processing_prompt else '', memory=memory, chunk=chunk, chunk_id=chunk_id)
+            prompt =  f"""{self.system_full_header}
+You are a structured sequential text summary assistant that processes documents chunk by chunk, updating a memory of previously generated information at each step.
+
+Your goal is to extract and combine relevant information from each text chunk with the existing memory, ensuring no key details are omitted or invented.
+
+If requested, infer metadata like titles or authors from the content.
+
+{self.user_full_header}
+Update the memory by merging previous information with new details from this text chunk.
+Only add information explicitly present in the chunk. Retain all relevant prior memory unless clarified or updated by the current chunk.
+
+----
+# Text chunk:
+# Chunk number: {chunk_id}
+----
+```markdown
+{chunk}
+```
+
+{chunk_processing_prompt}
+
+Before updating, verify each requested detail:
+1. Does the chunk explicitly mention the information?
+2. Should prior memory be retained, updated, or clarified?
+
+Include only confirmed details in the output.
+Rewrite the full memory including the updates and keeping relevant data.
+Do not discuss the information inside the memory, just put the relevant information without comments.
+
+----
+# Current document analysis memory:
+----
+```{chunk_processing_output_format}
+{memory}
+```
+{self.ai_full_header}
+        """             
             if debug:
                 ASCIIColors.yellow(f" ----- {chunk_id-1} ------")
                 ASCIIColors.red(prompt)
-            
+            if step_callback:
+                step_callback("Memory creation", chunk_id, (total_tokens//chunk_size)+1, "")
             memory = self.generate(prompt, max_size=ctx_size//4, callback=callback).strip()
             code = self.extract_code_blocks(memory)
             if code:
-                memory=code[0]["content"]
-                
+                memory = code[0]["content"]
+
             if debug:
                 ASCIIColors.yellow(f" ----- OUT ------")
                 ASCIIColors.yellow(memory)
                 ASCIIColors.yellow(" ----- ------")
             # Move to next chunk
             start_token_idx = end_token_idx
-        
+
         # Prepare final summary prompt
-        final_prompt_template = f"""!@>system:
-You are a memory summarizer assistant that helps users format their memory information into coherant text in a specific style or format.
+        final_prompt_template = f"""
+{self.system_full_header}
+You are a memory summarizer assistant that helps users format their memory information into coherent text in a specific style or format.
 {final_memory_processing_prompt}.
-!@>user:
+{self.user_full_header}
 Here is my document analysis memory:
 ```{chunk_processing_output_format}
 {memory}
 ```
 The output must be put inside a {final_output_format} markdown tag.
 The updated memory must be put in a {chunk_processing_output_format} markdown tag.
-!@>assistant:
-"""
+{self.ai_full_header}
+        """
+
         # Truncate memory if needed for final prompt
         example_final_prompt = final_prompt_template
         final_static_tokens = len(self.model.tokenize(example_final_prompt))
         available_final_tokens = ctx_size - final_static_tokens
-        
+
         memory_tokens = self.model.tokenize(memory)
         if len(memory_tokens) > available_final_tokens:
             memory = self.model.detokenize(memory_tokens[:available_final_tokens])
-        
+
+        if step_callback:
+            step_callback("Final output generation", 1, 1, "")
         # Generate final summary
         final_prompt = final_prompt_template
         memory = self.generate(final_prompt, callback=callback)
         code = self.extract_code_blocks(memory)
         if code:
-            memory=code[0]["content"]
+            memory = code[0]["content"]
         return memory
+
     
     def summarize_text(
                         self,
