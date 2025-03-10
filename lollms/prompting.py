@@ -182,6 +182,8 @@ class LollmsContextDetails:
                         "  }",
                         "}",
                         "```",
+                        "Do not explain how the function call works, just call it with the parameters",
+                        "Once you call the function, it will be executed and the output returned to the user.",
                         "It is mandatory to use the function markdown tag (not json) or it won't be executed."
                         "Important Notes:",
                         "- **Always** enclose the function call in a `function` markdown code block.",
