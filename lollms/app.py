@@ -1052,6 +1052,17 @@ class LollmsApplication(LoLLMsCom):
                 conditionning = "\n".join(conditionning)
             conditionning =  self.system_full_header + conditionning + ("" if conditionning[-1]==self.separator_template else self.separator_template)
 
+        block_rag = False
+        function_calls = []
+        if len(self.config.mounted_function_calls)>0:            
+            for fc in self.config.mounted_function_calls:
+                if fc["selected"]:
+                    fci = self.load_function_call(fc, client)
+                    if "block_rag" in fci and fci["block_rag"]:
+                        block_rag = True
+                    if fci:
+                        function_calls.append(fci)
+                        
         # Check if there are document files to add to the prompt
         internet_search_results = ""
         internet_search_infos = []
@@ -1095,7 +1106,7 @@ Fun mode activated. In this mode you must answer in a funny playful way. Do not 
         if generation_type != "simple_question":
 
             # Standard RAG
-            if not self.personality.ignore_discussion_documents_rag:
+            if not self.personality.ignore_discussion_documents_rag and not block_rag:
                 if self.personality.persona_data_vectorizer or len(self.active_datalakes) > 0 or ((len(client.discussion.text_files) > 0) and client.discussion.vectorizer is not None) or self.config.activate_skills_lib:
                     #Prepare query
 
@@ -1122,7 +1133,7 @@ Fun mode activated. In this mode you must answer in a funny playful way. Do not 
 Do not answer the prompt. Do not add explanations.
 {self.separator_template}
 --- discussion ---
-{self.system_custom_header('discussion')}'\n{discussion[-2048:]}
+{self.system_custom_header('discussion')}'\n{discussion[-4096:]}
 ---
 Answer directly with the reformulation of the last prompt.
 {self.ai_custom_header('assistant')}"""
@@ -1317,14 +1328,6 @@ Answer directly with the reformulation of the last prompt.
             tokens_user_description = []
             n_user_description_tk = 0
 
-
-        function_calls = []
-        if len(self.config.mounted_function_calls)>0:            
-            for fc in self.config.mounted_function_calls:
-                if fc["selected"]:
-                    fci = self.load_function_call(fc, client)
-                    if fci:
-                        function_calls.append(fci)
         # Calculate the total number of tokens between conditionning, documentation, and knowledge
         total_tokens = n_cond_tk + n_isearch_tk + n_doc_tk + n_user_description_tk + n_positive_boost + n_negative_boost + n_fun_mode + n_think_first_mode
 
