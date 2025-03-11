@@ -5603,6 +5603,113 @@ fetch('/open_file', {
     console.error('Error:', error);
     });
 ">'''+f'''{link_text}</a>'''
+    
+# ===========================================================
+    # Basic message element (already provided)
+    def build_message_element(self, element_text):
+        return f"""
+<div class="max-w-md mx-auto my-2">
+    <div class="bg-red-500 text-white rounded-lg py-2 px-4 inline-block shadow-md">
+        {element_text}
+    </div>
+</div>
+"""
+
+    # Message with thinking animation (already updated)
+    def build_message_element_with_thinking_animation(self, element_text):
+        return f"""
+<div class="max-w-md mx-auto my-2">
+    <div class="bg-red-500 text-white rounded-lg py-2 px-4 inline-block shadow-md flex items-center space-x-2">
+        <span>{element_text}</span>
+        <div class="flex space-x-1">
+            <div class="w-2 h-2 bg-white rounded-full animate-bounce" style="animation-delay: 0s;"></div>
+            <div class="w-2 h-2 bg-white rounded-full animate-bounce" style="animation-delay: 0.2s;"></div>
+            <div class="w-2 h-2 bg-white rounded-full animate-bounce" style="animation-delay: 0.4s;"></div>
+        </div>
+    </div>
+</div>
+"""
+
+    # Message with emoji (e.g., smiley for completion)
+    def build_message_element_with_emoji(self, element_text, emoji="😊"):
+        return f"""
+<div class="max-w-md mx-auto my-2">
+    <div class="bg-red-500 text-white rounded-lg py-2 px-4 inline-block shadow-md flex items-center space-x-2">
+        <span>{element_text}</span>
+        <span class="text-xl">{emoji}</span>
+    </div>
+</div>
+"""
+
+    # Success message with checkmark
+    def build_success_message(self, element_text):
+        return f"""
+<div class="max-w-md mx-auto my-2">
+    <div class="bg-green-500 text-white rounded-lg py-2 px-4 inline-block shadow-md flex items-center space-x-2">
+        <span class="text-xl">✓</span>
+        <span>{element_text}</span>
+    </div>
+</div>
+"""
+
+    # Warning message with alert icon
+    def build_warning_message(self, element_text):
+        return f"""
+<div class="max-w-md mx-auto my-2">
+    <div class="bg-yellow-500 text-white rounded-lg py-2 px-4 inline-block shadow-md flex items-center space-x-2">
+        <span class="text-xl">⚠️</span>
+        <span>{element_text}</span>
+    </div>
+</div>
+"""
+
+    # Error message with cross
+    def build_error_message(self, element_text):
+        return f"""
+<div class="max-w-md mx-auto my-2">
+    <div class="bg-red-600 text-white rounded-lg py-2 px-4 inline-block shadow-md flex items-center space-x-2">
+        <span class="text-xl">✗</span>
+        <span>{element_text}</span>
+    </div>
+</div>
+"""
+
+    # Progress message with spinning animation
+    def build_progress_message(self, element_text):
+        return f"""
+<div class="max-w-md mx-auto my-2">
+    <div class="bg-blue-500 text-white rounded-lg py-2 px-4 inline-block shadow-md flex items-center space-x-2">
+        <span>{element_text}</span>
+        <div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+    </div>
+</div>
+"""
+
+    # Info message with light bulb
+    def build_info_message(self, element_text):
+        return f"""
+<div class="max-w-md mx-auto my-2">
+    <div class="bg-blue-400 text-white rounded-lg py-2 px-4 inline-block shadow-md flex items-center space-x-2">
+        <span class="text-xl">💡</span>
+        <span>{element_text}</span>
+    </div>
+</div>
+"""
+    
+    def build_progressbar_message(self, element_text, progress_percentage=50):
+        return f"""
+<div class="max-w-md mx-auto my-2">
+    <div class="bg-blue-500 text-white rounded-lg py-2 px-4 shadow-md">
+        <div class="flex items-center space-x-2 mb-2">
+            <span>{element_text}</span>
+        </div>
+        <div class="w-full bg-blue-300 rounded-full h-2.5">
+            <div class="bg-white h-2.5 rounded-full transition-all duration-500 ease-in-out" 
+                 style="width: {progress_percentage}%"></div>
+        </div>
+    </div>
+</div>
+"""
 # ===========================================================
     def compress_js(self, code):
         return compress_js(code)
@@ -5677,15 +5784,21 @@ fetch('/open_file', {
     @property
     def user_full_header(self) -> str:
         """Get the start_header_id_template."""
-        return f"{self.start_user_header_id_template}{self.config.user_name}{self.end_user_header_id_template}"
+        if self.config.use_user_name_in_discussions:
+            return f"{self.start_user_header_id_template}{self.config.user_name}{self.end_user_header_id_template}"
+        else:
+            return f"{self.start_user_header_id_template}user{self.end_user_header_id_template}"
     @property
     def ai_full_header(self) -> str:
         """Get the start_header_id_template."""
-        return f"{self.start_ai_header_id_template}{self.personality.name}{self.end_ai_header_id_template}"
+        if self.config.use_user_name_in_discussions:
+            return f"{self.start_ai_header_id_template}{self.personality.name}{self.end_ai_header_id_template}"
+        else:
+            return f"{self.start_ai_header_id_template}assistant{self.end_ai_header_id_template}"
 
-    def system_custom_header(self, ai_name) -> str:
+    def system_custom_header(self, system_header) -> str:
         """Get the start_header_id_template."""
-        return f"{self.start_header_id_template}{ai_name}{self.end_user_header_id_template}"
+        return f"{self.start_header_id_template}{system_header}{self.end_user_header_id_template}"
 
     def user_custom_header(self, ai_name) -> str:
         """Get the start_header_id_template."""

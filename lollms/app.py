@@ -1574,6 +1574,7 @@ Answer directly with the reformulation of the last prompt.
 
 
 
+
     @property
     def start_ai_header_id_template(self) -> str:
         """Get the start_ai_header_id_template."""
@@ -1593,15 +1594,21 @@ Answer directly with the reformulation of the last prompt.
     @property
     def user_full_header(self) -> str:
         """Get the start_header_id_template."""
-        return f"{self.start_user_header_id_template}{self.config.user_name}{self.end_user_header_id_template}"
+        if self.config.use_user_name_in_discussions:
+            return f"{self.start_user_header_id_template}{self.config.user_name}{self.end_user_header_id_template}"
+        else:
+            return f"{self.start_user_header_id_template}user{self.end_user_header_id_template}"
     @property
     def ai_full_header(self) -> str:
         """Get the start_header_id_template."""
-        return f"{self.start_user_header_id_template}{self.personality.name}{self.end_user_header_id_template}"
+        if self.config.use_user_name_in_discussions:
+            return f"{self.start_ai_header_id_template}{self.personality.name}{self.end_ai_header_id_template}"
+        else:
+            return f"{self.start_ai_header_id_template}assistant{self.end_ai_header_id_template}"
 
-    def system_custom_header(self, ai_name) -> str:
+    def system_custom_header(self, system_header) -> str:
         """Get the start_header_id_template."""
-        return f"{self.start_user_header_id_template}{ai_name}{self.end_user_header_id_template}"
+        return f"{self.start_header_id_template}{system_header}{self.end_user_header_id_template}"
 
     def user_custom_header(self, ai_name) -> str:
         """Get the start_header_id_template."""
