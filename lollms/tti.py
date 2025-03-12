@@ -42,11 +42,16 @@ class LollmsTTI(LollmsSERVICE):
             self.output_folder = app.lollms_paths.personal_outputs_path/name
             self.output_folder.mkdir(exist_ok=True, parents=True)
     def paint(self, 
-                positive_prompt: str, 
-                negative_prompt: str = "",
-                width=512,
-                height=512,
-                output_path = None) -> List[Dict[str, str]]:
+                positive_prompt,
+                negative_prompt,
+                sampler_name="Euler",
+                seed=None,
+                scale=None,
+                steps=None,
+                width=None,
+                height=None,
+                output_dir=None,
+                output_file_name=None) -> List[Dict[str, str]]:
         """
         Generates images based on the given positive and negative prompts.
 
