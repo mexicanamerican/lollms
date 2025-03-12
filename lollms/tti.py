@@ -41,6 +41,7 @@ class LollmsTTI(LollmsSERVICE):
         else:
             self.output_folder = app.lollms_paths.personal_outputs_path/name
             self.output_folder.mkdir(exist_ok=True, parents=True)
+            
     def paint(self, 
                 positive_prompt,
                 negative_prompt,

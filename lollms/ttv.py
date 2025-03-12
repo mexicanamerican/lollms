@@ -48,7 +48,8 @@ class LollmsTTV(LollmsSERVICE):
         steps: int = 20,
         seed: int = -1,
         nb_frames: int = None,
-        output_dir:str | Path =None,
+        output_folder:str | Path =None,
+        output_file_name=None
     ) -> str:
         """
         Generates a video from a single text prompt.
