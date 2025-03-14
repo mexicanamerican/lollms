@@ -180,7 +180,11 @@ async def lollms_generate(request: LollmsGenerateRequest):
                                                 prompt, 
                                                 n_predict, 
                                                 callback=callback, 
-                                                temperature=request.temperature or elf_server.config.temperature
+                                                temperature=request.temperature or elf_server.config.temperature,
+                                                top_k=request.top_k or elf_server.config.top_k,
+                                                top_p=request.top_p or elf_server.config.top_p,
+                                                repeat_penalty=request.repeat_penalty or elf_server.config.repeat_penalty,
+                                                repeat_last_n=request.repeat_last_n or elf_server.config.repeat_last_n,
                                             )
                         reception_manager.done = True
                     thread = threading.Thread(target=chunks_builder)
