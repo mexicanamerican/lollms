@@ -951,8 +951,6 @@ class LollmsApplication(LoLLMsCom):
         
         return languages
 
-
-
     def set_personality_language(self, language:str):
         if language is None or  language == "":
             return False

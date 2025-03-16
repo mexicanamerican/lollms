@@ -1695,77 +1695,8 @@ Don't forget encapsulate the code inside a html code tag. This is mandatory.
             trace_exception(ex)
 
     def set_language(self, language):
-        if self.default_language==language:
-            package_path = self.personality_package_path
+        self.language = language
 
-            # Verify that there is at least a configuration file
-            config_file = package_path / "config.yaml"
-            if not config_file.exists():
-                raise ValueError(f"The provided folder {package_path} does not exist.")
-
-            with open(config_file, "r", encoding='utf-8') as f:
-                config = yaml.safe_load(f)
-            self.set_config(config)
-            return
-        if self.language.lower().strip() and  self.language.lower().strip()!= language:
-            language_path = self.app.lollms_paths.personal_configuration_path/"personalities"/self.personality_folder_name/f"languages_{language}.yaml"
-            if not language_path.exists():
-                #checking if there is already a translation in the personality folder
-                persona_language_path = self.lollms_paths.personalities_zoo_path/self.category/self.personality_folder_name.replace(" ","_")/"languages"/f"{language}.yaml"
-                if persona_language_path.exists():
-                    shutil.copy(persona_language_path, language_path)
-                    with open(language_path,"r",encoding="utf-8", errors="ignore") as f:
-                        config = yaml.safe_load(f)
-                    self.set_config(config, False)
-                else:
-                    # this is a new language
-                    try:
-                        self.ShowBlockingMessage(f"This is the first time this personality speaks {language}\nLollms is reconditionning the persona in that language.\nThis will be done just once. Next time, the personality will speak {language} out of the box")
-                        language_path.parent.mkdir(exist_ok=True, parents=True)
-
-                        package_path = self.personality_package_path
-
-                        # Verify that there is at least a configuration file
-                        config_file = package_path / "config.yaml"
-                        if not config_file.exists():
-                            raise ValueError(f"The provided folder {package_path} does not exist.")
-                        def string_constructor(loader, node):
-                            return yaml.loader.SafeLoader.construct_scalar(loader, node)
-                        # Sauvegardez le constructeur original
-                        original_constructor = yaml.loader.SafeLoader.yaml_constructors.get('tag:yaml.org,2002:timestamp')
-                        yaml.add_constructor('tag:yaml.org,2002:timestamp', string_constructor, yaml.loader.SafeLoader)
-                        with open(config_file, "r", encoding='utf-8') as f:
-                            default_config = yaml.safe_load(f)
-                        # Restaurez le constructeur original
-                        if original_constructor:
-                            yaml.add_constructor('tag:yaml.org,2002:timestamp', original_constructor,  yaml.loader.SafeLoader)
-                        else:
-                            # Si aucun constructeur original n'était présent, supprimez simplement le constructeur personnalisé
-                            del  yaml.loader.SafeLoader.yaml_constructors['tag:yaml.org,2002:timestamp']
-                        # Translating
-                        new_config = self.generate_code(f"Translate the following json file values to {language}. Use double quotes for the keys and strings.  Do not translate the keys, just the values\n```json\n{default_config}```\n", max_continues=1)
-                        json_cfg = json.loads(new_config)
-                        with open(language_path,"w",encoding="utf-8", errors="ignore") as f:
-                            yaml.dump(json_cfg, f)
-                        with open(language_path,"r",encoding="utf-8", errors="ignore") as f:
-                            new_config = yaml.safe_load(f)
-                        new_config["category"] = self.category
-                        self.set_config(new_config)                           
-                        self.HideBlockingMessage()
-
-                    except Exception as ex:
-                        trace_exception(ex)
-                        self.InfoMessage(f"Couldn't translate personality to {language}.\nThe model you are using may be unable to do this task. We'll switch to conditionning language insertion mode.")
-
-            else:
-                try:
-                    with open(language_path,"r",encoding="utf-8", errors="ignore") as f:
-                        config = yaml.safe_load(f)
-                    self.set_config(config, False)        
-                except Exception as ex:
-                    trace_exception(ex)
-        else:
-            pass
 
     def load_personality(self, package_path=None):
         """
@@ -1800,32 +1731,6 @@ Don't forget encapsulate the code inside a html code tag. This is mandatory.
         self.set_config(config, True)
 
         lang = config.get("language","english").lower()
-
-        if lang:         
-            default_language = lang.lower().strip().split()[0]
-        else:
-            default_language = 'english'
-        try:   
-            current_language = self.selected_language.lower().strip().split()[0]
-        except:
-            default_language = 'english'
-            
-        if current_language and  current_language!= default_language:
-            language_path = self.app.lollms_paths.personal_configuration_path/"personalities"/self.personality_folder_name/f"languages_{current_language}.yaml"
-            if not language_path.exists():
-                #checking if there is already a translation in the personality folder
-                persona_language_path = self.lollms_paths.personalities_zoo_path/self.category/self.name.replace(" ","_")/"languages"/f"{current_language}.yaml"
-                if persona_language_path.exists():
-                    shutil.copy(persona_language_path, language_path)
-                    with open(language_path,"r",encoding="utf-8", errors="ignore") as f:
-                        config = yaml.safe_load(f)
-                    self.set_config(config, False)
-            else:
-                with open(language_path,"r",encoding="utf-8", errors="ignore") as f:
-                    config = yaml.safe_load(f)
-                self.set_config(config, False)
-
-
 
         #set package path
         self.personality_package_path = package_path

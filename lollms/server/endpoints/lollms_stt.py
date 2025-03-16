@@ -111,7 +111,7 @@ async def list_stt_services(request: ServiceListingRequest) -> List[Dict[str, st
     
     return stt_services
 
-@router.post("/get_active_stt_sesttings")
+@router.post("/get_active_stt_settings")
 async def get_active_stt_sesttngs(request: Request):
     data = await request.json()
     check_access(lollmsElfServer,data["client_id"])
@@ -124,7 +124,7 @@ async def get_active_stt_sesttngs(request: Request):
     else:
         return {}
 
-@router.post("/set_active_stt_sesttings")
+@router.post("/set_active_stt_settings")
 async def set_active_stt_sesttngs(request: Request):
     data = await request.json()
     check_access(lollmsElfServer,data["client_id"])
