@@ -412,7 +412,7 @@ class TypedConfig:
     Field types: int, float, str.
     """
 
-    def __init__(self, config_template: ConfigTemplate, config: BaseConfig):
+    def __init__(self, config_template: ConfigTemplate, config: BaseConfig=None):
         """
         Initializes a new instance of the `TypedConfig` class.
 
@@ -420,6 +420,8 @@ class TypedConfig:
             config_template (ConfigTemplate): The template of descriptions for the fields of the configuration.
             config (BaseConfig): The base configuration object containing the configuration values.
         """
+        if config is None:
+            config = BaseConfig(config={})
         self.config = config
         self.config_template = config_template
 
