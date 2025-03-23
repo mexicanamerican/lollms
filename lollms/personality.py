@@ -353,6 +353,18 @@ class AIPersonality:
 
         if callback:
             callback(full_text, MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_SET_CONTENT)
+    def add_chunk_to_message_content(self, full_text:str, callback: Callable[[str | list | None, MSG_OPERATION_TYPE, str, Any | None], bool]=None):
+        """This sends full text to front end
+
+        Args:
+            step_text (dict): The step text
+            callback (callable, optional): A callable with this signature (str, MSG_TYPE) to send the text to. Defaults to None.
+        """
+        if not callback and self.callback:
+            callback = self.callback
+
+        if callback:
+            callback(full_text, MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_ADD_CHUNK)
 
     def set_message_html(self, ui_text:str, callback: Callable[[str | list | None, MSG_OPERATION_TYPE, str, Any | None], bool]=None, client_id= None):
         """This sends ui text to front end
