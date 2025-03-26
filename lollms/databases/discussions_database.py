@@ -911,7 +911,7 @@ class Discussion:
                     pth = str(view_file).replace("\\","/").split('/')
                     if "discussion_databases" in pth:
                         pth = discussion_path_to_url(view_file)
-                        self.lollms.personality.new_message()
+                        self.lollms.personality.new_message("")
                         output = f'<img src="{pth}" width="800">\n\n'
                         self.lollms.personality.set_message_html(output)
                         self.lollms.close_message(client.client_id if client is not None else 0)

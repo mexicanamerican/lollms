@@ -156,6 +156,8 @@ class LollmsContextDetails:
         append_context("think_first_mode")
         
         append_context("extra")
+        append_context("discussion_messages", template.system_custom_header("Discussion")+"\n")
+        
         found_classic_function = False
         if not ignore_function_calls:
             for function_call in self.function_calls:
@@ -191,7 +193,6 @@ class LollmsContextDetails:
                     ])
                 )              
 
-        append_context("discussion_messages", template.system_custom_header("Discussion")+"\n")
         # Add custom entries if provided
         if custom_entries:
             full_context+=custom_entries

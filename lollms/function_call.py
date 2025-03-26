@@ -51,5 +51,4 @@ class FunctionCall:
         return constructed_context
         
     def process_output(self, context, llm_output:str):
-        if self.function_type == FunctionType.CONTEXT_UPDATE:
-            raise NotImplementedError("Subclasses must implement the process_output for CONTEXT_UPDATE functions.")
+        return llm_output
