@@ -48,20 +48,25 @@ class LollmsTTV(LollmsSERVICE):
         steps: int = 20,
         seed: int = -1,
         nb_frames: int = None,
-        output_folder:str | Path =None,
-        output_file_name=None
+        fps: int = 8,
+        output_folder: str | Path = None,
+        output_file_name = None
     ) -> str:
         """
         Generates a video from a single text prompt.
 
         Args:
             prompt (str): The text prompt describing the video.
-            negative_prompt (str): Text describing elements to avoid in the video.
-            num_frames (int): Number of frames in the video. Default is 49.
+            negative_prompt (Optional[str]): Text describing elements to avoid in the video. Default is None.
+            model_name (str): Name of the model to use. Default is empty string.
+            height (int): Height of the video in pixels. Default is 512.
+            width (int): Width of the video in pixels. Default is 512.
+            steps (int): Number of inference steps. Default is 20.
+            seed (int): Random seed for reproducibility. Default is -1.
+            nb_frames (int): Number of frames in the video. Default is None.
             fps (int): Frames per second. Default is 8.
-            num_inference_steps (int): Number of steps for the model to infer. Default is 50.
-            guidance_scale (float): Controls how closely the model adheres to the prompt. Default is 6.0.
-            seed (Optional[int]): Random seed for reproducibility. Default is None.
+            output_folder (str | Path): Directory to save the video. Default is None.
+            output_file_name: Name of the output file. Default is None.
 
         Returns:
             str: The path to the generated video.
