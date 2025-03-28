@@ -22,7 +22,7 @@ services_zoo_repo = "https://github.com/ParisNeo/lollms_services_zoo.git"
 functions_zoo_repo = "https://github.com/ParisNeo/lollms_functions_zoo.git"
 gptqlora_repo = "https://github.com/ParisNeo/gptqlora.git"
 
-lollms_webui_version = "v19 (codename Omni 🔗)"
+lollms_webui_version = "v19.2242 (codename Twins 🔗)"
 
 # Now we speify the personal folders
 class LollmsPaths:

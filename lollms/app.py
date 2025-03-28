@@ -618,43 +618,52 @@ class LollmsApplication(LoLLMsCom):
                     self.warning(f"Couldn't load vllm")
         ASCIIColors.execute_with_animation("Loading TTT services", start_ttt,ASCIIColors.color_blue)
 
-        def start_stt(*args, **kwargs):
-            self.stt = self.load_service_from_folder(self.lollms_paths.services_zoo_path/"stt", self.config.active_stt_service)
-        ASCIIColors.execute_with_animation("Loading loacal STT services", start_stt, ASCIIColors.color_blue)
+        if self.config.active_stt_service:
+            def start_stt(*args, **kwargs):
+                self.stt = self.load_service_from_folder(self.lollms_paths.services_zoo_path/"stt", self.config.active_stt_service)
+            ASCIIColors.execute_with_animation("Loading loacal STT services", start_stt, ASCIIColors.color_blue)
 
-        def start_tts(*args, **kwargs):
-            if self.config.active_tts_service == "xtts":
-                ASCIIColors.yellow("Loading XTTS")
-                try:
-                    from lollms.services.tts.xtts.lollms_xtts import LollmsXTTS
+        # def start_tts(*args, **kwargs):
+        #     if self.config.active_tts_service == "xtts":
+        #         ASCIIColors.yellow("Loading XTTS")
+        #         try:
+        #             from lollms.services.tts.xtts.lollms_xtts import LollmsXTTS
 
-                    self.tts = LollmsXTTS(
-                                            self
-                                        )
-                except Exception as ex:
-                    trace_exception(ex)
-                    self.warning(f"Couldn't load XTTS")
-            if self.config.active_tts_service == "eleven_labs_tts":
-                from lollms.services.tts.eleven_labs_tts.lollms_eleven_labs_tts import LollmsElevenLabsTTS
-                self.tts = LollmsElevenLabsTTS(self)
-            elif self.config.active_tts_service == "openai_tts":
-                from lollms.services.tts.open_ai_tts.lollms_openai_tts import LollmsOpenAITTS
-                self.tts = LollmsOpenAITTS(self)
-            elif self.config.active_tts_service == "fish_tts":
-                from lollms.services.tts.fish.lollms_fish_tts import LollmsFishAudioTTS
-                self.tts = LollmsFishAudioTTS(self)
+        #             self.tts = LollmsXTTS(
+        #                                     self
+        #                                 )
+        #         except Exception as ex:
+        #             trace_exception(ex)
+        #             self.warning(f"Couldn't load XTTS")
+        #     if self.config.active_tts_service == "eleven_labs_tts":
+        #         from lollms.services.tts.eleven_labs_tts.lollms_eleven_labs_tts import LollmsElevenLabsTTS
+        #         self.tts = LollmsElevenLabsTTS(self)
+        #     elif self.config.active_tts_service == "openai_tts":
+        #         from lollms.services.tts.open_ai_tts.lollms_openai_tts import LollmsOpenAITTS
+        #         self.tts = LollmsOpenAITTS(self)
+        #     elif self.config.active_tts_service == "fish_tts":
+        #         from lollms.services.tts.fish.lollms_fish_tts import LollmsFishAudioTTS
+        #         self.tts = LollmsFishAudioTTS(self)
+        if self.config.active_tts_service:
+            def start_tts(*args, **kwargs):
+                self.tti = self.load_service_from_folder(self.lollms_paths.services_zoo_path/"tts", self.config.active_tts_service)
+            ASCIIColors.execute_with_animation("Loading TTS services", start_tts, ASCIIColors.color_blue)
 
-        ASCIIColors.execute_with_animation("Loading TTS services", start_tts, ASCIIColors.color_blue)
+        if self.config.active_tti_service:
+            def start_tti(*args, **kwargs):
+                self.tti = self.load_service_from_folder(self.lollms_paths.services_zoo_path/"tti", self.config.active_tti_service)
+            ASCIIColors.execute_with_animation("Loading loacal TTI services", start_tti, ASCIIColors.color_blue)
 
-        def start_tti(*args, **kwargs):
-            self.tti = self.load_service_from_folder(self.lollms_paths.services_zoo_path/"tti", self.config.active_tti_service)
-        ASCIIColors.execute_with_animation("Loading loacal TTI services", start_tti, ASCIIColors.color_blue)
+        if self.config.active_ttm_service:
+            def start_ttm(*args, **kwargs):
+                self.ttv = self.load_service_from_folder(self.lollms_paths.services_zoo_path/"ttv", self.config.active_ttm_service)
+            ASCIIColors.execute_with_animation("Loading loacal TTM services", start_ttm, ASCIIColors.color_blue)
+        print("OK")
 
-        def start_ttv(*args, **kwargs):
-            self.ttv = self.load_service_from_folder(self.lollms_paths.services_zoo_path/"ttv", self.config.active_ttv_service)
-
-
-        ASCIIColors.execute_with_animation("Loading loacal TTV services", start_ttv, ASCIIColors.color_blue)
+        if self.config.active_ttv_service:
+            def start_ttv(*args, **kwargs):
+                self.ttv = self.load_service_from_folder(self.lollms_paths.services_zoo_path/"ttv", self.config.active_ttv_service)
+            ASCIIColors.execute_with_animation("Loading loacal TTV services", start_ttv, ASCIIColors.color_blue)
         print("OK")
 
 

@@ -927,7 +927,148 @@ def find_first_available_file_index(folder_path, prefix, extension=""):
             return available_number
 
 
+def find_first_available_file_path(folder_path, prefix, extension=""):
+    """
+    Finds the full path for the first available filename in a folder,
+    based on a prefix and an optional extension.
 
+    The numbering starts from 1 (e.g., prefix1.ext, prefix2.ext, ...).
+
+    Args:
+        folder_path (str or Path): The path to the folder.
+                                   The folder will be created if it doesn't exist.
+        prefix (str): The desired file prefix.
+        extension (str, optional): The desired file extension (including the dot, e.g., ".txt").
+                                   Defaults to "".
+
+    Returns:
+        Path: A Path object representing the first available file path
+              (e.g., /path/to/folder/prefix1.txt if it doesn't exist).
+              Returns None if the folder cannot be created or accessed.
+    """
+    try:
+        # Ensure folder_path is a Path object
+        folder = Path(folder_path)
+
+        # Create the folder if it doesn't exist
+        # os.makedirs(folder, exist_ok=True) # Using exist_ok=True prevents errors if it already exists
+        # Using Pathlib's equivalent:
+        folder.mkdir(parents=True, exist_ok=True)
+
+
+        available_number = 1
+        while True:
+            # Construct the potential file path using an f-string
+            potential_path = folder / f"{prefix}{available_number}{extension}"
+
+            # Check if this path already exists (works for files and directories)
+            if not potential_path.exists():
+                # If it doesn't exist, this is the first available path
+                return potential_path
+            else:
+                # If it exists, increment the number and try the next one
+                available_number += 1
+    except OSError as e:
+        print(f"Error accessing or creating folder {folder_path}: {e}")
+        return None
+    except Exception as e:
+        print(f"An unexpected error occurred in find_first_available_file_path: {e}")
+        return None
+
+def is_file_path(path_string: Union[str, Path, None]) -> bool:
+    """
+    Checks if a given string or Path object structurally resembles a file path.
+
+    This function performs basic checks:
+    1. Is the input a non-empty string or Path?
+    2. Does it contain path separators ('/' or '\\')?
+    3. Does it likely have a filename component (doesn't end with a separator)?
+    4. Does it potentially have an extension (contains a '.')?
+
+    It does NOT check if the path actually exists on the filesystem.
+    It aims to distinguish plausible file paths from simple strings, URLs (basic check),
+    or paths explicitly ending like directories.
+
+    Args:
+        path_string: The string or Path object to check.
+
+    Returns:
+        True if the string looks like a file path, False otherwise.
+    """
+    # --- Basic Input Validation ---
+    if path_string is None:
+        return False
+
+    # Convert Path object to string for consistent processing
+    if isinstance(path_string, Path):
+        path_string = str(path_string)
+
+    if not isinstance(path_string, str):
+        # If it's not None, not a Path, and not a string, it's invalid input
+        return False
+
+    # Remove leading/trailing whitespace
+    path_string = path_string.strip()
+
+    # Empty string is not a valid file path
+    if not path_string:
+        return False
+
+    # --- Structural Checks ---
+
+    # Very basic check to filter out obvious URLs (can be expanded if needed)
+    if path_string.startswith(('http://', 'https://', 'ftp://', 'mailto:')):
+        return False
+
+    # Check if it ends with a path separator (more likely a directory)
+    # os.path.sep is the primary separator ('/' on Unix, '\' on Windows)
+    # os.path.altsep is the alternative ('/' on Windows)
+    ends_with_separator = path_string.endswith(os.path.sep)
+    if os.path.altsep: # Check altsep only if it exists (it's None on Unix)
+        ends_with_separator = ends_with_separator or path_string.endswith(os.path.altsep)
+
+    if ends_with_separator:
+        return False # Paths ending in separators usually denote directories
+
+    # Check for the presence of path separators within the string
+    has_separator = os.path.sep in path_string
+    if os.path.altsep:
+        has_separator = has_separator or os.path.altsep in path_string
+
+    # Use os.path.splitext to check for an extension
+    # It splits "path/to/file.txt" into ("path/to/file", ".txt")
+    # It splits "path/to/file" into ("path/to/file", "")
+    # It splits "path/.bashrc" into ("path/.bashrc", "") - important edge case!
+    # It splits "path/archive.tar.gz" into ("path/archive.tar", ".gz")
+    base, extension = os.path.splitext(path_string)
+
+    # A simple filename like "file.txt" is a valid relative path
+    # It won't have separators but will likely have an extension
+    has_extension = bool(extension) and extension != '.' # Ensure extension is not just a single dot
+
+    # Check if the part *before* the extension (or the whole string if no extension)
+    # contains a '.' which might indicate a hidden file like '.bashrc' when
+    # there are no separators. We need the base name for this.
+    filename = os.path.basename(path_string)
+    is_likely_hidden_file = filename.startswith('.') and '.' not in filename[1:] and not has_separator
+
+
+    # --- Decision Logic ---
+    # It looks like a file path if:
+    # 1. It contains separators (e.g., "folder/file", "folder/file.txt") OR
+    # 2. It has a valid extension (e.g., "file.txt") OR
+    # 3. It looks like a "hidden" file in the current directory (e.g., ".bashrc")
+    # AND it doesn't end with a separator (checked earlier).
+    if has_separator or has_extension or is_likely_hidden_file:
+        # Further refinement: Avoid matching just "." or ".."
+        if path_string == '.' or path_string == '..':
+            return False
+        return True
+    else:
+        # If it has no separators and no extension (e.g., "myfile"),
+        # it's ambiguous - could be a directory name or a file without extension.
+        # Let's default to False for this ambiguity unless separators are present.
+        return False
 
 # Prompting tools
 def detect_antiprompt(text:str, anti_prompts=["!@>"]) -> bool:
@@ -1544,3 +1685,51 @@ def remove_text_from_string(string: str, text_to_find:str):
         string = string[:index]
 
     return string
+
+
+def short_desc(text: str, max_length: int = 80) -> str:
+    """
+    Creates a shortened description of a text string, adding ellipsis if truncated.
+
+    Tries to break at a word boundary (space) if possible within the length limit.
+
+    Args:
+        text: The input string. Can be None.
+        max_length: The maximum desired length of the output string (including ellipsis).
+                    Must be at least 4 to accommodate "...".
+
+    Returns:
+        The shortened string, or the original string if it's already short enough.
+        Returns an empty string if the input is None or not a string.
+    """
+    if text is None:
+        return ""
+
+    # Ensure input is treated as a string
+    if not isinstance(text, str):
+        try:
+            text = str(text)
+        except Exception:
+            return "[Invalid Input]" # Or return "" depending on desired behavior
+
+    # If text is already short enough, return it as is.
+    if len(text) <= max_length:
+        return text
+
+    # Ensure max_length is usable
+    if max_length < 4:
+        # Cannot add ellipsis, just truncate hard
+        return text[:max_length]
+
+    # Calculate the ideal truncation point before adding "..."
+    trunc_point = max_length - 3
+
+    # Find the last space character at or before the truncation point
+    last_space = text.rfind(' ', 0, trunc_point + 1) # Include trunc_point itself
+
+    if last_space != -1:
+        # Found a space, truncate there
+        return text[:last_space] + "..."
+    else:
+        # No space found in the initial part, hard truncate
+        return text[:trunc_point] + "..."
