@@ -12,6 +12,9 @@ from pathlib import Path
 from typing import List, Dict
 from lollms.ttm import LollmsTTM
 from lollms.utilities import PackageManager, File_Path_Generator, check_and_install_torch
+import pipmaster as pm
+pm.install_if_missing("audiocraft")
+from audiocraft.models import musicgen
 
 class LollmsMusicGen(LollmsTTM):
     """
@@ -49,16 +52,13 @@ class LollmsMusicGen(LollmsTTM):
         self.model = model
         self.api_key = api_key
         self.output_path = output_path
-        if not PackageManager.check_package_installed("musicgen"):
-            check_and_install_torch(True if device=="cuda" else False)
-            PackageManager.install_or_update("musicgen")
 
-        from audiocraft.models import musicgen
         self.music_model = musicgen.MusicGen.get_pretrained(model, device=device)
 
         self.models = [] # To be filled by the child class
         self.ready = True
-
+    def settings_updated(self):
+        pass
     def generate(self, 
                 positive_prompt: str, 
                 negative_prompt: str = "",

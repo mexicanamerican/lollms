@@ -656,7 +656,7 @@ class LollmsApplication(LoLLMsCom):
 
         if self.config.active_ttm_service:
             def start_ttm(*args, **kwargs):
-                self.ttv = self.load_service_from_folder(self.lollms_paths.services_zoo_path/"ttv", self.config.active_ttm_service)
+                self.ttv = self.load_service_from_folder(self.lollms_paths.services_zoo_path/"ttm", self.config.active_ttm_service)
             ASCIIColors.execute_with_animation("Loading loacal TTM services", start_ttm, ASCIIColors.color_blue)
         print("OK")
 
@@ -690,26 +690,31 @@ class LollmsApplication(LoLLMsCom):
                     trace_exception(ex)
                     self.warning(f"Couldn't load vllm")
 
-
-            def start_tti(*args, **kwargs):
-                self.tti = self.load_service_from_folder(self.lollms_paths.services_zoo_path/"tti", self.config.active_tti_service)
-            ASCIIColors.execute_with_animation("Loading loacal TTI services", start_tti, ASCIIColors.color_blue)
-
-
-            def start_stt(*args, **kwargs):
-                self.stt = self.load_service_from_folder(self.lollms_paths.services_zoo_path/"stt", self.config.active_stt_service)
-            ASCIIColors.execute_with_animation("Loading loacal STT services", start_stt, ASCIIColors.color_blue)
-
-            def start_tts(*args, **kwargs):
-                self.tts = self.load_service_from_folder(self.lollms_paths.services_zoo_path/"tts", self.config.active_tts_service)
-            ASCIIColors.execute_with_animation("Loading loacal STT services", start_tts, ASCIIColors.color_blue)
+            if self.config.active_tti_service:
+                def start_tti(*args, **kwargs):
+                    self.tti = self.load_service_from_folder(self.lollms_paths.services_zoo_path/"tti", self.config.active_tti_service)
+                ASCIIColors.execute_with_animation("Loading loacal TTI services", start_tti, ASCIIColors.color_blue)
 
 
-            def start_ttv(*args, **kwargs):
-                self.ttv = self.load_service_from_folder(self.lollms_paths.services_zoo_path/"ttv", self.config.active_ttv_service)
+            if self.config.active_stt_service:
+                def start_stt(*args, **kwargs):
+                    self.stt = self.load_service_from_folder(self.lollms_paths.services_zoo_path/"stt", self.config.active_stt_service)
+                ASCIIColors.execute_with_animation("Loading loacal STT services", start_stt, ASCIIColors.color_blue)
 
+            if self.config.active_tts_service:
+                def start_tts(*args, **kwargs):
+                    self.tts = self.load_service_from_folder(self.lollms_paths.services_zoo_path/"tts", self.config.active_tts_service)
+                ASCIIColors.execute_with_animation("Loading loacal STT services", start_tts, ASCIIColors.color_blue)
 
-            ASCIIColors.execute_with_animation("Loading loacal TTV services", start_ttv, ASCIIColors.color_blue)
+            if self.config.active_ttm_service:
+                def start_ttm(*args, **kwargs):
+                    self.ttv = self.load_service_from_folder(self.lollms_paths.services_zoo_path/"ttm", self.config.active_ttm_service)
+                ASCIIColors.execute_with_animation("Loading loacal TTM services", start_ttm, ASCIIColors.color_blue)
+
+            if self.config.active_ttv_service:
+                def start_ttv(*args, **kwargs):
+                    self.ttv = self.load_service_from_folder(self.lollms_paths.services_zoo_path/"ttv", self.config.active_ttv_service)
+                ASCIIColors.execute_with_animation("Loading loacal TTV services", start_ttv, ASCIIColors.color_blue)
             print("OK")
 
 
