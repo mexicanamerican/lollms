@@ -65,6 +65,7 @@ def add_events(sio:socketio):
 
     @sio.on('send_file_chunk')
     def send_file_chunk(sid, data):
+        ASCIIColors.yellow("Receiving file")
         
         client_id = sid
         client = lollmsElfServer.session.get_client(client_id)

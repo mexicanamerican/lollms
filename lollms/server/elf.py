@@ -42,7 +42,7 @@ def main():
         config.port=args.port
 
     LOLLMSElfServer.build_instance(config=config, lollms_paths=lollms_paths, socketio=sio)
-    from lollms.server.endpoints.lollms_binding_files_server import router as lollms_binding_files_server_router
+    from lollms.server.endpoints.lollms_files_server import router as lollms_binding_files_server_router
     from lollms.server.endpoints.lollms_infos import router as lollms_infos_router
     from lollms.server.endpoints.lollms_hardware_infos import router as lollms_hardware_infos_router
     from lollms.server.endpoints.lollms_binding_infos import router as lollms_binding_infos_router

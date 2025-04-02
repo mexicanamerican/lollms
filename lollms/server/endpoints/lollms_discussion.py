@@ -246,5 +246,9 @@ def remove_discussion_file(data:RemoveFileData):
     
     if lollmsElfServer.personality is None:
         return {"state":False, "error":"No personality selected"}
-    client.discussion.remove_file(data.name)
+    try:
+        client.discussion.remove_file(data.name)
+    except Exception as ex:
+        trace_exception(ex)
+        return {"state":False, "error": ex}
     return {"state":True}
