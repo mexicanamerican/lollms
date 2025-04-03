@@ -125,7 +125,7 @@ async def text2Audio(request: LollmsText2AudioRequest):
             if request.voice:
                 voice = request.voice
             else:
-                voice = lollmsElfServer.config.xtts_current_voice
+                voice = lollmsElfServer.tts.service_config.voice
             response = lollmsElfServer.tts.tts_audio(request.text, voice, file_name_or_path=request.fn, use_threading=False)
             return response
         else:
