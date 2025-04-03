@@ -704,7 +704,7 @@ class LollmsApplication(LoLLMsCom):
             if self.config.active_tts_service:
                 def start_tts(*args, **kwargs):
                     self.tts = self.load_service_from_folder(self.lollms_paths.services_zoo_path/"tts", self.config.active_tts_service)
-                ASCIIColors.execute_with_animation("Loading loacal STT services", start_tts, ASCIIColors.color_blue)
+                ASCIIColors.execute_with_animation("Loading loacal TTS services", start_tts, ASCIIColors.color_blue)
 
             if self.config.active_ttm_service:
                 def start_ttm(*args, **kwargs):
