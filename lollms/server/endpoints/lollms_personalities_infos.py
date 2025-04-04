@@ -698,9 +698,8 @@ def unmount_all_personalities(data:AuthenticationInfos):
 @router.post("/select_personality")
 def select_personality(data:PersonalitySelectionInfos):
     check_access(lollmsElfServer, data.client_id)
-    ASCIIColors.info("Selecting personality")
+    ASCIIColors.info(f"Selecting personality : {lollmsElfServer.mounted_personalities[data.id]}")
     id = data.id
-    print(f"- Selecting active personality {id} ...",end="")
     if id<len(lollmsElfServer.mounted_personalities):
         lollmsElfServer.config["active_personality_id"]=id
         lollmsElfServer.personality:AIPersonality = lollmsElfServer.mounted_personalities[lollmsElfServer.config["active_personality_id"]]
