@@ -628,22 +628,6 @@ class LollmsApplication(LoLLMsCom):
         try:
             ASCIIColors.blue("Loading active local TTT services")
             
-            if self.config.enable_ollama_service and self.ollama is None:
-                try:
-                    from lollms.services.ttt.ollama.lollms_ollama import Service
-                    self.ollama = Service(self, base_url=self.config.ollama_base_url)
-                except Exception as ex:
-                    trace_exception(ex)
-                    self.warning(f"Couldn't load Ollama")
-
-            if self.config.enable_vllm_service and self.vllm is None:
-                try:
-                    from lollms.services.ttt.vllm.lollms_vllm import Service
-                    self.vllm = Service(self, base_url=self.config.vllm_url)
-                except Exception as ex:
-                    trace_exception(ex)
-                    self.warning(f"Couldn't load vllm")
-
             if self.config.active_tti_service:
                 def start_tti(*args, **kwargs):
                     self.tti = self.load_service_from_folder(self.lollms_paths.services_zoo_path/"tti", self.config.active_tti_service)
