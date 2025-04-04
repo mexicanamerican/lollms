@@ -145,7 +145,7 @@ class LollmsContextDetails:
                 sacrifice_id += 1
 
         # Append each field to the full context if it exists and is not suppressed
-        append_context("conditionning")
+        append_context("conditionning", template.system_full_header)
         append_context("documentation", template.system_custom_header("documentation"))
         append_context("internet_search_results", template.system_custom_header("Internet search results"))
         append_context("user_description")
@@ -156,7 +156,7 @@ class LollmsContextDetails:
         append_context("think_first_mode")
         
         append_context("extra")
-        append_context("discussion_messages", template.system_custom_header("Discussion")+"\n")
+        append_context("discussion_messages", template.system_custom_header("discussion")+"\n")
         
         found_classic_function = False
         if not ignore_function_calls:

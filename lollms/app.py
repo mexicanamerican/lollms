@@ -72,7 +72,6 @@ class LollmsApplication(LoLLMsCom):
         self.mounted_personalities      = []
         self.personality:AIPersonality  = None
 
-        self.mounted_extensions         = []
         self.binding                    = None
         self.model:LLMBinding           = None
         self.long_term_memory           = None
@@ -180,7 +179,6 @@ class LollmsApplication(LoLLMsCom):
                         ASCIIColors.warning(f"Couldn't load binding {self.config.binding_name}.")
                 
             self.mount_personalities()
-            self.mount_extensions()
             
             try:
                 self.load_rag_dbs()
@@ -594,56 +592,12 @@ class LollmsApplication(LoLLMsCom):
                     self.warning(f"Couldn't start lightrag")
 
         ASCIIColors.execute_with_animation("Loading RAG servers", start_local_services,ASCIIColors.color_blue)
-        
-        tts_services = []
-        stt_services = []
-        def start_ttt(*args, **kwargs):
-            if self.config.enable_ollama_service:
-                try:
-                    from lollms.services.ttt.ollama.lollms_ollama import Service
-                    self.ollama = Service(self, base_url=self.config.ollama_base_url)
-                    tts_services.append("ollama")
-
-                except Exception as ex:
-                    trace_exception(ex)
-                    self.warning(f"Couldn't load Ollama")
-
-            if self.config.enable_vllm_service:
-                try:
-                    from lollms.services.ttt.vllm.lollms_vllm import Service
-                    self.vllm = Service(self, base_url=self.config.vllm_url)
-                    tts_services.append("vllm")
-                except Exception as ex:
-                    trace_exception(ex)
-                    self.warning(f"Couldn't load vllm")
-        ASCIIColors.execute_with_animation("Loading TTT services", start_ttt,ASCIIColors.color_blue)
 
         if self.config.active_stt_service:
             def start_stt(*args, **kwargs):
                 self.stt = self.load_service_from_folder(self.lollms_paths.services_zoo_path/"stt", self.config.active_stt_service)
             ASCIIColors.execute_with_animation("Loading loacal STT services", start_stt, ASCIIColors.color_blue)
 
-        # def start_tts(*args, **kwargs):
-        #     if self.config.active_tts_service == "xtts":
-        #         ASCIIColors.yellow("Loading XTTS")
-        #         try:
-        #             from lollms.services.tts.xtts.lollms_xtts import LollmsXTTS
-
-        #             self.tts = LollmsXTTS(
-        #                                     self
-        #                                 )
-        #         except Exception as ex:
-        #             trace_exception(ex)
-        #             self.warning(f"Couldn't load XTTS")
-        #     if self.config.active_tts_service == "eleven_labs_tts":
-        #         from lollms.services.tts.eleven_labs_tts.lollms_eleven_labs_tts import LollmsElevenLabsTTS
-        #         self.tts = LollmsElevenLabsTTS(self)
-        #     elif self.config.active_tts_service == "openai_tts":
-        #         from lollms.services.tts.open_ai_tts.lollms_openai_tts import LollmsOpenAITTS
-        #         self.tts = LollmsOpenAITTS(self)
-        #     elif self.config.active_tts_service == "fish_tts":
-        #         from lollms.services.tts.fish.lollms_fish_tts import LollmsFishAudioTTS
-        #         self.tts = LollmsFishAudioTTS(self)
         if self.config.active_tts_service:
             def start_tts(*args, **kwargs):
                 self.tti = self.load_service_from_folder(self.lollms_paths.services_zoo_path/"tts", self.config.active_tts_service)
@@ -1004,31 +958,11 @@ class LollmsApplication(LoLLMsCom):
             self.config.active_personality_id = 0
             self.personality = self.mounted_personalities[self.config.active_personality_id]
 
-    def mount_extensions(self, callback = None):
-        self.mounted_extensions = []
-        to_remove = []
-        for i in range(len(self.config["extensions"])):
-            p = self.mount_extension(i, callback = None)
-            if p is None:
-                to_remove.append(i)
-        to_remove.sort(reverse=True)
-        for i in to_remove:
-            self.unmount_extension(i)
-
 
     def set_personalities_callbacks(self, callback: Callable[[str, int, dict], bool]=None):
         for personality in self.mount_personalities:
             personality.setCallback(callback)
 
-    def unmount_extension(self, id:int)->bool:
-        if id<len(self.config.extensions):
-            del self.config.extensions[id]
-            if id>=0 and id<len(self.mounted_extensions):
-                del self.mounted_extensions[id]
-            self.config.save_config()
-            return True
-        else:
-            return False
 
             
     def unmount_personality(self, id:int)->bool:
@@ -1183,30 +1117,7 @@ class LollmsApplication(LoLLMsCom):
         current_message = messages[message_index]
 
         # Build the conditionning text block
-        default_language = self.personality.language.lower().strip().split()[0]
-        current_language = self.config.current_language.lower().strip().split()[0]
-
-        if current_language and  current_language!= self.personality.language:
-            language_path = self.lollms_paths.personal_configuration_path/"personalities"/self.personality.name/f"languages_{current_language}.yaml"
-            if not language_path.exists():
-                self.info(f"This is the first time this personality speaks {current_language}\nLollms is reconditionning the persona in that language.\nThis will be done just once. Next time, the personality will speak {current_language} out of the box")
-                language_path.parent.mkdir(exist_ok=True, parents=True)
-                # Translating
-                conditionning = self.tasks_library.translate_conditionning(self.personality._personality_conditioning, self.personality.language, current_language)
-                welcome_message = self.tasks_library.translate_message(self.personality.welcome_message, self.personality.language, current_language)
-                with open(language_path,"w",encoding="utf-8", errors="ignore") as f:
-                    yaml.safe_dump({"personality_conditioning":conditionning,"welcome_message":welcome_message}, f)
-            else:
-                with open(language_path,"r",encoding="utf-8", errors="ignore") as f:
-                    language_pack = yaml.safe_load(f)
-                    conditionning = language_pack.get("personality_conditioning", language_pack.get("conditionning", self.personality.personality_conditioning))
-        else:
-            conditionning = self.personality._personality_conditioning
-
-        if len(conditionning)>0:
-            if type(conditionning) is list:
-                conditionning = "\n".join(conditionning)
-            conditionning =  self.system_full_header + conditionning + ("" if conditionning[-1]==self.separator_template else self.separator_template)
+        conditionning = self.personality.personality_conditioning
 
         block_rag = False
         function_calls = []
