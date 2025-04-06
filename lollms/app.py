@@ -445,12 +445,12 @@ class LollmsApplication(LoLLMsCom):
         
 
     def _generate_text(self, prompt):
-        max_tokens = min(self.config.ctx_size - self.model.get_nb_tokens(prompt),self.config.max_n_predict if self.config.max_n_predict else self.config.ctx_size- self.model.get_nb_tokens(prompt))
+        max_tokens = min(self.config.ctx_size - self.model.count_tokens(prompt),self.config.max_n_predict if self.config.max_n_predict else self.config.ctx_size- self.model.count_tokens(prompt))
         generated_text = self.model.generate(prompt, max_tokens)
         return generated_text.strip()
     
     def _generate_code(self, prompt, template, language):
-        max_tokens = min(self.config.ctx_size - self.model.get_nb_tokens(prompt),self.config.max_n_predict if self.config.max_n_predict else self.config.ctx_size- self.model.get_nb_tokens(prompt))
+        max_tokens = min(self.config.ctx_size - self.model.count_tokens(prompt),self.config.max_n_predict if self.config.max_n_predict else self.config.ctx_size- self.model.count_tokens(prompt))
         generated_code = self.personality.generate_code(prompt, self.personality.image_files, template, language, max_size= max_tokens)
         return generated_code
 
@@ -1123,14 +1123,14 @@ class LollmsApplication(LoLLMsCom):
         # boosting information
         if self.config.positive_boost:
             positive_boost=f"{self.system_custom_header('important information')}"+self.config.positive_boost+"\n"
-            n_positive_boost = len(self.model.tokenize(positive_boost))
+            n_positive_boost = self.model.count_tokens(positive_boost)
         else:
             positive_boost=""
             n_positive_boost = 0
 
         if self.config.negative_boost:
             negative_boost=f"{self.system_custom_header('important information')}"+self.config.negative_boost+"\n"
-            n_negative_boost = len(self.model.tokenize(negative_boost))
+            n_negative_boost = self.model.count_tokens(negative_boost)
         else:
             negative_boost=""
             n_negative_boost = 0
@@ -1139,7 +1139,7 @@ class LollmsApplication(LoLLMsCom):
             fun_mode=f"""{self.system_custom_header('important information')} 
 Fun mode activated. In this mode you must answer in a funny playful way. Do not be serious in your answers. Each answer needs to make the user laugh.\n"
 """
-            n_fun_mode = len(self.model.tokenize(positive_boost))
+            n_fun_mode = self.model.count_tokens(positive_boost)
         else:
             fun_mode=""
             n_fun_mode = 0
@@ -1148,7 +1148,7 @@ Fun mode activated. In this mode you must answer in a funny playful way. Do not 
             think_first_mode=f"""{self.system_custom_header('important information')} 
 {self.config.thinking_prompt}
 """
-            n_think_first_mode = len(self.model.tokenize(positive_boost))
+            n_think_first_mode = self.model.count_tokens(positive_boost)
         else:
             think_first_mode=""
             n_think_first_mode = 0

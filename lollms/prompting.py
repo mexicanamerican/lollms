@@ -202,7 +202,7 @@ class LollmsContextDetails:
 
         # Debugging information
         if self.debug and self.model:
-            nb_prompt_tokens = len(self.model.tokenize(prompt))
+            nb_prompt_tokens = self.model.count_tokens(prompt)
             nb_tokens = min(
                 self.ctx_size - nb_prompt_tokens,
                 self.max_n_predict if self.max_n_predict else self.ctx_size - nb_prompt_tokens

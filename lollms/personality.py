@@ -701,7 +701,7 @@ class AIPersonality:
         ASCIIColors.red(" *-*-*-*-*-*-*-*")
         ASCIIColors.yellow(prompt)
         ASCIIColors.red(" *-*-*-*-*-*-*-*")
-        ASCIIColors.red(f"Weight : {len(self.model.tokenize(prompt))} tokens")
+        ASCIIColors.red(f"Weight : {self.model.count_tokens(prompt)} tokens")
         ASCIIColors.red(" *-*-*-*-*-*-*-*")
 
 
@@ -749,7 +749,7 @@ class AIPersonality:
                         self.model.config.ctx_size - max_generation_size if max_generation_size else self.model.config.ctx_size - self.model.config.min_n_predict,
                         sacrifice
                         )
-        ntk = len(self.model.tokenize(prompt))
+        ntk = self.model.count_tokens(prompt)
         if max_generation_size:
             max_generation_size = min(self.model.config.ctx_size - ntk, max_generation_size)
         else:
@@ -1576,7 +1576,7 @@ Don't forget encapsulate the code inside a html code tag. This is mandatory.
             self.print_prompt("gen",prompt)
 
         if max_size is None:
-            max_size = min(self.config.max_n_predict if self.config.max_n_predict else self.config.ctx_size-len(self.model.tokenize(prompt)), self.config.ctx_size-len(self.model.tokenize(prompt)))
+            max_size = min(self.config.max_n_predict if self.config.max_n_predict else self.config.ctx_size-self.model.count_tokens(prompt), self.config.ctx_size-self.model.count_tokens(prompt))
 
         self.model.generate_with_images(
                                 prompt,
@@ -1597,7 +1597,7 @@ Don't forget encapsulate the code inside a html code tag. This is mandatory.
         self.bot_says = ""
         if debug:
             self.print_prompt("gen",prompt)
-        ntokens = len(self.model.tokenize(prompt))
+        ntokens = self.model.count_tokens(prompt)
         
         self.model.generate(
                                 prompt,
@@ -2800,12 +2800,12 @@ Do not discuss the information inside the memory, just put the relevant informat
 
         # Calculate static prompt tokens (with empty memory and chunk)
         chunk_id = 0
-        static_tokens = len(self.model.tokenize(example_prompt))
+        static_tokens = self.model.count_tokens(example_prompt)
 
         # Process text in chunks
         while start_token_idx < total_tokens:
             # Calculate available tokens for chunk
-            current_memory_tokens = len(self.model.tokenize(memory))
+            current_memory_tokens = self.model.count_tokens(memory)
             available_tokens = ctx_size - static_tokens - current_memory_tokens
 
             if available_tokens <= 0:
@@ -2892,7 +2892,7 @@ The updated memory must be put in a {chunk_processing_output_format} markdown ta
 
         # Truncate memory if needed for final prompt
         example_final_prompt = final_prompt_template
-        final_static_tokens = len(self.model.tokenize(example_final_prompt))
+        final_static_tokens = self.model.count_tokens(example_final_prompt)
         available_final_tokens = ctx_size - final_static_tokens
 
         memory_tokens = self.model.tokenize(memory)

@@ -98,7 +98,7 @@ class LLMBinding:
             models_folder.mkdir(parents=True, exist_ok=True)
 
 
-    def get_nb_tokens(self, prompt):
+    def count_tokens(self, prompt):
         """
         Counts the number of tokens in a prtompt
         """
