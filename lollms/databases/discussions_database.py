@@ -245,7 +245,7 @@ class DiscussionsDB:
 
     def get_discussions(self):
         rows = self.select("SELECT * FROM discussion")         
-        return [{"id": row[0], "title": row[1]} for row in rows]
+        return [{"id": row[0], "title": row[1], "created_at": row[3]} for row in rows]
 
     def does_last_discussion_have_messages(self):
         last_discussion_id = self.select("SELECT id FROM discussion ORDER BY id DESC LIMIT 1", fetch_all=False)

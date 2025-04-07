@@ -600,7 +600,10 @@ class LollmsApplication(LoLLMsCom):
 
         if self.config.active_tts_service:
             def start_tts(*args, **kwargs):
-                self.tti = self.load_service_from_folder(self.lollms_paths.services_zoo_path/"tts", self.config.active_tts_service)
+                try:
+                    self.tti = self.load_service_from_folder(self.lollms_paths.services_zoo_path/"tts", self.config.active_tts_service)
+                except Exception as ex:
+                    trace_exception(ex)
             ASCIIColors.execute_with_animation("Loading TTS services", start_tts, ASCIIColors.color_blue)
 
         if self.config.active_tti_service:
