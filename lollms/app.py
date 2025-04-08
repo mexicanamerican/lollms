@@ -1486,22 +1486,12 @@ Don't forget encapsulate the code inside a markdown code tag. This is mandatory.
                     await client.generation_routine
                     try:
                         if len(context_details.function_calls)>0:
-                            codes = self.personality.extract_code_blocks(client.generated_text)
                             for function_call in context_details.function_calls:
                                 fc:FunctionCall = function_call["class"]
-                                for code in codes:
-                                    if code["type"]=="function":
-                                        infos = json.loads(code["content"])
-                                        if infos["function_name"]==function_call["name"]:
-                                            if fc.function_type == FunctionType.CLASSIC:
-                                                context_details.ai_output = client.generated_text
-                                                output = fc.execute(context_details,**infos["function_parameters"])
-                                                await self.new_message(client_id,"System","",message_type=MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_SET_CONTENT, sender_type=SENDER_TYPES.SENDER_TYPES_AI)
-                                                self.update_message(client_id, "output")
-                                                
                                 if fc.function_type == FunctionType.CONTEXT_UPDATE:
                                     process_output = fc.process_output(context_details, client.generated_text)
-                                    await self.set_message_content(process_output,client_id=client_id)
+                                    self.set_message_content(process_output,client_id=client_id)
+                                                
                     except Exception as ex:
                         trace_exception(ex)
 
@@ -1718,9 +1708,26 @@ Don't forget encapsulate the code inside a markdown code tag. This is mandatory.
                 self.cancel_gen = False
 
             ASCIIColors.yellow("Closing message")
-            await self.close_message(client_id)
-
             client.processing = False
+            try:
+                if len(context_details.function_calls)>0:
+                    codes = self.personality.extract_code_blocks(client.generated_text)
+                    for function_call in context_details.function_calls:
+                        fc:FunctionCall = function_call["class"]
+                        for code in codes:
+                            if code["type"]=="function":
+                                infos = json.loads(code["content"])
+                                if infos["function_name"]==function_call["name"]:
+                                    if fc.function_type == FunctionType.CLASSIC:
+                                        context_details.ai_output = client.generated_text
+                                        output = fc.execute(context_details,**infos["function_parameters"])
+                                        if output[0]=="<":
+                                            await self.new_message(client_id,"System",output,message_type=MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_UI, sender_type=SENDER_TYPES.SENDER_TYPES_AI)
+                                        else:
+                                            await self.new_message(client_id,"System",output,message_type=MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_SET_CONTENT, sender_type=SENDER_TYPES.SENDER_TYPES_AI)
+                                        
+            except Exception as ex:
+                trace_exception(ex)
             # Clients are now kept forever
             # if client.schedule_for_deletion:
             #    self.session.remove_client(client.client_id, client.client_id)
@@ -1754,12 +1761,14 @@ Don't forget encapsulate the code inside a markdown code tag. This is mandatory.
                         },
                         to=client_id,
                     )
+            await self.close_message(client_id)
         else:
             self.cancel_gen = False
             # No discussion available
             ASCIIColors.warning("No discussion selected!!!")
 
             self.error("No discussion selected!!!", client_id=client_id)
+            await self.close_message(client_id)
 
             return ""
 

@@ -664,7 +664,7 @@ class AIPersonality:
         if callback:
             callback(step_text, MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_STEP_START)
 
-    def step_end(self, step_text, status=True, callback: Callable[[str, int, dict, list], bool]=None):
+    def step_end(self, step_text, success=True, callback: Callable[[str, int, dict, list], bool]=None):
         """This triggers a step end
 
         Args:
@@ -675,8 +675,11 @@ class AIPersonality:
             callback = self.callback
 
         if callback:
-            callback(step_text, MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_STEP_END_SUCCESS)
-
+            if success:
+                callback(step_text, MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_STEP_END_SUCCESS)
+            else:
+                callback(step_text, MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_STEP_END_FAILURE)
+                
     def step(self, step_text, callback: Callable[[str | list | None, MSG_OPERATION_TYPE, str, Any | None], bool]=None):
         """This triggers a step information
 

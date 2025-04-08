@@ -65,6 +65,78 @@ import sys
 import subprocess
 from typing import Union, List
 
+# Pre-compile regex for efficiency
+# Characters typically invalid in filenames across OSes + ASCII control characters
+_INVALID_FILENAME_CHARS_RE = re.compile(r'[<>:"/\\|?*\x00-\x1F]')
+# Reserved filenames in Windows (case-insensitive)
+_WINDOWS_RESERVED_NAMES_RE = re.compile(
+    r"^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$", re.IGNORECASE
+)
+# Matches one or more dots or spaces at the beginning or end of a string
+_LEADING_TRAILING_DOTS_SPACES_RE = re.compile(r"^[. ]+|[. ]+$")
+
+def safe_filename(
+    filename: str,
+    replacement: str = '_',
+    max_len: int = 200,
+    default_name: str = "unnamed_file"
+) -> str:
+    """
+    Sanitizes a string to create a safe filename for most operating systems.
+
+    This function performs several steps:
+    1. Converts input to string.
+    2. Replaces characters invalid in Windows/Linux/macOS filenames with `replacement`.
+    3. Removes leading and trailing periods and spaces (problematic on Windows).
+    4. Truncates the filename to `max_len`.
+    5. Checks if the result is empty or consists only of periods, returning `default_name` if so.
+    6. Prepends `replacement` if the name matches a reserved Windows filename (e.g., CON, PRN).
+
+    Args:
+        filename: The original string to sanitize.
+        replacement: Character(s) to substitute for invalid characters. Defaults to '_'.
+        max_len: The maximum allowed length for the final filename. Defaults to 200.
+        default_name: The name returned if sanitization results in an empty or invalid string.
+                      Defaults to "unnamed_file".
+
+    Returns:
+        A sanitized string suitable for use as a filename component.
+    """
+    if not isinstance(filename, str):
+        filename = str(filename) # Ensure we're working with a string
+
+    # 1. Replace invalid characters using pre-compiled regex
+    sanitized = _INVALID_FILENAME_CHARS_RE.sub(replacement, filename)
+
+    # 2. Remove leading/trailing dots and spaces
+    sanitized = _LEADING_TRAILING_DOTS_SPACES_RE.sub('', sanitized)
+
+    # 3. Truncate to maximum length
+    if len(sanitized) > max_len:
+        sanitized = sanitized[:max_len]
+        # Re-apply step 2 in case truncation created trailing dots/spaces
+        sanitized = _LEADING_TRAILING_DOTS_SPACES_RE.sub('', sanitized)
+
+    # 4. Check if the result is empty or only periods (edge case)
+    if not sanitized or all(c == '.' for c in sanitized):
+        return default_name
+
+    # 5. Check against reserved Windows names (case-insensitive)
+    if _WINDOWS_RESERVED_NAMES_RE.match(sanitized):
+        sanitized = replacement + sanitized
+        # Re-truncate if the prefix made it too long
+        if len(sanitized) > max_len:
+            sanitized = sanitized[:max_len]
+            # Re-apply step 2 again after potential truncation
+            sanitized = _LEADING_TRAILING_DOTS_SPACES_RE.sub('', sanitized)
+
+
+    # Final check for empty string after all modifications
+    if not sanitized:
+        return default_name
+
+    return sanitized
+
 def run_with_current_interpreter(
     script_path: Union[str, Path], 
     args: List[str] = None
