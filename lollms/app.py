@@ -744,9 +744,9 @@ class LollmsApplication(LoLLMsCom):
                     "sender": sender,
                     "message_type": message_type.value,
                     "sender_type": sender_type.value,
-                    "content": content,
+                    "content": content if message_type!= MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_UI else "",
                     "metadata": None,
-                    "ui": None,
+                    "ui": content if message_type== MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_UI else None,
                     "discussion_id":client.discussion.discussion_id,
                     "id": msg.id,
                     "parent_message_id": msg.parent_message_id,
@@ -1057,7 +1057,7 @@ class LollmsApplication(LoLLMsCom):
 
         client.discussion.update_message_ui(ui)
 
-    async def close_message(self, client_id):
+    async def close_message(self, client_id, fix_content= False):
         client = self.session.get_client(client_id)
         for msg in client.discussion.messages:
             if msg.steps is not None:
@@ -1065,38 +1065,58 @@ class LollmsApplication(LoLLMsCom):
                     step["done"] = True
         if not client.discussion:
             return
-        # fix halucination
-        if len(client.generated_text) > 0 and len(self.start_header_id_template) > 0:
-            client.generated_text = client.generated_text.split(
-                f"{self.start_header_id_template}"
-            )[0]
-        # Send final message
-        client.discussion.current_message.finished_generating_at = (
-            datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        )
-        try:
-            client.discussion.current_message.nb_tokens = len(
-                self.model.tokenize(client.generated_text)
+        
+        if fix_content:
+
+            # fix halucination
+            if len(client.generated_text) > 0 and len(self.start_header_id_template) > 0:
+                client.generated_text = client.generated_text.split(
+                    f"{self.start_header_id_template}"
+                )[0]
+            # Send final message
+            client.discussion.current_message.finished_generating_at = (
+                datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             )
-        except:
-            client.discussion.current_message.nb_tokens = None
-        await self.sio.emit(
-            "close_message",
-            {
-                "sender": self.personality.name,
-                "id": client.discussion.current_message.id,
-                "discussion_id": client.discussion.discussion_id,
-                "content": client.generated_text,
-                "binding": self.binding.binding_folder_name,
-                "model": self.model.model_name,
-                "personality": self.personality.name,
-                "created_at": client.discussion.current_message.created_at,
-                "started_generating_at": client.discussion.current_message.started_generating_at,
-                "finished_generating_at": client.discussion.current_message.finished_generating_at,
-                "nb_tokens": client.discussion.current_message.nb_tokens,
-            },
-            to=client_id,
-        )
+            try:
+                client.discussion.current_message.nb_tokens = len(
+                    self.model.tokenize(client.generated_text)
+                )
+            except:
+                client.discussion.current_message.nb_tokens = None
+            await self.sio.emit(
+                "close_message",
+                {
+                    "sender": self.personality.name,
+                    "id": client.discussion.current_message.id,
+                    "discussion_id": client.discussion.discussion_id,
+                    "content": client.generated_text,
+                    "binding": self.binding.binding_folder_name,
+                    "model": self.model.model_name,
+                    "personality": self.personality.name,
+                    "created_at": client.discussion.current_message.created_at,
+                    "started_generating_at": client.discussion.current_message.started_generating_at,
+                    "finished_generating_at": client.discussion.current_message.finished_generating_at,
+                    "nb_tokens": client.discussion.current_message.nb_tokens,
+                },
+                to=client_id,
+            )
+        else:
+            await self.sio.emit(
+                "close_message",
+                {
+                    "sender": self.personality.name,
+                    "id": client.discussion.current_message.id,
+                    "discussion_id": client.discussion.discussion_id,
+                    "binding": self.binding.binding_folder_name,
+                    "model": self.model.model_name,
+                    "personality": self.personality.name,
+                    "created_at": client.discussion.current_message.created_at,
+                    "started_generating_at": client.discussion.current_message.started_generating_at,
+                    "finished_generating_at": client.discussion.current_message.finished_generating_at,
+                    "nb_tokens": client.discussion.current_message.nb_tokens,
+                },
+                to=client_id,
+            )
 
     def prepare_reception(self, client_id):
         if not self.session.get_client(client_id).continuing:
@@ -1708,6 +1728,7 @@ Don't forget encapsulate the code inside a markdown code tag. This is mandatory.
                 self.cancel_gen = False
 
             ASCIIColors.yellow("Closing message")
+            await self.close_message(client_id, True)
             client.processing = False
             try:
                 if len(context_details.function_calls)>0:
@@ -1728,9 +1749,6 @@ Don't forget encapsulate the code inside a markdown code tag. This is mandatory.
                                         
             except Exception as ex:
                 trace_exception(ex)
-            # Clients are now kept forever
-            # if client.schedule_for_deletion:
-            #    self.session.remove_client(client.client_id, client.client_id)
 
             ASCIIColors.multicolor(
                 texts=[
@@ -1762,6 +1780,7 @@ Don't forget encapsulate the code inside a markdown code tag. This is mandatory.
                         to=client_id,
                     )
             await self.close_message(client_id)
+            
         else:
             self.cancel_gen = False
             # No discussion available
