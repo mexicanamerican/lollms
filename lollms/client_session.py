@@ -19,7 +19,7 @@ class Client:
         self.rag_databases = []
         self.generated_text = ""
         self.cancel_generation = False
-        self.generation_thread:Thread = None
+        self.generation_routine:Thread = None
         self.processing = False
         self.schedule_for_deletion = False
         self.continuing = False

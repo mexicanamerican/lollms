@@ -85,14 +85,7 @@ class LOLLMSElfServer(LollmsApplication):
                 return full_path
         return None
 
-    def prepare_reception(self, client_id):
-        if not self.session.get_client(client_id).continuing:
-            self.session.get_client(client_id).generated_text = ""
-            
-        self.session.get_client(client_id).first_chunk=True
-            
-        self.nb_received_tokens = 0
-        self.start_time = datetime.now()
+
 
     def notify_model_install(self, 
                             installation_path,

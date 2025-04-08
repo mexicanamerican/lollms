@@ -6,7 +6,7 @@ from enum import Enum
 from lollms.types import MSG_OPERATION_TYPE
 from lollms.templating import LollmsLLMTemplate
 from typing import Any, List
-
+import asyncio
 class NotificationType(Enum):
     """Notification types."""
     
@@ -54,9 +54,21 @@ class LoLLMsCom:
         self.rt_com = None
 
         self.model = None
-                
+        try:
+            self.loop = asyncio.get_running_loop()
+        except Exception as ex:
+            self.loop = None
+    # Helper to schedule tasks - ensures self.loop is checked
+    def schedule_task(self, coro):
+        if self.loop:
+            # Create task schedules it, doesn't wait
+            self.loop.create_task(coro)
+        else:
+                # This ideally shouldn't happen if setup is correct
+                print(f"ERROR: Loop not available when trying to schedule {coro}")
+
     def InfoMessage(self, content, client_id=None, verbose:bool=None):
-        self.notify(
+        self.schedule_task( self.notify(
                 content, 
                 notification_type=NotificationType.NOTIF_SUCCESS, 
                 duration=0, 
@@ -64,18 +76,20 @@ class LoLLMsCom:
                 display_type=NotificationDisplayType.MESSAGE_BOX,
                 verbose=verbose
             )
-    def ShowBlockingMessage(self, content, client_id=None, verbose:bool=None):
-        self.notify(
+        )
+    async def ShowBlockingMessage(self, content, client_id=None, verbose:bool=None):
+        self.schedule_task( self.notify(
                 content, 
                 notification_type=NotificationType.NOTIF_SUCCESS, 
                 duration=0, 
                 client_id=client_id, 
                 display_type=NotificationDisplayType.SHOW_BLOCKING_MESSAGE,
                 verbose=verbose
-            )        
+            )     
+        )   
         
     def HideBlockingMessage(self, client_id=None, verbose:bool=None):
-        self.notify(
+        self.schedule_task( self.notify(
                 "", 
                 notification_type=NotificationType.NOTIF_SUCCESS, 
                 duration=0, 
@@ -83,10 +97,10 @@ class LoLLMsCom:
                 display_type=NotificationDisplayType.HIDE_BLOCKING_MESSAGE,
                 verbose=verbose
             )        
+        )
 
 
-
-    def YesNoMessage(self, content, duration:int=4, client_id=None, verbose:bool=None):
+    async def YesNoMessage(self, content, duration:int=4, client_id=None, verbose:bool=None):
         infos={
             "wait":True,
             "result":False
@@ -96,7 +110,7 @@ class LoLLMsCom:
             infos["result"] = result["yesRes"]
             infos["wait"]=False
 
-        self.notify(
+        await self.notify(
                 content, 
                 notification_type=NotificationType.NOTIF_SUCCESS, 
                 duration=duration, 
@@ -114,7 +128,7 @@ class LoLLMsCom:
         pass
     
     def info(self, content, duration:int=4, client_id=None, verbose:bool=None):
-        self.notify(
+        self.schedule_task( self.notify(
                 content, 
                 notification_type=NotificationType.NOTIF_SUCCESS, 
                 duration=duration, 
@@ -122,9 +136,9 @@ class LoLLMsCom:
                 display_type=NotificationDisplayType.TOAST,
                 verbose=verbose
             )
-
+        )
     def warning(self, content, duration:int=4, client_id=None, verbose:bool=None):
-        self.notify(
+        self.schedule_task(self.notify(
                 content, 
                 notification_type=NotificationType.NOTIF_WARNING, 
                 duration=duration, 
@@ -132,9 +146,10 @@ class LoLLMsCom:
                 display_type=NotificationDisplayType.TOAST,
                 verbose=verbose
             )
+        )
 
     def success(self, content, duration:int=4, client_id=None, verbose:bool=None):
-        self.notify(
+        self.schedule_task(self.notify(
                 content, 
                 notification_type=NotificationType.NOTIF_SUCCESS, 
                 duration=duration, 
@@ -142,9 +157,9 @@ class LoLLMsCom:
                 display_type=NotificationDisplayType.TOAST,
                 verbose=verbose
             )
-        
+        )
     def error(self, content, duration:int=4, client_id=None, verbose:bool=None):
-        self.notify(
+        self.schedule_task(self.notify(
                 content, 
                 notification_type=NotificationType.NOTIF_ERROR, 
                 duration=duration, 
@@ -152,8 +167,8 @@ class LoLLMsCom:
                 display_type=NotificationDisplayType.TOAST,
                 verbose = verbose
             )
-        
-    def new_message(self, 
+        )
+    async def new_message(self, 
                             client_id, 
                             sender=None, 
                             content="",
@@ -164,6 +179,17 @@ class LoLLMsCom:
                             sender_type:SENDER_TYPES=SENDER_TYPES.SENDER_TYPES_AI,
                             open=False
                         ):
+        pass
+
+    async def start_message_generation(
+        self,
+        message,
+        message_id,
+        client_id,
+        is_continue=False,
+        generation_type=None,
+        force_using_internet=False,
+    ):
         pass
     def set_message_content(self, full_text:str, callback: Callable[[str | list | None, MSG_OPERATION_TYPE, str, Any | None], bool]=None):
         """This sends full text to front end
@@ -178,7 +204,7 @@ class LoLLMsCom:
     def emit_socket_io_info(self, name, data, client_id):
         pass
 
-    def notify(
+    async def notify(
                 self, 
                 content:str, 
                 notification_type:NotificationType=NotificationType.NOTIF_SUCCESS, 
@@ -201,7 +227,7 @@ class LoLLMsCom:
                 ASCIIColors.red(content)
 
 
-    def notify_model_install(self, 
+    async def notify_model_install(self, 
                             installation_path,
                             model_name,
                             binding_folder,

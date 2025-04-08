@@ -1,19 +1,22 @@
 from lollms.main_config import LOLLMSConfig
 from lollms.paths import LollmsPaths
 from lollms.personality import PersonalityBuilder, AIPersonality
-from lollms.binding import LLMBinding, BindingBuilder, ModelBuilder
+from lollms.binding import LLMBinding, BindingBuilder, ModelBuilder, BindingType
 from lollms.databases.discussions_database import Message
 from lollms.config import InstallOption
 from lollms.helpers import ASCIIColors, trace_exception
 from lollms.com import NotificationType, NotificationDisplayType, LoLLMsCom
 from lollms.terminal import MainMenu
 from lollms.types import MSG_OPERATION_TYPE, SENDER_TYPES
-from lollms.utilities import PromptReshaper
+from lollms.utilities import convert_language_name, process_ai_output
 from lollms.client_session import Client, Session
 from lollms.databases.skills_database import SkillsLibrary
 from lollms.tasks import TasksLibrary
 from lollms.prompting import LollmsLLMTemplate, LollmsContextDetails
+from lollms.types import MSG_OPERATION_TYPE, MSG_TYPE
+from lollms.function_call import FunctionType, FunctionCall
 import importlib
+import asyncio
 
 from lollmsvectordb.database_elements.chunk import Chunk
 from lollmsvectordb.vector_database import VectorDatabase
@@ -97,6 +100,14 @@ class LollmsApplication(LoLLMsCom):
         self.rt_com = None
         self.is_internet_available = self.check_internet_connection()
         self.template = LollmsLLMTemplate(self.config, self.personality)
+
+
+        # Keeping track of current discussion and message
+        self._current_user_message_id = 0
+        self._current_ai_message_id = 0
+        self._message_id = 0
+
+        self.current_generation_task = None
 
         if not free_mode:
             try:
@@ -189,6 +200,35 @@ class LollmsApplication(LoLLMsCom):
         self.session                    = Session(lollms_paths)
         self.skills_library             = SkillsLibrary(self.lollms_paths.personal_skills_path/(self.config.skills_lib_database_name+".sqlite"), config = self.config)
         self.tasks_library              = TasksLibrary(self)
+
+
+    # properties
+    @property
+    def message_id(self):
+        return self._message_id
+
+    @message_id.setter
+    def message_id(self, id):
+        self._message_id = id
+
+    @property
+    def current_user_message_id(self):
+        return self._current_user_message_id
+
+    @current_user_message_id.setter
+    def current_user_message_id(self, id):
+        self._current_user_message_id = id
+        self._message_id = id
+
+    @property
+    def current_ai_message_id(self):
+        return self._current_ai_message_id
+
+    @current_ai_message_id.setter
+    def current_ai_message_id(self, id):
+        self._current_ai_message_id = id
+        self._message_id = id
+
 
 
     def load_function_call(self, fc, client):
@@ -664,6 +704,1053 @@ class LollmsApplication(LoLLMsCom):
             trace_exception(ex)
             
 
+    async def new_message(
+        self,
+        client_id,
+        sender=None,
+        content="",
+        message_type: MSG_OPERATION_TYPE = MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_SET_CONTENT,
+        sender_type: SENDER_TYPES = SENDER_TYPES.SENDER_TYPES_AI,
+        open=False,
+    ):
+        client = self.session.get_client(client_id)
+        # self.close_message(client_id)
+        if sender == None:
+            sender = self.personality.name
+        msg = client.discussion.add_message(
+            message_type=message_type.value,
+            sender_type=sender_type.value,
+            sender=sender,
+            content=content,
+            steps=[],
+            metadata=None,
+            ui=None,
+            rank=0,
+            parent_message_id=(
+                client.discussion.current_message.id
+                if client.discussion.current_message is not None
+                else 0
+            ),
+            binding=self.config["binding_name"],
+            model=self.config["model_name"],
+            personality=self.config["personalities"][
+                self.config["active_personality_id"]
+            ],
+            created_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        )  # first the content is empty, but we'll fill it at the end
+        await self.sio.emit(
+                "new_message",
+                {
+                    "sender": sender,
+                    "message_type": message_type.value,
+                    "sender_type": sender_type.value,
+                    "content": content,
+                    "metadata": None,
+                    "ui": None,
+                    "discussion_id":client.discussion.discussion_id,
+                    "id": msg.id,
+                    "parent_message_id": msg.parent_message_id,
+                    "binding": self.binding.binding_folder_name,
+                    "model": self.model.model_name,
+                    "personality": self.personality.name,
+                    "created_at": client.discussion.current_message.created_at,
+                    "started_generating_at": client.discussion.current_message.started_generating_at,
+                    "finished_generating_at": client.discussion.current_message.finished_generating_at,
+                    "nb_tokens": client.discussion.current_message.nb_tokens,
+                    "open": open,
+                },
+                to=client_id,
+            )
+        return msg
+
+    async def emit_socket_io_info(self, name, data, client_id):
+        await self.sio.emit(name, data, to=client_id)
+
+    async def notify(
+        self,
+        content,
+        notification_type: NotificationType = NotificationType.NOTIF_SUCCESS,
+        duration: int = 4,
+        client_id=None,
+        display_type: NotificationDisplayType = NotificationDisplayType.TOAST,
+        verbose: bool | None = None,
+    ):
+        if verbose is None:
+            verbose = self.verbose
+        await self.sio.emit(
+            "notification",
+            {
+                "content": content,
+                "notification_type": notification_type.value,
+                "duration": duration,
+                "display_type": display_type.value,
+            },
+            to=client_id,
+        )
+        if verbose:
+            if notification_type == NotificationType.NOTIF_SUCCESS:
+                ASCIIColors.success(content)
+            elif notification_type == NotificationType.NOTIF_INFO:
+                ASCIIColors.info(content)
+            elif notification_type == NotificationType.NOTIF_WARNING:
+                ASCIIColors.warning(content)
+            else:
+                ASCIIColors.red(content)
+
+    async def refresh_files(self, client_id=None):
+       await self.sio.emit("refresh_files", to=client_id)
+
+
+    async def new_block(
+        self,
+        client_id,
+        sender=None,
+        content="",
+        parameters=None,
+        metadata=None,
+        ui=None,
+        message_type: MSG_OPERATION_TYPE = MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_SET_CONTENT,
+        sender_type: SENDER_TYPES = SENDER_TYPES.SENDER_TYPES_AI,
+        open=False,
+    ):
+        # like new_message but without adding the information to the database
+        client = self.session.get_client(client_id)
+        await self.sio.emit(
+            "new_message",
+            {
+                "sender": sender,
+                "message_type": message_type.value,
+                "sender_type": sender_type.value,
+                "content": content,
+                "parameters": parameters,
+                "metadata": metadata,
+                "ui": ui,
+                "id": 0,
+                "parent_message_id": 0,
+                "binding": self.binding.binding_folder_name,
+                "model": self.model.model_name,
+                "personality": self.personality.name,
+                "created_at": client.discussion.current_message.created_at,
+                "started_generating_at": client.discussion.current_message.started_generating_at,
+                "finished_generating_at": client.discussion.current_message.finished_generating_at,
+                "nb_tokens": client.discussion.current_message.nb_tokens,
+                "open": open,
+            },
+            to=client_id,
+        )
+    
+
+    async def send_refresh(self, client_id):
+        client = self.session.get_client(client_id)
+        await self.sio.emit(
+            "update_message",
+            {
+                "sender": client.discussion.current_message.sender,
+                "id": client.discussion.current_message.id,
+                "content": client.discussion.current_message.content,
+                "discussion_id": client.discussion.discussion_id,
+                "operation_type": MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_SET_CONTENT.value,
+                "message_type": client.discussion.current_message.message_type,
+                "created_at": client.discussion.current_message.created_at,
+                "started_generating_at": client.discussion.current_message.started_generating_at,
+                "finished_generating_at": client.discussion.current_message.finished_generating_at,
+                "nb_tokens": client.discussion.current_message.nb_tokens,
+                "binding": self.binding.binding_folder_name,
+                "model": self.model.model_name,
+                "personality": self.personality.name,
+            },
+            to=client_id,
+        )
+
+    async def update_message(
+        self,
+        client_id,
+        chunk,
+        parameters=None,
+        metadata=[],
+        ui=None,
+        operation_type: MSG_OPERATION_TYPE = None,
+    ):
+        client = self.session.get_client(client_id)
+        client.discussion.current_message.finished_generating_at = (
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        )
+        client.discussion.current_message.nb_tokens = self.nb_received_tokens
+        mtdt = (
+            json.dumps(metadata, indent=4)
+            if metadata is not None and type(metadata) == list
+            else metadata
+        )
+
+        if self.nb_received_tokens == 1:
+            client.discussion.current_message.started_generating_at = (
+                datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            )
+            await self.update_message_step(
+                client_id,
+                "✍ generating ...",
+                MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_STEP_END_SUCCESS,
+            )
+
+        await self.sio.emit(
+            "update_message",
+            {
+                "sender": self.personality.name,
+                "id": client.discussion.current_message.id,
+                "content": chunk,
+                "ui": client.discussion.current_message.ui if ui is None else ui,
+                "discussion_id": client.discussion.discussion_id,
+                "operation_type": (
+                    operation_type.value
+                    if operation_type is not None
+                    else (
+                        MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_ADD_CHUNK.value
+                        if self.nb_received_tokens > 1
+                        else MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_SET_CONTENT.value
+                    )
+                ),
+                "message_type": MSG_TYPE.MSG_TYPE_CONTENT.value,
+                "created_at": client.discussion.current_message.created_at,
+                "started_generating_at": client.discussion.current_message.started_generating_at,
+                "finished_generating_at": client.discussion.current_message.finished_generating_at,
+                "nb_tokens": client.discussion.current_message.nb_tokens,
+                "parameters": parameters,
+                "metadata": metadata,
+                "binding": self.binding.binding_folder_name,
+                "model": self.model.model_name,
+                "personality": self.personality.name,
+            },
+            to=client_id,
+        )
+        
+        if (
+            operation_type
+            and operation_type.value < MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_INFO.value
+        ):
+            client.discussion.update_message(
+                client.generated_text,
+                new_metadata=mtdt,
+                new_ui=ui,
+                started_generating_at=client.discussion.current_message.started_generating_at,
+                nb_tokens=client.discussion.current_message.nb_tokens,
+            )
+
+    async def update_message_content(
+        self,
+        client_id,
+        chunk,
+        operation_type: MSG_OPERATION_TYPE = MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_SET_CONTENT,
+        message_type: MSG_TYPE = None,
+    ):
+        client = self.session.get_client(client_id)
+        client.discussion.current_message.finished_generating_at = (
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        )
+        client.discussion.current_message.nb_tokens = self.nb_received_tokens
+
+        if self.nb_received_tokens == 1:
+            client.discussion.current_message.started_generating_at = (
+                datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            )
+
+        await self.sio.emit(
+            "update_message",
+            {
+                "sender": self.personality.name,
+                "id": client.discussion.current_message.id,
+                "content": chunk,
+                "discussion_id": client.discussion.discussion_id,
+                "operation_type": operation_type.value,
+                "message_type": (
+                    client.discussion.current_message.message_type
+                    if message_type is None
+                    else message_type
+                ),
+                "created_at": client.discussion.current_message.created_at,
+                "started_generating_at": client.discussion.current_message.started_generating_at,
+                "finished_generating_at": client.discussion.current_message.finished_generating_at,
+                "nb_tokens": client.discussion.current_message.nb_tokens,
+                "binding": self.binding.binding_folder_name,
+                "model": self.model.model_name,
+                "personality": self.personality.name,
+            },
+            to=client_id,
+        
+        )
+
+        client.discussion.update_message_content(
+            client.generated_text,
+            started_generating_at=client.discussion.current_message.started_generating_at,
+            nb_tokens=client.discussion.current_message.nb_tokens,
+        )
+
+    async def update_message_step(
+        self, client_id, step_text, msg_operation_type: MSG_OPERATION_TYPE = None
+    ):
+        client = self.session.get_client(client_id)
+        if msg_operation_type == MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_STEP:
+            client.discussion.current_message.add_step(step_text, "instant", True, True)
+        elif msg_operation_type == MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_STEP_START:
+            client.discussion.current_message.add_step(
+                step_text, "start_end", True, False
+            )
+        elif (
+            msg_operation_type == MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_STEP_END_SUCCESS
+        ):
+            client.discussion.current_message.add_step(
+                step_text, "start_end", True, True
+            )
+        elif (
+            msg_operation_type == MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_STEP_END_FAILURE
+        ):
+            client.discussion.current_message.add_step(
+                step_text, "start_end", False, True
+            )
+
+        await self.sio.emit(
+            "update_message",
+            {
+                "id": client.discussion.current_message.id,
+                "discussion_id": client.discussion.discussion_id,
+                "operation_type": msg_operation_type.value,
+                "steps": client.discussion.current_message.steps,
+            },
+            to=client_id,
+        )
+
+    async def update_message_metadata(self, client_id, metadata):
+        client = self.session.get_client(client_id)
+        md = (
+            json.dumps(metadata)
+            if type(metadata) == dict or type(metadata) == list
+            else metadata
+        )
+        await self.sio.emit(
+            "update_message",
+            {
+                "sender": self.personality.name,
+                "id": client.discussion.current_message.id,
+                "metadata": md,
+                "discussion_id": client.discussion.discussion_id,
+                "operation_type": MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_JSON_INFOS.value,
+            },
+            to=client_id,
+        )
+    
+        client.discussion.update_message_metadata(metadata)
+
+    async def update_message_ui(self, client_id, ui):
+        client = self.session.get_client(client_id)
+
+        await self.sio.emit(
+            "update_message",
+            {
+                "sender": self.personality.name,
+                "id": client.discussion.current_message.id,
+                "ui": ui,
+                "discussion_id": client.discussion.discussion_id,
+                "operation_type": MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_UI.value,
+            },
+            to=client_id,
+        
+        )
+
+        client.discussion.update_message_ui(ui)
+
+    async def close_message(self, client_id):
+        client = self.session.get_client(client_id)
+        for msg in client.discussion.messages:
+            if msg.steps is not None:
+                for step in msg.steps:
+                    step["done"] = True
+        if not client.discussion:
+            return
+        # fix halucination
+        if len(client.generated_text) > 0 and len(self.start_header_id_template) > 0:
+            client.generated_text = client.generated_text.split(
+                f"{self.start_header_id_template}"
+            )[0]
+        # Send final message
+        client.discussion.current_message.finished_generating_at = (
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        )
+        try:
+            client.discussion.current_message.nb_tokens = len(
+                self.model.tokenize(client.generated_text)
+            )
+        except:
+            client.discussion.current_message.nb_tokens = None
+        await self.sio.emit(
+            "close_message",
+            {
+                "sender": self.personality.name,
+                "id": client.discussion.current_message.id,
+                "discussion_id": client.discussion.discussion_id,
+                "content": client.generated_text,
+                "binding": self.binding.binding_folder_name,
+                "model": self.model.model_name,
+                "personality": self.personality.name,
+                "created_at": client.discussion.current_message.created_at,
+                "started_generating_at": client.discussion.current_message.started_generating_at,
+                "finished_generating_at": client.discussion.current_message.finished_generating_at,
+                "nb_tokens": client.discussion.current_message.nb_tokens,
+            },
+            to=client_id,
+        )
+
+    def prepare_reception(self, client_id):
+        if not self.session.get_client(client_id).continuing:
+            self.session.get_client(client_id).generated_text = ""
+            
+        self.session.get_client(client_id).first_chunk=True
+            
+        self.nb_received_tokens = 0
+        self.start_time = datetime.now()
+
+    def generate(self, context_details, is_continue, client_id, callback=None):
+        full_prompt, tokens = self.personality.build_context(
+            context_details, is_continue, True
+        )
+        n_predict = self.personality.compute_n_predict(tokens)
+        if self.config.debug and self.config.debug_show_final_full_prompt:
+            ASCIIColors.highlight(
+                full_prompt,
+                [
+                    r
+                    for r in [
+                        self.config.discussion_prompt_separator,
+                        self.config.start_header_id_template,
+                        self.config.end_header_id_template,
+                        self.config.separator_template,
+                        self.config.start_user_header_id_template,
+                        self.config.end_user_header_id_template,
+                        self.config.end_user_message_id_template,
+                        self.config.start_ai_header_id_template,
+                        self.config.end_ai_header_id_template,
+                        self.config.end_ai_message_id_template,
+                        self.config.system_message_template,
+                    ]
+                    if r != "" and r != "\n"
+                ],
+            )
+
+        if self.config.use_smart_routing:
+            if (
+                self.config.smart_routing_router_model != ""
+                and len(self.config.smart_routing_models_description) >= 2
+            ):
+                ASCIIColors.yellow("Using smart routing")
+                self.personality.step_start("Routing request")
+                self.back_model = (
+                    f"{self.binding.binding_folder_name}::{self.model.model_name}"
+                )
+                try:
+                    if not hasattr(self, "routing_model") or self.routing_model is None:
+                        binding, model_name = self.model_path_to_binding_model(
+                            self.config.smart_routing_router_model
+                        )
+                        self.select_model(binding, model_name)
+                        self.routing_model = self.model
+                    else:
+                        self.set_active_model(self.routing_model)
+
+                    models = [
+                        f"{k}"
+                        for k, v in self.config.smart_routing_models_description.items()
+                    ]
+                    
+                    code = self.personality.generate_custom_code(
+                        "\n".join([
+                            self.system_full_header,
+                        "Given the following list of models:"]+
+                        [
+                            f"{k}: {v}"
+                            for k, v in self.config.smart_routing_models_description.items()
+                        ]+[
+                        "!@>prompt:" + context_details.prompt,
+                        """Given the prompt, which model among the previous list is the most suited and why?
+
+You must answer with json code placed inside the markdown code tag like this:
+```json
+{
+    "choice_index": [an int representing the index of the choice made]
+    "justification": "[Justify the choice]",
+}
+Make sure you fill all fields and to use the exact same keys as the template.
+Don't forget encapsulate the code inside a markdown code tag. This is mandatory.
+
+!@>assistant:"""
+                        ]
+                    ))
+
+                    if code:
+                        output_id = code["choice_index"]
+                        explanation = code["justification"]
+                        binding, model_name = self.model_path_to_binding_model(
+                            models[output_id]
+                        )
+                        self.select_model(
+                            binding, model_name, destroy_previous_model=False
+                        )
+                        self.personality.step_end("Routing request")
+                        self.personality.step(f"Choice explanation: {explanation}")
+                        self.personality.step(f"Selected {models[output_id]}")
+                    else:
+                        ASCIIColors.error(
+                            "Model failed to find the most suited model for your request"
+                        )
+                        self.info(
+                            "Model failed to find the most suited model for your request"
+                        )
+                        binding, model_name = self.model_path_to_binding_model(
+                            models[0]
+                        )
+                        self.select_model(
+                            binding, model_name, destroy_previous_model=False
+                        )
+                        self.personality.step_end("Routing request")
+                        self.personality.step(f"Complexity level: {output_id}")
+                        self.personality.step(f"Selected {models[output_id]}")
+                except Exception as ex:
+                    self.error("Failed to route beceause of this error : " + str(ex))
+                    self.personality.step_end("Routing request", False)
+            else:
+                ASCIIColors.yellow(
+                    "Warning! Smart routing is active but one of the following requirements are not met"
+                )
+                ASCIIColors.yellow("- smart_routing_router_model must be set correctly")
+                ASCIIColors.yellow(
+                    "- smart_routing_models_description must contain at least one model"
+                )
+
+        if self.personality.processor is not None:
+            ASCIIColors.info("Running workflow")
+            try:
+                self.personality.callback = callback
+                client = self.session.get_client(client_id)
+                self.personality.vectorizer = client.discussion.vectorizer
+                self.personality.text_files = client.discussion.text_files
+                self.personality.image_files = client.discussion.image_files
+                self.personality.audio_files = client.discussion.audio_files
+                output = self.personality.processor.run_workflow(
+                    context_details, client, callback
+                )
+            except Exception as ex:
+                trace_exception(ex)
+                if callback:
+                    callback(
+                        f"Workflow run failed\nError:{ex}",
+                        MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_EXCEPTION,
+                    )
+                return
+            print("Finished executing the workflow")
+            return output
+
+        txt = self._generate(full_prompt, n_predict, client_id, callback)
+        ASCIIColors.success("\nFinished executing the generation")
+
+        if (
+            self.config.use_smart_routing
+            and self.config.restore_model_after_smart_routing
+        ):
+            if (
+                self.config.smart_routing_router_model != ""
+                and len(self.config.smart_routing_models_description) >= 2
+            ):
+                ASCIIColors.yellow("Restoring model")
+                self.personality.step_start("Restoring main model")
+                binding, model_name = self.model_path_to_binding_model(self.back_model)
+                self.select_model(binding, model_name)
+                self.personality.step_end("Restoring main model")
+
+        return txt
+
+    def _generate(self, prompt, n_predict, client_id, callback=None):
+        client = self.session.get_client(client_id)
+        if client is None:
+            return None
+        self.nb_received_tokens = 0
+        self.start_time = datetime.now()
+        if self.model is not None:
+            if (
+                self.model.binding_type == BindingType.TEXT_IMAGE
+                and len(client.discussion.image_files) > 0
+            ):
+                if self.config["override_personality_model_parameters"]:
+                    output = self.model.generate_with_images(
+                        prompt,
+                        client.discussion.image_files,
+                        callback=callback,
+                        n_predict=int(n_predict),
+                        temperature=float(self.config["temperature"]),
+                        top_k=int(self.config["top_k"]),
+                        top_p=float(self.config["top_p"]),
+                        repeat_penalty=float(self.config["repeat_penalty"]),
+                        repeat_last_n=int(self.config["repeat_last_n"]),
+                        seed=int(self.config["seed"]),
+                        n_threads=int(self.config["n_threads"]),
+                    )
+                else:
+                    prompt = "\n".join(
+                        [
+                            f"{self.start_header_id_template}{self.system_message_template}{self.end_header_id_template}I am an AI assistant that can converse and analyze images. When asked to locate something in an image you send, I will reply with:",
+                            "boundingbox(image_index, label, left, top, width, height)",
+                            "Where:",
+                            "image_index: 0-based index of the image",
+                            "label: brief description of what is located",
+                            "left, top: x,y coordinates of top-left box corner (0-1 scale)",
+                            "width, height: box dimensions as fraction of image size",
+                            "Coordinates have origin (0,0) at top-left, (1,1) at bottom-right.",
+                            "For other queries, I will respond conversationally to the best of my abilities.",
+                            prompt,
+                        ]
+                    )
+                    output = self.model.generate_with_images(
+                        prompt,
+                        client.discussion.image_files,
+                        callback=callback,
+                        n_predict=n_predict,
+                        temperature=self.personality.model_temperature,
+                        top_k=self.personality.model_top_k,
+                        top_p=self.personality.model_top_p,
+                        repeat_penalty=self.personality.model_repeat_penalty,
+                        repeat_last_n=self.personality.model_repeat_last_n,
+                        seed=self.config["seed"],
+                        n_threads=self.config["n_threads"],
+                    )
+                    try:
+                        post_processed_output = process_ai_output(
+                            output,
+                            client.discussion.image_files,
+                            client.discussion.discussion_folder,
+                        )
+                        if len(post_processed_output) != output:
+                            self.process_data(
+                                post_processed_output,
+                                MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_SET_CONTENT,
+                                client_id=client_id,
+                            )
+                    except Exception as ex:
+                        ASCIIColors.error(str(ex))
+            else:
+                if self.config["override_personality_model_parameters"]:
+                    output = self.model.generate(
+                        prompt,
+                        callback=callback,
+                        n_predict=n_predict,
+                        temperature=float(self.config["temperature"]),
+                        top_k=int(self.config["top_k"]),
+                        top_p=float(self.config["top_p"]),
+                        repeat_penalty=float(self.config["repeat_penalty"]),
+                        repeat_last_n=int(self.config["repeat_last_n"]),
+                        seed=int(self.config["seed"]),
+                        n_threads=int(self.config["n_threads"]),
+                    )
+                else:
+                    output = self.model.generate(
+                        prompt,
+                        callback=callback,
+                        n_predict=n_predict,
+                        temperature=self.personality.model_temperature,
+                        top_k=self.personality.model_top_k,
+                        top_p=self.personality.model_top_p,
+                        repeat_penalty=self.personality.model_repeat_penalty,
+                        repeat_last_n=self.personality.model_repeat_last_n,
+                        seed=self.config["seed"],
+                        n_threads=self.config["n_threads"],
+                    )
+        else:
+            print(
+                "No model is installed or selected. Please make sure to install a model and select it inside your configuration before attempting to communicate with the model."
+            )
+            print("To do this: Install the model to your models/<binding name> folder.")
+            print(
+                "Then set your model information in your local configuration file that you can find in configs/local_config.yaml"
+            )
+            print("You can also use the ui to set your model in the settings page.")
+            output = ""
+        return output
+            
+    async def start_message_generation(
+        self,
+        message,
+        message_id,
+        client_id,
+        is_continue=False,
+        generation_type=None,
+        force_using_internet=False,
+    ):
+        client = self.session.get_client(client_id)
+        if self.personality is None:
+            self.warning("Select a personality")
+            return
+        ASCIIColors.info(f"Text generation requested by client: {client_id}")
+        # send the message to the bot
+        if client.discussion:
+            try:
+                ASCIIColors.info(
+                    f"Received message : {message.content} ({self.model.count_tokens(message.content)})"
+                )
+                # First we need to send the new message ID to the client
+                if is_continue:
+                    client.discussion.load_message(message_id)
+                    client.generated_text = message.content
+                else:
+                    self.send_refresh(client_id)
+                    self.update_message_step(
+                        client_id,
+                        "🔥 warming up ...",
+                        MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_STEP_START,
+                    )
+
+                # prepare query and reception
+                context_details = self.prepare_query(
+                    client_id,
+                    message_id,
+                    is_continue,
+                    n_tokens=self.config.min_n_predict,
+                    generation_type=generation_type,
+                    force_using_internet=force_using_internet,
+                    previous_chunk=client.generated_text if is_continue else "",
+                )
+                EMOJI_YES = "✅"
+                EMOJI_NO = "❌" 
+                ASCIIColors.multicolor(
+                    texts=[
+                        "🚀 Generation Options:\n",
+                        "• Fun Mode: ",
+                        f"{EMOJI_YES if context_details.fun_mode else EMOJI_NO}",
+                        "\n",
+                        "• Think First Mode: ",
+                        f"{EMOJI_YES if context_details.think_first_mode else EMOJI_NO}",
+                        "\n",
+                        "• Continuation: ",
+                        f"{EMOJI_YES if context_details.is_continue else EMOJI_NO}",
+                        "\n",
+                        "🎮 Generating up to ",
+                        f"{min(context_details.available_space, self.config.max_n_predict)}",
+                        " tokens...",
+                        "\n",
+                        "Available context space: ",
+                        f"{context_details.available_space}",
+                        "\n",
+                        "Prompt tokens used: ",
+                        f"{self.config.ctx_size - context_details.available_space}",
+                        "\n",
+                        "Max tokens allowed: ",
+                        f"{self.config.max_n_predict}",
+                        "\n",
+                        "⚡ Powered by LoLLMs"
+                    ],
+                    colors=[
+                        ASCIIColors.color_bright_cyan,
+                        ASCIIColors.color_bright_green,
+                        ASCIIColors.color_reset,
+                        ASCIIColors.color_bright_cyan,
+                        ASCIIColors.color_bright_green,
+                        ASCIIColors.color_reset,
+                        ASCIIColors.color_bright_cyan,
+                        ASCIIColors.color_bright_green,
+                        ASCIIColors.color_reset,
+                        ASCIIColors.color_bright_blue,
+                        ASCIIColors.color_bright_green,
+                        ASCIIColors.color_reset,
+                        ASCIIColors.color_bright_yellow,
+                        ASCIIColors.color_bright_green,
+                        ASCIIColors.color_reset,
+                        ASCIIColors.color_bright_magenta,
+                        ASCIIColors.color_bright_blue,
+                        ASCIIColors.color_reset,
+                        ASCIIColors.color_bright_magenta
+                    ],
+                    end="\n",
+                    flush=True
+                )
+
+                self.prepare_reception(client_id)
+                self.generating = True
+                client.processing = True
+                try:
+                    self.loop = asyncio.get_running_loop() # Get loop in the main async thread
+                    print(f"Starting library process (threaded), loop acquired: {self.loop}")
+
+                    client.generation_routine = self.loop.run_in_executor(
+                        None, # Use default ThreadPoolExecutor
+                        partial(self.generate, # The potentially blocking function
+                        context_details,
+                        client_id=client_id,
+                        is_continue=is_continue,
+                        callback=partial(self.process_data, client_id=client_id)
+                        ),
+                    )
+                    await client.generation_routine
+                    try:
+                        if len(context_details.function_calls)>0:
+                            codes = self.personality.extract_code_blocks(client.generated_text)
+                            for function_call in context_details.function_calls:
+                                fc:FunctionCall = function_call["class"]
+                                for code in codes:
+                                    if code["type"]=="function":
+                                        infos = json.loads(code["content"])
+                                        if infos["function_name"]==function_call["name"]:
+                                            if fc.function_type == FunctionType.CLASSIC:
+                                                context_details.ai_output = client.generated_text
+                                                output = fc.execute(context_details,**infos["function_parameters"])
+                                                await self.new_message(client_id,"System","",message_type=MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_SET_CONTENT, sender_type=SENDER_TYPES.SENDER_TYPES_AI)
+                                                self.update_message(client_id, "output")
+                                                
+                                if fc.function_type == FunctionType.CONTEXT_UPDATE:
+                                    process_output = fc.process_output(context_details, client.generated_text)
+                                    await self.set_message_content(process_output,client_id=client_id)
+                    except Exception as ex:
+                        trace_exception(ex)
+
+                    if (
+                        self.tts
+                        and self.config.auto_read
+                        and len(self.personality.audio_samples) > 0
+                    ):
+                        try:
+                            self.process_data(
+                                "Generating voice output",
+                                MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_STEP_START,
+                                client_id=client_id,
+                            )
+                            if self.tts.ready:
+                                language = convert_language_name(
+                                    self.personality.language
+                                )
+                                fn = (
+                                    self.personality.name.lower()
+                                    .replace(" ", "_")
+                                    .replace(".", "")
+                                )
+                                fn = f"{fn}_{message_id}.wav"
+                                url = f"audio/{fn}"
+                                self.tts.tts_file(
+                                    client.generated_text,
+                                    Path(self.personality.audio_samples[0]).name,
+                                    f"{fn}",
+                                    language=language,
+                                )
+                                fl = f"\n".join(
+                                    [
+                                        f"<audio controls>",
+                                        f'    <source src="{url}" type="audio/wav">',
+                                        f"    Your browser does not support the audio element.",
+                                        f"</audio>",
+                                    ]
+                                )
+                                self.process_data(
+                                    "Generating voice output",
+                                    operation_type=MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_STEP_END_SUCCESS,
+                                    client_id=client_id,
+                                )
+                                self.process_data(
+                                    fl,
+                                    MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_UI,
+                                    client_id=client_id,
+                                )
+                            else:
+                                self.InfoMessage(
+                                    "xtts is not up yet.\nPlease wait for it to load then try again. This may take some time."
+                                )
+
+                        except Exception as ex:
+                            ASCIIColors.error("Couldn't read")
+                            trace_exception(ex)
+                    print()
+                    ASCIIColors.success("## Done Generation ##")
+                    print()
+                except Exception as ex:
+                    trace_exception(ex)
+                    print()
+                    ASCIIColors.error("## Generation Error ##")
+                    print()
+
+                self.cancel_gen = False
+                sources_text = ""
+                if len(context_details.documentation_entries) > 0:
+                    sources_text += '<div class="text-gray-400 mr-10px flex items-center gap-2"><i class="fas fa-book"></i>Sources:</div>'
+                    sources_text += '<div class="mt-4 flex flex-col items-start gap-x-2 gap-y-1.5 text-sm">'
+                    for source in context_details.documentation_entries:
+                        title = source["document_title"]
+                        path = source["document_path"]
+                        content = source["chunk_content"]
+                        size = source["chunk_size"]
+                        similarity = source["similarity"]
+                        sources_text += f"""
+                            <div class="source-item w-full">
+                                <div class="flex items-center gap-2 p-2 bg-gray-100 rounded cursor-pointer hover:bg-gray-200" 
+                                    onclick="document.getElementById('source-details-{title}-{message_id}').classList.toggle('hidden')">
+                                    <i class="fas fa-file-alt"></i>
+                                    <span class="font-bold">{title}</span>
+                                    <span class="text-gray-500 ml-2">({similarity*100:.2f}%)</span>
+                                    <i class="fas fa-chevron-down ml-auto"></i>
+                                </div>
+                                <div id="source-details-{title}-{message_id}" class="hidden p-3 border-l-2 ml-6">
+                                    <p class="mb-2"><i class="fas fa-folder-open mr-2"></i>{path}</p>
+                                    <p class="mb-2 whitespace-pre-wrap">{content}</p>
+                                    <p class="text-sm text-gray-500">Size: {size}</p>
+                                </div>
+                            </div>
+                        """
+                    sources_text += "</div>"
+                    self.personality.set_message_html(sources_text)
+
+                if len(context_details.skills) > 0:
+                    sources_text += '<div class="text-gray-400 mr-10px flex items-center gap-2"><i class="fas fa-brain"></i>Memories:</div>'
+                    sources_text += '<div class="mt-4 w-full flex flex-col items-start gap-x-2 gap-y-1.5 text-sm">'
+                    for ind, skill in enumerate(context_details.skills):
+                        sources_text += f"""
+                            <div class="source-item w-full">
+                                <div class="flex items-center gap-2 p-2 bg-gray-100 rounded cursor-pointer hover:bg-gray-200"
+                                    onclick="document.getElementById('source-details-{ind}-{message_id}').classList.toggle('hidden')">
+                                    <i class="fas fa-lightbulb"></i>
+                                    <span class="font-bold">Memory {ind}: {skill['title']}</span>
+                                    <span class="text-gray-500 ml-2">({skill['similarity']*100:.2f}%)</span>
+                                    <i class="fas fa-chevron-down ml-auto"></i>
+                                </div>
+                                <div id="source-details-{ind}-{message_id}" class="hidden p-3 border-l-2 ml-6">
+                                    <pre class="whitespace-pre-wrap">{skill['content']}</pre>
+                                </div>
+                            </div>
+                        """
+                    sources_text += "</div>"
+                    self.personality.set_message_html(sources_text)
+
+                # Send final message
+                if (
+                    self.config.activate_internet_search
+                    or force_using_internet
+                    or generation_type == "full_context_with_internet"
+                ):
+                    from lollms.internet import get_favicon_url, get_root_url
+
+                    sources_text += """
+                    <div class="mt-4 text-sm">
+                        <div class="text-gray-500 font-semibold mb-2">Sources:</div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 h-64 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+                    """
+
+                    for source in context_details.internet_search_infos:
+                        url = source["url"]
+                        title = source["title"]
+                        brief = source["brief"]
+                        favicon_url = (
+                            get_favicon_url(url)
+                            or "/personalities/generic/lollms/assets/logo.png"
+                        )
+                        root_url = get_root_url(url)
+
+                        sources_text += f"""
+                        <div class="relative flex flex-col items-start gap-2 rounded-lg border border-gray-200 bg-white p-3 shadow-sm transition duration-200 ease-in-out transform hover:scale-105 hover:border-gray-300 hover:shadow-lg dark:border-gray-700 dark:bg-gray-800 dark:hover:border-gray-600 dark:hover:shadow-lg animate-fade-in">
+                            <a class="flex items-center w-full" target="_blank" href="{url}" title="{brief}">
+                                <img class="h-8 w-8 rounded-full" src="{favicon_url}" alt="{title}" onerror="this.onerror=null;this.src='/personalities/generic/lollms/assets/logo.png';">
+                                <div class="ml-2">
+                                    <div class="text-gray-700 dark:text-gray-300 font-semibold text-sm">{title}</div>
+                                    <div class="text-gray-500 dark:text-gray-400 text-xs">{root_url}</div>
+                                    <div class="text-gray-400 dark:text-gray-500 text-xs">{brief}</div>
+                                </div>
+                            </a>
+                        </div>
+                        """
+
+                    sources_text += """
+                        </div>
+                    </div>
+                    """
+
+                    # Add CSS for animations and scrollbar styles
+                    sources_text += """
+                    <style>
+                    @keyframes fadeIn {
+                        from { opacity: 0; transform: translateY(10px); }
+                        to { opacity: 1; transform: translateY(0); }
+                    }
+                    .animate-fade-in {
+                        animation: fadeIn 0.5s ease-in-out;
+                    }
+                    .scrollbar-thin::-webkit-scrollbar {
+                        width: 8px;
+                    }
+                    .scrollbar-thin::-webkit-scrollbar-thumb {
+                        background-color: #cbd5e1; /* Tailwind gray-300 */
+                        border-radius: 10px;
+                    }
+                    .scrollbar-thin::-webkit-scrollbar-track {
+                        background: #f9fafb; /* Tailwind gray-100 */
+                    }
+                    </style>
+                    """
+                    self.personality.set_message_html(sources_text)
+
+            except Exception as ex:
+                trace_exception(ex)
+            try:
+                await self.update_message_step(
+                    client_id,
+                    "🔥 warming up ...",
+                    MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_STEP_END_SUCCESS,
+                )
+                await self.update_message_step(
+                    client_id,
+                    "✍ generating ...",
+                    MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_STEP_END_SUCCESS,
+                )
+            except Exception as ex:
+                ASCIIColors.warning("Couldn't send status update to client")
+            ASCIIColors.yellow("Closing message")
+            await self.close_message(client_id)
+
+            client.processing = False
+            # Clients are now kept forever
+            # if client.schedule_for_deletion:
+            #    self.session.remove_client(client.client_id, client.client_id)
+
+            ASCIIColors.multicolor(
+                texts=[
+                f" ╔══════════════════════════════════════════════════╗\n",
+                f" ║","                        Done                      ","║\n",
+                f" ╚══════════════════════════════════════════════════╝\n",
+                ],
+                colors=[
+                    ASCIIColors.color_bright_cyan,
+                    ASCIIColors.color_bright_cyan,ASCIIColors.color_bright_green,ASCIIColors.color_bright_cyan,
+                    ASCIIColors.color_bright_cyan,
+                ]
+            )
+            
+
+            if self.config.auto_title:
+                d = client.discussion
+                ttl = d.title()
+                if ttl is None or ttl == "" or ttl == "untitled":
+                    title = self.make_discussion_title(d, client_id=client_id)
+                    d.rename(title)
+                    await self.sio.emit(
+                        "disucssion_renamed",
+                        {
+                            "status": True,
+                            "discussion_id": d.discussion_id,
+                            "title": title,
+                        },
+                        to=client_id,
+                    )
+            self.busy = False
+            self.cancel_gen = False
+
+        else:
+            self.cancel_gen = False
+            # No discussion available
+            ASCIIColors.warning("No discussion selected!!!")
+
+            self.error("No discussion selected!!!", client_id=client_id)
+
+            print()
+            self.busy = False
+            return ""
+
     def rebuild_personalities(self, reload_all=False):
         if reload_all:
             self.mounted_personalities = []
@@ -809,18 +1896,349 @@ class LollmsApplication(LoLLMsCom):
 
         return mounted_personalities
     
-    def process_data(
-                        self, 
-                        chunk:str, 
-                        message_type,
-                        parameters:dict=None, 
-                        metadata:list=None, 
-                        personality=None
-                    ):
-        
-        pass
 
-    def default_callback(self, chunk, type, generation_infos:dict):
+    def set_message_content(
+        self,
+        full_text: str,
+        callback: (
+            Callable[[str | list | None, MSG_OPERATION_TYPE, str, Any | None], bool]
+            | None
+        ) = None,
+        client_id=0,
+    ):
+        """This sends full text to front end
+
+        Args:
+            step_text (dict): The step text
+            callback (callable, optional): A callable with this signature (str, MSG_TYPE) to send the text to. Defaults to None.
+        """
+        if not callback:
+            callback = partial(self.process_data, client_id=client_id)
+
+        if callback:
+            callback(full_text, MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_SET_CONTENT)
+
+
+
+    def process_data(
+        self,
+        data: str | list | None,
+        operation_type: MSG_OPERATION_TYPE,
+        client_id: str = 0,
+        personality: AIPersonality = None, # Passed by the library caller if needed
+    ):
+        """
+        Processes data from the synchronous library and schedules async updates.
+        This function itself MUST remain synchronous.
+        Assumes self.loop is set and we are in the event loop's thread (Scenario A).
+        """
+        if not self.loop:
+            print("ERROR: Event loop not set in process_data callback!")
+            # Or raise an exception, depending on your error handling strategy
+            return False # Indicate failure if possible
+
+
+
+
+        # Use the passed personality or the default one
+        current_personality = personality if personality is not None else self.personality
+        if current_personality is None:
+             print(f"WARNING: No personality available for client {client_id}")
+             # Handle error appropriately - maybe schedule an error emit
+             self.schedule_task(self.error(f"Configuration error: Personality not found for operation {operation_type}", client_id=client_id))
+             return False # Stop processing if personality is required
+
+
+        client = self.session.get_client(client_id)
+        if client is None:
+            print(f"ERROR: Client {client_id} not found in session.")
+            # Schedule an error emit if appropriate
+            self.error(f"Client {client_id} session error", client_id=client_id)
+            return False # Stop if client is essential
+
+
+        if data is None and operation_type in [
+            MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_SET_CONTENT,
+            MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_ADD_CHUNK,
+        ]:
+            return True # Or False depending on library expectation
+
+        # --- Process different operation types ---
+
+        if operation_type == MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_STEP:
+            ASCIIColors.info("--> Step:" + str(data))
+            # Schedule the async update
+            self.schedule_task(self.update_message_step(client_id, data, operation_type))
+
+        elif operation_type == MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_STEP_START:
+            ASCIIColors.info("--> Step started:" + str(data))
+            self.schedule_task(self.update_message_step(client_id, data, operation_type))
+
+        elif operation_type == MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_STEP_END_SUCCESS:
+            ASCIIColors.success("--> Step ended:" + str(data))
+            self.schedule_task(self.update_message_step(client_id, data, operation_type))
+
+        elif operation_type == MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_STEP_END_FAILURE:
+            ASCIIColors.error("--> Step ended (Failure):" + str(data)) # Use error color
+            self.schedule_task(self.update_message_step(client_id, data, operation_type))
+
+        elif operation_type == MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_WARNING:
+            ASCIIColors.warning("--> Warning from personality:" + str(data)) # Use warning color
+            self.warning(data, client_id=client_id)
+
+        elif operation_type == MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_EXCEPTION:
+            ASCIIColors.error("--> Exception from personality:" + str(data))
+            self.error(data, client_id=client_id)
+            # Decide if the library expects True/False after an exception
+            return False # Often indicates stop
+
+        elif operation_type == MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_INFO:
+            ASCIIColors.info("--> Info:" + str(data))
+            # Assuming self.info is async? If not, call directly. If async, schedule.
+            # If self.info just logs locally, it might be sync: self.info(...)
+            # If it emits to client, it's async:
+            self.info(data, client_id=client_id)
+            # return True # Don't stop processing on info
+
+        elif operation_type == MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_UI:
+            ASCIIColors.info("--> UI Update:" + str(data))
+            self.schedule_task(self.update_message_ui(client_id, data))
+            # return True
+
+        elif operation_type == MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_JSON_INFOS:
+            ASCIIColors.info("--> JSON Infos:" + str(data))
+            self.schedule_task(self.update_message_metadata(client_id, data))
+            # return True
+
+        elif operation_type == MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_NEW_MESSAGE:
+            ASCIIColors.info("--> Building new message")
+            self.nb_received_tokens = 0
+            self.start_time = datetime.now()
+            # Schedule multiple tasks
+            self.schedule_task(
+                self.update_message_step(
+                    client_id,
+                    "🔥 warming up ...",
+                    MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_STEP_END_SUCCESS, # Reuse type for status
+                )
+            )
+            self.schedule_task(
+                self.update_message_step(
+                    client_id,
+                    "✍ generating ...",
+                    MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_STEP_END_SUCCESS, # Reuse type for status
+                )
+            )
+            self.schedule_task(
+                self.new_message(
+                    client_id,
+                    current_personality.name,
+                    data, # Assuming data might contain initial context for new message
+                    message_type=MSG_TYPE.MSG_TYPE_CONTENT,
+                )
+            )
+            # return True
+
+        elif operation_type == MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_FINISHED_MESSAGE:
+            ASCIIColors.info("--> Finished message")
+            # Assuming self.close_message is async? If sync, call directly.
+            self.schedule_task(self.close_message(client_id))
+            # return True # Indicate normal finish
+
+        elif operation_type == MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_ADD_CHUNK:
+            if not isinstance(data, str):
+                 ASCIIColors.warning(f"Received non-string chunk: {type(data)}. Skipping.")
+                 return True # Or False if this is an error condition
+
+            if self.nb_received_tokens == 0:
+                self.start_time = datetime.now()
+                # Schedule status updates (fire and forget exceptions here)
+                self.schedule_task(
+                    self.update_message_step(
+                        client_id, "🔥 warming up ...", MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_STEP_END_SUCCESS
+                    )
+                )
+                self.schedule_task(
+                    self.update_message_step(
+                        client_id, "✍ generating ...", MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_STEP_END_SUCCESS
+                    )
+                )
+
+            # Sync calculations
+            dt = (datetime.now() - self.start_time).seconds if self.start_time else 1
+            if dt <= 0: dt = 1
+            spd = self.nb_received_tokens / dt
+            if self.config.debug_show_chunks:
+                print(data, end="", flush=True) # This is sync console output
+
+            # Append data (sync)
+            if data:
+                client.generated_text += data
+
+            # Detect antiprompt (sync - assuming detect_antiprompt is sync)
+            antiprompt = current_personality.detect_antiprompt(client.generated_text)
+            if antiprompt:
+                ASCIIColors.warning(f"\n{antiprompt} detected. Stopping generation")
+                # Modify text (sync)
+                client.generated_text = self.remove_text_from_string(
+                    client.generated_text, antiprompt
+                )
+                # Schedule final update (async)
+                self.schedule_task(
+                    self.update_message_content(
+                        client_id,
+                        client.generated_text,
+                        MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_SET_CONTENT, # Send the final corrected content
+                    )
+                )
+                return False # Signal to the library to stop (if applicable)
+            else:
+                # Increment token count (sync)
+                self.nb_received_tokens += 1
+                # Schedule content update (async)
+                if client.continuing and client.first_chunk:
+                     # This logic seems complex - ensure client state is managed correctly
+                     self.schedule_task(
+                         self.update_message_content(
+                             client_id,
+                             client.generated_text, # Send the whole text on first chunk if continuing
+                             MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_SET_CONTENT,
+                         )
+                     )
+                else:
+                    self.schedule_task(
+                        self.update_message_content(
+                            client_id, data, MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_ADD_CHUNK
+                        )
+                    )
+
+                # Update client state (sync)
+                client.first_chunk = False
+
+                # Check cancellation flag (sync)
+                if not self.cancel_gen:
+                    return True # Continue generation
+                else:
+                    self.cancel_gen = False # Reset flag
+                    ASCIIColors.warning("Generation canceled")
+                    # Optionally schedule a cancellation message
+                    # self.schedule_task(self.info("Generation cancelled by user.", client_id=client_id))
+                    return False # Stop generation
+
+        elif operation_type in [
+            MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_SET_CONTENT,
+            MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_SET_CONTENT_INVISIBLE_TO_AI,
+            MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_SET_CONTENT_INVISIBLE_TO_USER,
+        ]:
+            if not isinstance(data, str):
+                 ASCIIColors.warning(f"Received non-string content: {type(data)}. Skipping.")
+                 return True # Or False?
+
+            if self.nb_received_tokens == 0: # First time seeing content?
+                self.start_time = datetime.now()
+                # Schedule status updates
+                self.schedule_task(
+                    self.update_message_step(
+                        client_id, "🔥 warming up ...", MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_STEP_END_SUCCESS
+                    )
+                )
+                self.schedule_task(
+                    self.update_message_step(
+                        client_id, "✍ generating ...", MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_STEP_END_SUCCESS
+                    )
+                )
+
+            # Set content (sync)
+            client.generated_text = data
+            # Detect antiprompt (sync)
+            antiprompt = current_personality.detect_antiprompt(client.generated_text)
+            if antiprompt:
+                ASCIIColors.warning(f"\n{antiprompt} detected. Stopping generation")
+                client.generated_text = self.remove_text_from_string(
+                    client.generated_text, antiprompt
+                )
+                # Schedule final update (async)
+                self.schedule_task(
+                    self.update_message_content(
+                        client_id, client.generated_text, operation_type # Use original type? Or SET_CONTENT?
+                    )
+                )
+                return False # Stop
+
+            # Schedule normal content update (async)
+            self.schedule_task(self.update_message_content(client_id, data, operation_type))
+            return True # Continue normally
+
+        # Fallback for potentially unknown types?
+        else:
+             ASCIIColors.warning(f"Unknown operation type encountered: {operation_type}")
+             # Maybe schedule an error or info message
+             # self.schedule_task(self.info(f"Received unknown operation: {operation_type}", client_id=client_id))
+
+
+        return True # Default return, assuming we continue unless specified otherwise
+
+
+
+    async def receive_and_generate(self, text, client: Client, callback=None):
+        prompt = text
+        try:
+            nb_tokens = self.model.count_tokens(prompt)
+        except:
+            nb_tokens = None
+
+        message = client.discussion.add_message(
+            operation_type=MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_SET_CONTENT.value,
+            sender_type=SENDER_TYPES.SENDER_TYPES_USER.value,
+            sender=(
+                self.config.user_name.strip()
+                if self.config.use_user_name_in_discussions
+                else self.personality.user_message_prefix
+            ),
+            content=prompt,
+            metadata=None,
+            parent_message_id=self.message_id,
+            nb_tokens=nb_tokens,
+        )
+        context_details = self.prepare_query(
+            client.client_id,
+            client.discussion.current_message.id,
+            False,
+            n_tokens=self.config.min_n_predict,
+            force_using_internet=False,
+        )
+        await self.new_message(
+            client.client_id,
+            self.personality.name,
+            operation_type=MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_SET_CONTENT,
+            content="",
+        )
+        client.generated_text = ""
+        ASCIIColors.info(
+            f"prompt has {self.config.ctx_size-context_details.available_space} tokens"
+        )
+        ASCIIColors.info(
+            f"warmup for generating up to {min(context_details.available_space,self.config.max_n_predict if self.config.max_n_predict else self.config.ctx_size)} tokens"
+        )
+        self.current_generation_task = self.loop.run_in_executor(
+            None, # Use default ThreadPoolExecutor
+            partial(self.generate, # The potentially blocking function
+            context_details,
+            client_id=client.client_id,
+            is_continue=False,
+            callback=(
+                callback
+                if callback
+                else partial(self.process_data, client_id=client.client_id)
+            )
+            ),
+        )
+        await self.current_generation_task
+        await self.close_message(client.client_id)
+        return client.generated_text
+
+
+    async def default_callback(self, chunk, type, generation_infos:dict):
         if generation_infos["nb_received_tokens"]==0:
             self.start_time = datetime.now()
         dt =(datetime.now() - self.start_time).seconds
