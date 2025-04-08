@@ -1684,22 +1684,39 @@ Don't forget encapsulate the code inside a markdown code tag. This is mandatory.
                     </style>
                     """
                     self.personality.set_message_html(sources_text)
-
+                try:
+                    await self.update_message_step(
+                        client_id,
+                        "🔥 warming up ...",
+                        MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_STEP_END_SUCCESS,
+                    )
+                    await self.update_message_step(
+                        client_id,
+                        "✍ generating ...",
+                        MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_STEP_END_SUCCESS,
+                    )
+                except Exception as ex:
+                    ASCIIColors.warning("Couldn't send status update to client")
             except Exception as ex:
                 trace_exception(ex)
-            try:
-                await self.update_message_step(
-                    client_id,
-                    "🔥 warming up ...",
-                    MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_STEP_END_SUCCESS,
-                )
-                await self.update_message_step(
-                    client_id,
-                    "✍ generating ...",
-                    MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_STEP_END_SUCCESS,
-                )
-            except Exception as ex:
-                ASCIIColors.warning("Couldn't send status update to client")
+                try:
+                    await self.update_message_step(
+                        client_id,
+                        "🔥 warming up ...",
+                        MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_STEP_END_SUCCESS,
+                    )
+                    await self.update_message_step(
+                        client_id,
+                        "✍ generating ...",
+                        MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_STEP_END_FAILURE,
+                    )
+                except Exception as ex:
+                    ASCIIColors.warning("Couldn't send status update to client")
+
+            finally:
+                self.busy = False
+                self.cancel_gen = False
+
             ASCIIColors.yellow("Closing message")
             await self.close_message(client_id)
 
@@ -1737,9 +1754,6 @@ Don't forget encapsulate the code inside a markdown code tag. This is mandatory.
                         },
                         to=client_id,
                     )
-            self.busy = False
-            self.cancel_gen = False
-
         else:
             self.cancel_gen = False
             # No discussion available
@@ -1747,10 +1761,81 @@ Don't forget encapsulate the code inside a markdown code tag. This is mandatory.
 
             self.error("No discussion selected!!!", client_id=client_id)
 
-            print()
-            self.busy = False
             return ""
 
+    def make_discussion_title(self, discussion, client_id=None):
+        """
+        Builds a title for a discussion
+        """
+
+        # Get the list of messages
+        messages = discussion.get_messages()
+        discussion_messages = f"{self.system_full_header}Create a short title to this discussion\n--- discussion ---\n"
+        discussion_title = f"\n{self.ai_custom_header('assistant')}"
+
+        available_space = (
+            self.config.ctx_size
+            - 150
+            - self.model.count_tokens(discussion_messages)
+            - self.model.count_tokens(discussion_title)
+        )
+        # Initialize a list to store the full messages
+        full_message_list = []
+        # Accumulate messages until the cumulative number of tokens exceeds available_space
+        tokens_accumulated = 0
+        # Accumulate messages starting from message_index
+        for message in messages:
+            # Check if the message content is not empty and visible to the AI
+            if message.content != "" and (
+                message.message_type
+                <= MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_SET_CONTENT_INVISIBLE_TO_USER.value
+                and message.message_type
+                != MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_SET_CONTENT_INVISIBLE_TO_AI.value
+            ):
+
+                # Tokenize the message content
+                message_tokenized = self.model.tokenize(
+                    "\n"
+                    + self.config.discussion_prompt_separator
+                    + message.sender
+                    + ": "
+                    + message.content.strip()
+                )
+
+                # Check if adding the message will exceed the available space
+                if tokens_accumulated + len(message_tokenized) > available_space:
+                    break
+
+                # Add the tokenized message to the full_message_list
+                full_message_list.insert(0, message_tokenized)
+
+                # Update the cumulative number of tokens
+                tokens_accumulated += len(message_tokenized)
+
+        # Build the final discussion messages by detokenizing the full_message_list
+
+        for message_tokens in full_message_list:
+            discussion_messages += self.model.detokenize(message_tokens)
+        discussion_messages +"\n--- ---\n"
+        discussion_messages +f"\n{self.user_custom_header('user')}Your response should only contain the title without any comments or thoughts.\n"
+        discussion_messages += discussion_title
+        title = [""]
+
+        def receive(chunk: str, message_type: MSG_OPERATION_TYPE):
+            if chunk:
+                title[0] += chunk
+            antiprompt = self.personality.detect_antiprompt(title[0])
+            if antiprompt:
+                ASCIIColors.warning(f"\n{antiprompt} detected. Stopping generation")
+                title[0] = self.remove_text_from_string(title[0], antiprompt)
+                return False
+            else:
+                return True
+
+        self._generate(discussion_messages, 1024, client_id, receive)
+        title[0] = self.personality.remove_thinking_blocks(title[0])
+        ASCIIColors.info(f"TITLE:{title[0]}")
+        return title[0]
     def rebuild_personalities(self, reload_all=False):
         if reload_all:
             self.mounted_personalities = []
