@@ -712,11 +712,19 @@ class LollmsApplication(LoLLMsCom):
         message_type: MSG_OPERATION_TYPE = MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_SET_CONTENT,
         sender_type: SENDER_TYPES = SENDER_TYPES.SENDER_TYPES_AI,
         open=False,
+        compute_nb_tokens=False
     ):
         client = self.session.get_client(client_id)
         # self.close_message(client_id)
         if sender == None:
             sender = self.personality.name
+        try:
+            if compute_nb_tokens:
+                nb_tokens = self.model.count_tokens(content)
+            else:
+                nb_tokens = 0
+        except:
+            nb_tokens = 0
         msg = client.discussion.add_message(
             message_type=message_type.value,
             sender_type=sender_type.value,
@@ -737,6 +745,7 @@ class LollmsApplication(LoLLMsCom):
                 self.config["active_personality_id"]
             ],
             created_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            nb_tokens = nb_tokens
         )  # first the content is empty, but we'll fill it at the end
         await self.sio.emit(
                 "new_message",
@@ -1078,9 +1087,7 @@ class LollmsApplication(LoLLMsCom):
                 datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             )
             try:
-                client.discussion.current_message.nb_tokens = len(
-                    self.model.tokenize(client.generated_text)
-                )
+                client.discussion.current_message.nb_tokens = self.model.count_tokens(client.generated_text)
             except:
                 client.discussion.current_message.nb_tokens = None
             await self.sio.emit(
