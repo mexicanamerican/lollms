@@ -663,7 +663,7 @@ class Message:
             text, tuple(params)
         )  
 
-    def update_steps(self, steps:list, step_type:str, status:bool):
+    def update_steps(self, steps:list):
         self.finished_generating_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         text = f"UPDATE message SET steps = ?"
         self.steps = steps
@@ -1205,7 +1205,7 @@ class Discussion:
             message_id (int): The id of the message to be changed
             new_content (str): The nex message content
         """
-        self.current_message.update_steps(new_content, started_generating_at, nb_tokens)
+        self.current_message.update_steps(steps)
     
 
 

@@ -77,7 +77,7 @@ class LoLLMsCom:
                 verbose=verbose
             )
         )
-    async def ShowBlockingMessage(self, content, client_id=None, verbose:bool=None):
+    def ShowBlockingMessage(self, content, client_id=None, verbose:bool=None):
         self.schedule_task( self.notify(
                 content, 
                 notification_type=NotificationType.NOTIF_SUCCESS, 

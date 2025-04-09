@@ -91,7 +91,7 @@ async def list_ttm_services(request: ServiceListingRequest):
     return ttm_services
 
 
-@router.post("/get_active_ttm_settmngs")
+@router.post("/get_active_ttm_settings")
 async def get_active_ttm_settmngs(request: Request):
     data = await request.json()
     check_access(lollmsElfServer,data["client_id"])
@@ -104,7 +104,7 @@ async def get_active_ttm_settmngs(request: Request):
     else:
         return {}
 
-@router.post("/set_active_ttm_settmngs")
+@router.post("/set_active_ttm_settings")
 async def set_active_ttm_settmngs(request: Request):
     data = await request.json()
     check_access(lollmsElfServer,data["client_id"])

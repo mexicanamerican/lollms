@@ -653,15 +653,13 @@ class LollmsApplication(LoLLMsCom):
 
         if self.config.active_ttm_service:
             def start_ttm(*args, **kwargs):
-                self.ttv = self.load_service_from_folder(self.lollms_paths.services_zoo_path/"ttm", self.config.active_ttm_service)
+                self.ttm = self.load_service_from_folder(self.lollms_paths.services_zoo_path/"ttm", self.config.active_ttm_service)
             ASCIIColors.execute_with_animation("Loading loacal TTM services", start_ttm, ASCIIColors.color_blue)
-        print("OK")
 
         if self.config.active_ttv_service:
             def start_ttv(*args, **kwargs):
                 self.ttv = self.load_service_from_folder(self.lollms_paths.services_zoo_path/"ttv", self.config.active_ttv_service)
             ASCIIColors.execute_with_animation("Loading loacal TTV services", start_ttv, ASCIIColors.color_blue)
-        print("OK")
 
 
 
@@ -687,16 +685,16 @@ class LollmsApplication(LoLLMsCom):
                     self.tts = self.load_service_from_folder(self.lollms_paths.services_zoo_path/"tts", self.config.active_tts_service)
                 ASCIIColors.execute_with_animation("Loading loacal TTS services", start_tts, ASCIIColors.color_blue)
 
+
             if self.config.active_ttm_service:
                 def start_ttm(*args, **kwargs):
-                    self.ttv = self.load_service_from_folder(self.lollms_paths.services_zoo_path/"ttm", self.config.active_ttm_service)
+                    self.ttm = self.load_service_from_folder(self.lollms_paths.services_zoo_path/"ttm", self.config.active_ttm_service)
                 ASCIIColors.execute_with_animation("Loading loacal TTM services", start_ttm, ASCIIColors.color_blue)
-
+            
             if self.config.active_ttv_service:
                 def start_ttv(*args, **kwargs):
                     self.ttv = self.load_service_from_folder(self.lollms_paths.services_zoo_path/"ttv", self.config.active_ttv_service)
                 ASCIIColors.execute_with_animation("Loading loacal TTV services", start_ttv, ASCIIColors.color_blue)
-            print("OK")
 
 
 
@@ -1915,35 +1913,7 @@ Don't forget encapsulate the code inside a markdown code tag. This is mandatory.
 
                     mounted_personalities.append(personality)
                     if self.config.auto_read and len(personality.audio_samples) > 0:
-                        try:
-                            from lollms.services.tts.xtts.lollms_xtts import \
-                                LollmsXTTS
-
-                            if self.tts is None:
-                                voice = self.config.xtts_current_voice
-                                if voice != "main_voice":
-                                    voices_folder = self.lollms_paths.custom_voices_path
-                                else:
-                                    voices_folder = (
-                                        Path(__file__).parent.parent.parent
-                                        / "services/xtts/voices"
-                                    )
-
-                                self.tts = LollmsXTTS(
-                                    self,
-                                    voices_folders=[
-                                        voices_folder,
-                                        Path(__file__).parent.parent.parent
-                                        / "services/xtts/voices",
-                                    ],
-                                    freq=self.config.xtts_freq,
-                                )
-
-                        except Exception as ex:
-                            trace_exception(ex)
-                            self.warning(
-                                f"Personality {personality.name} request using custom voice but couldn't load XTTS"
-                            )
+                        pass # self.tts
                 except Exception as ex:
                     trace_exception(ex)
                     ASCIIColors.error(

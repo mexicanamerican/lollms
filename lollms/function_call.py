@@ -13,12 +13,13 @@ class FunctionType(Enum):
 
 # Step 2: Update the FunctionCall base class
 class FunctionCall:
-    def __init__(self, name:str, app:LoLLMsCom, function_type: FunctionType, client: Client, static_parameters:TypedConfig=None):
+    def __init__(self, name:str, app:LoLLMsCom, function_type: FunctionType, client: Client, static_parameters:TypedConfig=None, description=""):
         self.name = name
         self.app = app
         self.personality = app.personality
         self.function_type = function_type
         self.client = client
+        self.description = description
         if static_parameters is not None:
             self.static_parameters = static_parameters
             self.sync_configuration()
