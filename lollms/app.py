@@ -804,6 +804,39 @@ class LollmsApplication(LoLLMsCom):
             else:
                 ASCIIColors.red(content)
 
+    def sync_notify(
+        self,
+        content,
+        notification_type: NotificationType = NotificationType.NOTIF_SUCCESS,
+        duration: int = 4,
+        client_id=None,
+        display_type: NotificationDisplayType = NotificationDisplayType.TOAST,
+        verbose: bool | None = None,
+    ):
+        if verbose is None:
+            verbose = self.verbose
+        self.schedule_task(
+            self.sio.emit(
+                "notification",
+                {
+                    "content": content,
+                    "notification_type": notification_type.value,
+                    "duration": duration,
+                    "display_type": display_type.value,
+                },
+                to=client_id,
+            )
+        )
+        
+        if verbose:
+            if notification_type == NotificationType.NOTIF_SUCCESS:
+                ASCIIColors.success(content)
+            elif notification_type == NotificationType.NOTIF_INFO:
+                ASCIIColors.info(content)
+            elif notification_type == NotificationType.NOTIF_WARNING:
+                ASCIIColors.warning(content)
+            else:
+                ASCIIColors.red(content)
     async def refresh_files(self, client_id=None):
        await self.sio.emit("refresh_files", to=client_id)
 

@@ -232,7 +232,28 @@ class LoLLMsCom:
             else:
                 ASCIIColors.red(content)
 
+    def sync_notify(
+        self,
+        content,
+        notification_type: NotificationType = NotificationType.NOTIF_SUCCESS,
+        duration: int = 4,
+        client_id=None,
+        display_type: NotificationDisplayType = NotificationDisplayType.TOAST,
+        verbose: bool | None = None,
+    ):
+        if verbose is None:
+            verbose = self.verbose
 
+        if verbose:
+            if notification_type==NotificationType.NOTIF_SUCCESS:
+                ASCIIColors.success(content)
+            elif notification_type==NotificationType.NOTIF_INFO:
+                ASCIIColors.info(content)
+            elif notification_type==NotificationType.NOTIF_WARNING:
+                ASCIIColors.warning(content)
+            else:
+                ASCIIColors.red(content)
+        
     async def notify_model_install(self, 
                             installation_path,
                             model_name,
