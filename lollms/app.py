@@ -1423,8 +1423,8 @@ Don't forget encapsulate the code inside a markdown code tag. This is mandatory.
                     client.discussion.load_message(message_id)
                     client.generated_text = message.content
                 else:
-                    self.send_refresh(client_id)
-                    self.update_message_step(
+                    await self.send_refresh(client_id)
+                    await self.update_message_step(
                         client_id,
                         "🔥 warming up ...",
                         MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_STEP_START,
