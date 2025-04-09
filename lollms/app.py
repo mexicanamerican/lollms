@@ -1088,7 +1088,7 @@ class LollmsApplication(LoLLMsCom):
                 client.discussion.current_message.nb_tokens = self.model.count_tokens(client.generated_text)
             except:
                 client.discussion.current_message.nb_tokens = None
-            client.discussion.current_message.update_db()
+            # client.discussion.current_message.update()
             await self.sio.emit(
                 "close_message",
                 {
@@ -1107,7 +1107,7 @@ class LollmsApplication(LoLLMsCom):
                 to=client_id,
             )
         else:
-            client.discussion.current_message.update_db()
+            # client.discussion.current_message.update_db()
             await self.sio.emit(
                 "close_message",
                 {

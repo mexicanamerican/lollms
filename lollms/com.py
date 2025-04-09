@@ -68,25 +68,31 @@ class LoLLMsCom:
                 print(f"ERROR: Loop not available when trying to schedule {coro}")
 
     def InfoMessage(self, content, client_id=None, verbose:bool=None):
-        self.schedule_task( self.notify(
-                content, 
-                notification_type=NotificationType.NOTIF_SUCCESS, 
-                duration=0, 
-                client_id=client_id, 
-                display_type=NotificationDisplayType.MESSAGE_BOX,
-                verbose=verbose
+        try:
+            self.schedule_task( self.notify(
+                    content, 
+                    notification_type=NotificationType.NOTIF_SUCCESS, 
+                    duration=0, 
+                    client_id=client_id, 
+                    display_type=NotificationDisplayType.MESSAGE_BOX,
+                    verbose=verbose
+                )
             )
-        )
+        except:
+            ASCIIColors.info(content)
     def ShowBlockingMessage(self, content, client_id=None, verbose:bool=None):
-        self.schedule_task( self.notify(
-                content, 
-                notification_type=NotificationType.NOTIF_SUCCESS, 
-                duration=0, 
-                client_id=client_id, 
-                display_type=NotificationDisplayType.SHOW_BLOCKING_MESSAGE,
-                verbose=verbose
-            )     
-        )   
+        try:
+            self.schedule_task( self.notify(
+                    content, 
+                    notification_type=NotificationType.NOTIF_SUCCESS, 
+                    duration=0, 
+                    client_id=client_id, 
+                    display_type=NotificationDisplayType.SHOW_BLOCKING_MESSAGE,
+                    verbose=verbose
+                )     
+            )   
+        except:
+            ASCIIColors.info(content)
         
     def HideBlockingMessage(self, client_id=None, verbose:bool=None):
         self.schedule_task( self.notify(
