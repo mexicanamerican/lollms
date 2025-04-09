@@ -1750,9 +1750,9 @@ Don't forget encapsulate the code inside a markdown code tag. This is mandatory.
                                         context_details.ai_output = client.generated_text
                                         output = fc.execute(context_details,**infos["function_parameters"])
                                         if output[0]=="<":
-                                            await self.new_message(client_id,"System",output,message_type=MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_UI, sender_type=SENDER_TYPES.SENDER_TYPES_AI)
+                                            await self.new_message(client_id,self.personality.name,output,message_type=MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_UI, sender_type=SENDER_TYPES.SENDER_TYPES_AI)
                                         else:
-                                            await self.new_message(client_id,"System",output,message_type=MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_SET_CONTENT, sender_type=SENDER_TYPES.SENDER_TYPES_AI)
+                                            await self.new_message(client_id,self.personality.name,output,message_type=MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_SET_CONTENT, sender_type=SENDER_TYPES.SENDER_TYPES_AI)
                                         
             except Exception as ex:
                 trace_exception(ex)
