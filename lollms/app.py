@@ -1090,6 +1090,7 @@ class LollmsApplication(LoLLMsCom):
                 client.discussion.current_message.nb_tokens = self.model.count_tokens(client.generated_text)
             except:
                 client.discussion.current_message.nb_tokens = None
+            client.discussion.current_message.update_db()
             await self.sio.emit(
                 "close_message",
                 {
@@ -1108,6 +1109,7 @@ class LollmsApplication(LoLLMsCom):
                 to=client_id,
             )
         else:
+            client.discussion.current_message.update_db()
             await self.sio.emit(
                 "close_message",
                 {
@@ -1738,6 +1740,8 @@ Don't forget encapsulate the code inside a markdown code tag. This is mandatory.
             await self.close_message(client_id, True)
             client.processing = False
             try:
+                final_ui_update =""
+                final_text_update = ""
                 if len(context_details.function_calls)>0:
                     codes = self.personality.extract_code_blocks(client.generated_text)
                     for function_call in context_details.function_calls:
@@ -1750,9 +1754,13 @@ Don't forget encapsulate the code inside a markdown code tag. This is mandatory.
                                         context_details.ai_output = client.generated_text
                                         output = fc.execute(context_details,**infos["function_parameters"])
                                         if output[0]=="<":
-                                            await self.new_message(client_id,self.personality.name,output,message_type=MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_UI, sender_type=SENDER_TYPES.SENDER_TYPES_AI)
+                                            final_ui_update+=output+"\n"
                                         else:
-                                            await self.new_message(client_id,self.personality.name,output,message_type=MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_SET_CONTENT, sender_type=SENDER_TYPES.SENDER_TYPES_AI)
+                                            final_text_update+=output+"\n"
+                if final_ui_update or final_text_update:
+                    await self.new_message(client_id,"System",final_text_update,message_type=MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_SET_CONTENT, sender_type=SENDER_TYPES.SENDER_TYPES_SYSTEM)
+                if final_ui_update:
+                    await self.update_message_ui(client_id, final_ui_update)
                                         
             except Exception as ex:
                 trace_exception(ex)

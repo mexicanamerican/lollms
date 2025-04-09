@@ -606,7 +606,7 @@ class Message:
     def update_db(self):
         self.message_id = self.discussions_db.insert(
             "INSERT INTO message (sender, content, metadata, ui, message_type, rank, parent_message_id, binding, model, personality, created_at, started_generating_at, finished_generating_at, nb_tokens, discussion_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
-            (self.sender, self.content, self.metadata, self.ui, self.message_type, self.rank, self.parent_message_id, self.binding, self.model, self.personality, self.created_at, self.started_generating_at, self.finished_generating_at, nb_tokens, self.discussion_id)
+            (self.sender, self.content, self.metadata, self.ui, self.message_type, self.rank, self.parent_message_id, self.binding, self.model, self.personality, self.created_at, self.started_generating_at, self.finished_generating_at, self.nb_tokens, self.discussion_id)
         )
 
     def update(self, new_content, new_metadata=None, new_ui=None, started_generating_at=None, nb_tokens=None, commit=True):
