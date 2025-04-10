@@ -99,7 +99,7 @@ class LollmsContextDetails:
         function_texts = []
 
         # Function header
-        function_text = template.system_custom_header("Function") + f'\nfunction_name: {func["name"]}\nfunction_description: {func["description"]}\n'
+        function_text = "## Function" + f'\nfunction_name: {func["name"]}\nfunction_description: {func["description"]}\n'
 
         # Parameters section
         function_text += "function_parameters:\n"
@@ -126,8 +126,7 @@ class LollmsContextDetails:
         """
         full_context = []
         sacrifice_id = 0
-
-        def append_context(field_name: str, header: Optional[str] = None):
+        def extract_context_entry(field_name: str, header: Optional[str] = None, footer: Optional[str] = None):
             """
             Helper function to append context if the field is not suppressed.
 
@@ -137,27 +136,50 @@ class LollmsContextDetails:
             """
             if getattr(self, field_name) and field_name not in suppress:
                 content:str = getattr(self, field_name)
+                entry = ""
                 if header:
-                    full_context.append(header+ content.strip())
-                else:
-                    full_context.append(content.strip())
+                    entry = header
+                entry += content.strip()
+                if footer:
+                    entry += "\n"+footer
+                return entry
+            return ""
+        
+        def append_context(field_name: str, header: Optional[str] = None, footer: Optional[str] = None):
+            """
+            Helper function to append context if the field is not suppressed.
+
+            Args:
+                field_name (str): The name of the field to append.
+                header (Optional[str]): An optional header to prepend to the field content.
+            """
+            if getattr(self, field_name) and field_name not in suppress:
+                content:str = getattr(self, field_name)
+                entry = ""
+                if header:
+                    entry = header
+                entry += content.strip()
+                if footer:
+                    entry += "\n"+footer
+                full_context.append(entry)
                 nonlocal sacrifice_id
                 sacrifice_id += 1
 
         # Append each field to the full context if it exists and is not suppressed
         append_context("conditionning", template.system_full_header)
-        append_context("documentation", template.system_custom_header("documentation"))
-        append_context("internet_search_results", template.system_custom_header("Internet search results"))
-        append_context("user_description")
-        append_context("positive_boost", template.system_custom_header("positive_boost"))
-        append_context("negative_boost", template.system_custom_header("negative_boost"))
-        append_context("current_language", template.system_custom_header("current_language"))
+        append_context("documentation", "# documentation:\n")
+        append_context("internet_search_results", "# Internet search results:\n")
+        append_context("user_description", "# user description:\n")
+        append_context("positive_boost", "# positive_boost: ")
+        append_context("negative_boost", "# negative_boost: ")
+        append_context("current_language", "# current_language: ")
         append_context("fun_mode")
         append_context("think_first_mode")
         
         append_context("extra")
-        append_context("discussion_messages", template.system_custom_header("discussion")+"\n")
-        
+
+        discussion = extract_context_entry("discussion_messages", "# discussion:\n")
+       
         found_classic_function = False
         if not ignore_function_calls:
             for function_call in self.function_calls:
@@ -172,7 +194,7 @@ class LollmsContextDetails:
                     
             if found_classic_function:
                 full_context.append(
-                    template.system_custom_header("Function Calls")+"\n" + "\n".join([
+                    "# Function Calls instructions"+"\n" + "\n".join([
                         "You have access to functions presented to you in the available functions listed above.",
                         "If you need to call a function, use this exact syntax:",
                         "```function",
@@ -190,9 +212,12 @@ class LollmsContextDetails:
                         "Important Notes:",
                         "- **Always** enclose the function call in a `function` markdown code block.",
                         "- Make sure the content of the function markdown code block is a valid json.",
-                    ])
-                )              
+                    ]
+                )
+                )
 
+
+        full_context.append(discussion)
         # Add custom entries if provided
         if custom_entries:
             full_context+=custom_entries

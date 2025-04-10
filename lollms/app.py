@@ -1532,7 +1532,7 @@ Don't forget encapsulate the code inside a markdown code tag. This is mandatory.
                 client.processing = True
                 try:
                     self.loop = asyncio.get_running_loop() # Get loop in the main async thread
-                    print(f"Starting library process (threaded), loop acquired: {self.loop}")
+                    ASCIIColors.magenta(f"Starting library process (threaded), loop acquired: {self.loop}")
 
                     client.generation_routine = self.loop.run_in_executor(
                         None, # Use default ThreadPoolExecutor
@@ -2886,7 +2886,7 @@ Answer directly with the reformulation of the last prompt.
         #User description
         user_description=""
         if self.config.use_user_informations_in_discussion:
-            user_description=f"{self.start_header_id_template}User description{self.end_header_id_template}\n"+self.config.user_description+"\n"
+            user_description=self.config.user_description
 
 
         # Tokenize the conditionning text and calculate its number of tokens
