@@ -770,6 +770,16 @@ class LollmsApplication(LoLLMsCom):
             )
         return msg
 
+
+    async def set_message_html(self, client_id:str, ui_text:str):
+        """This sends ui text to front end
+
+        Args:
+            ui_text (dict): The ui code to be sent to the front end
+            client_id the id of the client
+        """
+        await self.update_message_ui(client_id, ui_text)
+
     async def emit_socket_io_info(self, name, data, client_id):
         await self.sio.emit(name, data, to=client_id)
 
@@ -1167,7 +1177,7 @@ class LollmsApplication(LoLLMsCom):
         self.nb_received_tokens = 0
         self.start_time = datetime.now()
 
-    def generate(self, context_details, is_continue, client_id, callback=None):
+    def generate(self, context_details:LollmsContextDetails, is_continue:bool, message_id:int, client_id:str, callback=None, force_using_internet:bool=False, generation_type="default"):
         full_prompt, tokens = self.personality.build_context(
             context_details, is_continue, True
         )
@@ -1322,6 +1332,227 @@ Don't forget encapsulate the code inside a markdown code tag. This is mandatory.
                 binding, model_name = self.model_path_to_binding_model(self.back_model)
                 self.select_model(binding, model_name)
                 self.personality.step_end("Restoring main model")
+
+        try:
+            if len(context_details.function_calls)>0:
+                for function_call in context_details.function_calls:
+                    fc:FunctionCall = function_call["class"]
+                    if fc.function_type == FunctionType.CONTEXT_UPDATE:
+                        process_output = fc.process_output(context_details, txt)
+                        self.set_message_content(process_output,client_id=client_id)
+                                    
+        except Exception as ex:
+            trace_exception(ex)
+
+        if (
+            self.tts
+            and self.config.auto_read
+            and len(self.personality.audio_samples) > 0
+        ):
+            try:
+                self.process_data(
+                    "Generating voice output",
+                    MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_STEP_START,
+                    client_id=client_id,
+                )
+                if self.tts.ready:
+                    language = convert_language_name(
+                        self.personality.language
+                    )
+                    fn = (
+                        self.personality.name.lower()
+                        .replace(" ", "_")
+                        .replace(".", "")
+                    )
+                    fn = f"{fn}_{message_id}.wav"
+                    url = f"audio/{fn}"
+                    self.tts.tts_file(
+                        client.generated_text,
+                        Path(self.personality.audio_samples[0]).name,
+                        f"{fn}",
+                        language=language,
+                    )
+                    fl = f"\n".join(
+                        [
+                            f"<audio controls>",
+                            f'    <source src="{url}" type="audio/wav">',
+                            f"    Your browser does not support the audio element.",
+                            f"</audio>",
+                        ]
+                    )
+                    self.process_data(
+                        "Generating voice output",
+                        operation_type=MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_STEP_END_SUCCESS,
+                        client_id=client_id,
+                    )
+                    self.process_data(
+                        fl,
+                        MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_UI,
+                        client_id=client_id,
+                    )
+                else:
+                    self.InfoMessage(
+                        "xtts is not up yet.\nPlease wait for it to load then try again. This may take some time."
+                    )
+
+            except Exception as ex:
+                ASCIIColors.error("Couldn't read")
+                trace_exception(ex)
+        print()
+        ASCIIColors.success("## Done Generation ##")
+        print()
+
+        if len(context_details.documentation_entries) > 0:
+            sources_text += '<div class="text-gray-400 mr-10px flex items-center gap-2"><i class="fas fa-book"></i>Sources:</div>'
+            sources_text += '<div class="mt-4 flex flex-col items-start gap-x-2 gap-y-1.5 text-sm">'
+            for source in context_details.documentation_entries:
+                title = source["document_title"]
+                path = source["document_path"]
+                content = source["chunk_content"]
+                size = source["chunk_size"]
+                similarity = source["similarity"]
+                sources_text += f"""
+                    <div class="source-item w-full">
+                        <div class="flex items-center gap-2 p-2 bg-gray-100 rounded cursor-pointer hover:bg-gray-200" 
+                            onclick="document.getElementById('source-details-{title}-{message_id}').classList.toggle('hidden')">
+                            <i class="fas fa-file-alt"></i>
+                            <span class="font-bold">{title}</span>
+                            <span class="text-gray-500 ml-2">({similarity*100:.2f}%)</span>
+                            <i class="fas fa-chevron-down ml-auto"></i>
+                        </div>
+                        <div id="source-details-{title}-{message_id}" class="hidden p-3 border-l-2 ml-6">
+                            <p class="mb-2"><i class="fas fa-folder-open mr-2"></i>{path}</p>
+                            <p class="mb-2 whitespace-pre-wrap">{content}</p>
+                            <p class="text-sm text-gray-500">Size: {size}</p>
+                        </div>
+                    </div>
+                """
+            sources_text += "</div>"
+            self.personality.set_message_html(sources_text)
+
+        if len(context_details.skills) > 0:
+            sources_text += '<div class="text-gray-400 mr-10px flex items-center gap-2"><i class="fas fa-brain"></i>Memories:</div>'
+            sources_text += '<div class="mt-4 w-full flex flex-col items-start gap-x-2 gap-y-1.5 text-sm">'
+            for ind, skill in enumerate(context_details.skills):
+                sources_text += f"""
+                    <div class="source-item w-full">
+                        <div class="flex items-center gap-2 p-2 bg-gray-100 rounded cursor-pointer hover:bg-gray-200"
+                            onclick="document.getElementById('source-details-{ind}-{message_id}').classList.toggle('hidden')">
+                            <i class="fas fa-lightbulb"></i>
+                            <span class="font-bold">Memory {ind}: {skill['title']}</span>
+                            <span class="text-gray-500 ml-2">({skill['similarity']*100:.2f}%)</span>
+                            <i class="fas fa-chevron-down ml-auto"></i>
+                        </div>
+                        <div id="source-details-{ind}-{message_id}" class="hidden p-3 border-l-2 ml-6">
+                            <pre class="whitespace-pre-wrap">{skill['content']}</pre>
+                        </div>
+                    </div>
+                """
+            sources_text += "</div>"
+            self.personality.set_message_html(sources_text)
+
+        # Send final message
+        if (
+            self.config.activate_internet_search
+            or force_using_internet
+            or generation_type == "full_context_with_internet"
+        ):
+            from lollms.internet import get_favicon_url, get_root_url
+
+            sources_text += """
+            <div class="mt-4 text-sm">
+                <div class="text-gray-500 font-semibold mb-2">Sources:</div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 h-64 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+            """
+
+            for source in context_details.internet_search_infos:
+                url = source["url"]
+                title = source["title"]
+                brief = source["brief"]
+                favicon_url = (
+                    get_favicon_url(url)
+                    or "/personalities/generic/lollms/assets/logo.png"
+                )
+                root_url = get_root_url(url)
+
+                sources_text += f"""
+                <div class="relative flex flex-col items-start gap-2 rounded-lg border border-gray-200 bg-white p-3 shadow-sm transition duration-200 ease-in-out transform hover:scale-105 hover:border-gray-300 hover:shadow-lg dark:border-gray-700 dark:bg-gray-800 dark:hover:border-gray-600 dark:hover:shadow-lg animate-fade-in">
+                    <a class="flex items-center w-full" target="_blank" href="{url}" title="{brief}">
+                        <img class="h-8 w-8 rounded-full" src="{favicon_url}" alt="{title}" onerror="this.onerror=null;this.src='/personalities/generic/lollms/assets/logo.png';">
+                        <div class="ml-2">
+                            <div class="text-gray-700 dark:text-gray-300 font-semibold text-sm">{title}</div>
+                            <div class="text-gray-500 dark:text-gray-400 text-xs">{root_url}</div>
+                            <div class="text-gray-400 dark:text-gray-500 text-xs">{brief}</div>
+                        </div>
+                    </a>
+                </div>
+                """
+
+            sources_text += """
+                </div>
+            </div>
+            """
+
+            # Add CSS for animations and scrollbar styles
+            sources_text += """
+            <style>
+            @keyframes fadeIn {
+                from { opacity: 0; transform: translateY(10px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+            .animate-fade-in {
+                animation: fadeIn 0.5s ease-in-out;
+            }
+            .scrollbar-thin::-webkit-scrollbar {
+                width: 8px;
+            }
+            .scrollbar-thin::-webkit-scrollbar-thumb {
+                background-color: #cbd5e1; /* Tailwind gray-300 */
+                border-radius: 10px;
+            }
+            .scrollbar-thin::-webkit-scrollbar-track {
+                background: #f9fafb; /* Tailwind gray-100 */
+            }
+            </style>
+            """
+            self.personality.set_message_html(sources_text)
+        try:
+            self.personality.step_end(
+                "🔥 warming up ..."
+            )
+            self.personality.step_end(
+                "✍ generating ..."
+            )
+        except Exception as ex:
+            ASCIIColors.warning("Couldn't send status update to client")            
+
+
+        try:
+            final_ui_update =""
+            final_text_update = ""
+            if len(context_details.function_calls)>0:
+                codes = self.personality.extract_code_blocks(txt)
+                for function_call in context_details.function_calls:
+                    fc:FunctionCall = function_call["class"]
+                    for code in codes:
+                        if code["type"]=="function":
+                            infos = json.loads(code["content"])
+                            if infos["function_name"]==function_call["name"]:
+                                if fc.function_type == FunctionType.CLASSIC:
+                                    context_details.ai_output = txt
+                                    output = fc.execute(context_details,**infos["function_parameters"])
+                                    if output:
+                                        if output[0]=="<":
+                                            final_ui_update+=output+"\n"
+                                        else:
+                                            final_text_update+=output+"\n"
+            if final_ui_update or final_text_update:
+                self.personality.new_message(final_text_update)
+            if final_ui_update:
+                self.personality.set_message_html(final_ui_update)
+                                    
+        except Exception as ex:
+            trace_exception(ex)
 
         return txt
 
@@ -1538,80 +1769,17 @@ Don't forget encapsulate the code inside a markdown code tag. This is mandatory.
                         None, # Use default ThreadPoolExecutor
                         partial(self.generate, # The potentially blocking function
                         context_details,
+                        message_id=message_id,
                         client_id=client_id,
                         is_continue=is_continue,
-                        callback=partial(self.process_data, client_id=client_id)
+                        callback=partial(self.process_data, client_id=client_id),
+                        force_using_internet=force_using_internet,
+                        generation_type=generation_type
                         ),
                     )
                     await client.generation_routine
-                    try:
-                        if len(context_details.function_calls)>0:
-                            for function_call in context_details.function_calls:
-                                fc:FunctionCall = function_call["class"]
-                                if fc.function_type == FunctionType.CONTEXT_UPDATE:
-                                    process_output = fc.process_output(context_details, client.generated_text)
-                                    self.set_message_content(process_output,client_id=client_id)
-                                                
-                    except Exception as ex:
-                        trace_exception(ex)
+                    
 
-                    if (
-                        self.tts
-                        and self.config.auto_read
-                        and len(self.personality.audio_samples) > 0
-                    ):
-                        try:
-                            self.process_data(
-                                "Generating voice output",
-                                MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_STEP_START,
-                                client_id=client_id,
-                            )
-                            if self.tts.ready:
-                                language = convert_language_name(
-                                    self.personality.language
-                                )
-                                fn = (
-                                    self.personality.name.lower()
-                                    .replace(" ", "_")
-                                    .replace(".", "")
-                                )
-                                fn = f"{fn}_{message_id}.wav"
-                                url = f"audio/{fn}"
-                                self.tts.tts_file(
-                                    client.generated_text,
-                                    Path(self.personality.audio_samples[0]).name,
-                                    f"{fn}",
-                                    language=language,
-                                )
-                                fl = f"\n".join(
-                                    [
-                                        f"<audio controls>",
-                                        f'    <source src="{url}" type="audio/wav">',
-                                        f"    Your browser does not support the audio element.",
-                                        f"</audio>",
-                                    ]
-                                )
-                                self.process_data(
-                                    "Generating voice output",
-                                    operation_type=MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_STEP_END_SUCCESS,
-                                    client_id=client_id,
-                                )
-                                self.process_data(
-                                    fl,
-                                    MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_UI,
-                                    client_id=client_id,
-                                )
-                            else:
-                                self.InfoMessage(
-                                    "xtts is not up yet.\nPlease wait for it to load then try again. This may take some time."
-                                )
-
-                        except Exception as ex:
-                            ASCIIColors.error("Couldn't read")
-                            trace_exception(ex)
-                    print()
-                    ASCIIColors.success("## Done Generation ##")
-                    print()
                 except Exception as ex:
                     trace_exception(ex)
                     print()
@@ -1620,133 +1788,7 @@ Don't forget encapsulate the code inside a markdown code tag. This is mandatory.
 
                 self.cancel_gen = False
                 sources_text = ""
-                if len(context_details.documentation_entries) > 0:
-                    sources_text += '<div class="text-gray-400 mr-10px flex items-center gap-2"><i class="fas fa-book"></i>Sources:</div>'
-                    sources_text += '<div class="mt-4 flex flex-col items-start gap-x-2 gap-y-1.5 text-sm">'
-                    for source in context_details.documentation_entries:
-                        title = source["document_title"]
-                        path = source["document_path"]
-                        content = source["chunk_content"]
-                        size = source["chunk_size"]
-                        similarity = source["similarity"]
-                        sources_text += f"""
-                            <div class="source-item w-full">
-                                <div class="flex items-center gap-2 p-2 bg-gray-100 rounded cursor-pointer hover:bg-gray-200" 
-                                    onclick="document.getElementById('source-details-{title}-{message_id}').classList.toggle('hidden')">
-                                    <i class="fas fa-file-alt"></i>
-                                    <span class="font-bold">{title}</span>
-                                    <span class="text-gray-500 ml-2">({similarity*100:.2f}%)</span>
-                                    <i class="fas fa-chevron-down ml-auto"></i>
-                                </div>
-                                <div id="source-details-{title}-{message_id}" class="hidden p-3 border-l-2 ml-6">
-                                    <p class="mb-2"><i class="fas fa-folder-open mr-2"></i>{path}</p>
-                                    <p class="mb-2 whitespace-pre-wrap">{content}</p>
-                                    <p class="text-sm text-gray-500">Size: {size}</p>
-                                </div>
-                            </div>
-                        """
-                    sources_text += "</div>"
-                    self.personality.set_message_html(sources_text)
 
-                if len(context_details.skills) > 0:
-                    sources_text += '<div class="text-gray-400 mr-10px flex items-center gap-2"><i class="fas fa-brain"></i>Memories:</div>'
-                    sources_text += '<div class="mt-4 w-full flex flex-col items-start gap-x-2 gap-y-1.5 text-sm">'
-                    for ind, skill in enumerate(context_details.skills):
-                        sources_text += f"""
-                            <div class="source-item w-full">
-                                <div class="flex items-center gap-2 p-2 bg-gray-100 rounded cursor-pointer hover:bg-gray-200"
-                                    onclick="document.getElementById('source-details-{ind}-{message_id}').classList.toggle('hidden')">
-                                    <i class="fas fa-lightbulb"></i>
-                                    <span class="font-bold">Memory {ind}: {skill['title']}</span>
-                                    <span class="text-gray-500 ml-2">({skill['similarity']*100:.2f}%)</span>
-                                    <i class="fas fa-chevron-down ml-auto"></i>
-                                </div>
-                                <div id="source-details-{ind}-{message_id}" class="hidden p-3 border-l-2 ml-6">
-                                    <pre class="whitespace-pre-wrap">{skill['content']}</pre>
-                                </div>
-                            </div>
-                        """
-                    sources_text += "</div>"
-                    self.personality.set_message_html(sources_text)
-
-                # Send final message
-                if (
-                    self.config.activate_internet_search
-                    or force_using_internet
-                    or generation_type == "full_context_with_internet"
-                ):
-                    from lollms.internet import get_favicon_url, get_root_url
-
-                    sources_text += """
-                    <div class="mt-4 text-sm">
-                        <div class="text-gray-500 font-semibold mb-2">Sources:</div>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 h-64 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
-                    """
-
-                    for source in context_details.internet_search_infos:
-                        url = source["url"]
-                        title = source["title"]
-                        brief = source["brief"]
-                        favicon_url = (
-                            get_favicon_url(url)
-                            or "/personalities/generic/lollms/assets/logo.png"
-                        )
-                        root_url = get_root_url(url)
-
-                        sources_text += f"""
-                        <div class="relative flex flex-col items-start gap-2 rounded-lg border border-gray-200 bg-white p-3 shadow-sm transition duration-200 ease-in-out transform hover:scale-105 hover:border-gray-300 hover:shadow-lg dark:border-gray-700 dark:bg-gray-800 dark:hover:border-gray-600 dark:hover:shadow-lg animate-fade-in">
-                            <a class="flex items-center w-full" target="_blank" href="{url}" title="{brief}">
-                                <img class="h-8 w-8 rounded-full" src="{favicon_url}" alt="{title}" onerror="this.onerror=null;this.src='/personalities/generic/lollms/assets/logo.png';">
-                                <div class="ml-2">
-                                    <div class="text-gray-700 dark:text-gray-300 font-semibold text-sm">{title}</div>
-                                    <div class="text-gray-500 dark:text-gray-400 text-xs">{root_url}</div>
-                                    <div class="text-gray-400 dark:text-gray-500 text-xs">{brief}</div>
-                                </div>
-                            </a>
-                        </div>
-                        """
-
-                    sources_text += """
-                        </div>
-                    </div>
-                    """
-
-                    # Add CSS for animations and scrollbar styles
-                    sources_text += """
-                    <style>
-                    @keyframes fadeIn {
-                        from { opacity: 0; transform: translateY(10px); }
-                        to { opacity: 1; transform: translateY(0); }
-                    }
-                    .animate-fade-in {
-                        animation: fadeIn 0.5s ease-in-out;
-                    }
-                    .scrollbar-thin::-webkit-scrollbar {
-                        width: 8px;
-                    }
-                    .scrollbar-thin::-webkit-scrollbar-thumb {
-                        background-color: #cbd5e1; /* Tailwind gray-300 */
-                        border-radius: 10px;
-                    }
-                    .scrollbar-thin::-webkit-scrollbar-track {
-                        background: #f9fafb; /* Tailwind gray-100 */
-                    }
-                    </style>
-                    """
-                    self.personality.set_message_html(sources_text)
-                try:
-                    await self.update_message_step(
-                        client_id,
-                        "🔥 warming up ...",
-                        MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_STEP_END_SUCCESS,
-                    )
-                    await self.update_message_step(
-                        client_id,
-                        "✍ generating ...",
-                        MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_STEP_END_SUCCESS,
-                    )
-                except Exception as ex:
-                    ASCIIColors.warning("Couldn't send status update to client")
             except Exception as ex:
                 trace_exception(ex)
                 try:
@@ -1770,32 +1812,7 @@ Don't forget encapsulate the code inside a markdown code tag. This is mandatory.
             ASCIIColors.yellow("Closing message")
             await self.close_message(client_id, True)
             client.processing = False
-            try:
-                final_ui_update =""
-                final_text_update = ""
-                if len(context_details.function_calls)>0:
-                    codes = self.personality.extract_code_blocks(client.generated_text)
-                    for function_call in context_details.function_calls:
-                        fc:FunctionCall = function_call["class"]
-                        for code in codes:
-                            if code["type"]=="function":
-                                infos = json.loads(code["content"])
-                                if infos["function_name"]==function_call["name"]:
-                                    if fc.function_type == FunctionType.CLASSIC:
-                                        context_details.ai_output = client.generated_text
-                                        output = fc.execute(context_details,**infos["function_parameters"])
-                                        if output:
-                                            if output[0]=="<":
-                                                final_ui_update+=output+"\n"
-                                            else:
-                                                final_text_update+=output+"\n"
-                if final_ui_update or final_text_update:
-                    await self.new_message(client_id,"System",final_text_update,message_type=MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_SET_CONTENT, sender_type=SENDER_TYPES.SENDER_TYPES_SYSTEM)
-                if final_ui_update:
-                    await self.personality.set_message_html(client_id, final_ui_update)
-                                        
-            except Exception as ex:
-                trace_exception(ex)
+
 
             ASCIIColors.multicolor(
                 texts=[
