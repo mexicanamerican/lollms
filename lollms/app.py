@@ -1792,7 +1792,7 @@ Don't forget encapsulate the code inside a markdown code tag. This is mandatory.
                 if final_ui_update or final_text_update:
                     await self.new_message(client_id,"System",final_text_update,message_type=MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_SET_CONTENT, sender_type=SENDER_TYPES.SENDER_TYPES_SYSTEM)
                 if final_ui_update:
-                    await self.update_message_ui(client_id, final_ui_update)
+                    await self.personality.set_message_html(client_id, final_ui_update)
                                         
             except Exception as ex:
                 trace_exception(ex)
