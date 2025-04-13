@@ -87,7 +87,7 @@ class LOLLMSElfServer(LollmsApplication):
 
 
 
-    def notify_model_install(self, 
+    async def notify_model_install(self, 
                             installation_path,
                             model_name,
                             binding_folder,
@@ -101,7 +101,7 @@ class LOLLMSElfServer(LollmsApplication):
                             status=True,
                             error="",
                              ):
-        run_async( partial(self.sio.emit,'install_progress',{
+        await self.sio.emit('install_progress',{
                                             'status': status,
                                             'error': error,
                                             'model_name' : model_name,
@@ -113,5 +113,4 @@ class LOLLMSElfServer(LollmsApplication):
                                             'progress': progress,
                                             'speed': speed,
                                         }, room=client_id
-                    )
         )

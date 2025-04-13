@@ -758,7 +758,7 @@ class LollmsApplication(LoLLMsCom):
                     "id": msg.id,
                     "parent_message_id": msg.parent_message_id,
                     "binding": self.binding.binding_folder_name,
-                    "model": self.model.model_name,
+                    "model": self.model.model_name  if self.model else "undefined",
                     "personality": self.personality.name,
                     "created_at": client.discussion.current_message.created_at,
                     "started_generating_at": client.discussion.current_message.started_generating_at,
@@ -1784,10 +1784,11 @@ Don't forget encapsulate the code inside a markdown code tag. This is mandatory.
                                     if fc.function_type == FunctionType.CLASSIC:
                                         context_details.ai_output = client.generated_text
                                         output = fc.execute(context_details,**infos["function_parameters"])
-                                        if output[0]=="<":
-                                            final_ui_update+=output+"\n"
-                                        else:
-                                            final_text_update+=output+"\n"
+                                        if output:
+                                            if output[0]=="<":
+                                                final_ui_update+=output+"\n"
+                                            else:
+                                                final_text_update+=output+"\n"
                 if final_ui_update or final_text_update:
                     await self.new_message(client_id,"System",final_text_update,message_type=MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_SET_CONTENT, sender_type=SENDER_TYPES.SENDER_TYPES_SYSTEM)
                 if final_ui_update:

@@ -3225,7 +3225,7 @@ class StateMachine:
         self.current_state_id = 0
         self.callback = None
 
-    def goto_state(self, state):
+    def goto_state(self, state:int|str):
         """
         Transition to the state with the given name or index.
 

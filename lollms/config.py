@@ -375,7 +375,26 @@ class BaseConfig:
             raise FileNotFoundError(f"Configuration file not found: {file_path}")
 
         with open(file_path, 'r', encoding='utf-8') as stream:
-            self.config = yaml.safe_load(stream)
+            # Load the entire YAML file content into a temporary dict
+            yaml_data = yaml.safe_load(stream)
+            if self.config:
+                # Check if the loaded data is a dictionary (YAML can load lists, etc.)
+                if isinstance(yaml_data, dict):
+                    # Iterate through the key-value pairs loaded from the YAML file
+                    for key, value in yaml_data.items():
+                        # Check if the key exists in the current self.config
+                        if key in self.config:
+                            # Update the value in self.config only if the key exists
+                            self.config[key] = value
+                            # print(f"Updated config: {key} = {value}") # Optional: for logging/debugging
+                        # else:
+                            # print(f"Ignoring key from file (not in existing config): {key}") # Optional
+
+                elif yaml_data is not None: # Handle cases where YAML is valid but not a dict
+                        print(f"Warning: YAML file '{file_path}' does not contain a dictionary at the root. No configuration updated.")
+            else:
+                self.config = yaml_data
+            # If yaml_data is None (e.g., empty file), do nothing.
 
     def save_config(self, file_path=None):
         """

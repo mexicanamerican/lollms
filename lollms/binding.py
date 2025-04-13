@@ -6,14 +6,17 @@
 # Description   : 
 # This is an interface class for lollms bindings.
 ######
-from fastapi import Request
+import traceback
+import os
+import time
+import asyncio
 from typing import Dict, Any
 from pathlib import Path
 from typing import Callable, Any
 from lollms.paths import LollmsPaths
 from ascii_colors import ASCIIColors
 from urllib import request
-
+import threading
 import tempfile
 import requests
 import shutil
@@ -32,7 +35,10 @@ import inspect
 from datetime import datetime
 from enum import Enum
 from lollms.utilities import trace_exception
-
+import pipmaster as pm
+pm.install_if_missing("huggingface_hub")
+from huggingface_hub import hf_hub_download, snapshot_download
+from huggingface_hub.utils import HfHubHTTPError, RepositoryNotFoundError, RevisionNotFoundError, EntryNotFoundError
 from tqdm import tqdm
 from lollms.databases.models_database import ModelsDB
 import sys
@@ -232,179 +238,244 @@ class LLMBinding:
         except Exception as e:
             print("Couldn't download file:", str(e))
 
-    def install_model(self, model_type:str, model_path:str, variant_name:str, client_id:int=None):
-        print("Install model triggered")
-        model_path = model_path.replace("\\","/")
-        parts = model_path.split("/")
-        if parts[2]=="huggingface.co":
-            ASCIIColors.cyan("Hugging face model detected")
-            model_name = parts[4]
-        else:
-            model_name = variant_name
-
-        if model_type.lower() in model_path.lower():
-            model_type:str=model_type
-        else:
-            mtt = None
-            for mt in self.models_dir_names:
-                if mt.lower() in  model_path.lower():
-                    mtt = mt
-                    break
-            if mtt:
-                model_type = mtt
-            else:
-                model_type:str=self.models_dir_names[0]
-
-        progress = 0
-        installation_dir = self.searchModelParentFolder(model_path.split('/')[-1], model_type)
-        if model_type=="gptq" or  model_type=="awq" or model_type=="transformers":
-            parts = model_path.split("/")
-            if len(parts)==2:
-                filename = parts[1]
-            else:
-                filename = parts[4]
-            installation_path = installation_dir / filename
-
-        elif model_type=="gpt4all":
-            filename = variant_name
-            model_path = "http://gpt4all.io/models/gguf/"+filename
-            installation_root_dir = installation_dir / model_name 
-            installation_root_dir.mkdir(parents=True, exist_ok=True)
-            installation_path = installation_root_dir / filename
-        else:
-            filename = Path(model_path).name
-            installation_root_dir = installation_dir / model_name 
-            installation_root_dir.mkdir(parents=True, exist_ok=True)
-            installation_path = installation_root_dir / filename
-        print("Model install requested")
-        print(f"Model path : {model_path}")
-        print(f"Installation Path : {installation_path}")
-
-        binding_folder = self.config["binding_name"]
-        model_url = model_path
-        signature = f"{model_name}_{binding_folder}_{model_url}"
-        try:
-            self.download_infos[signature]={
-                "start_time":datetime.now(),
-                "total_size":self.get_file_size(model_path),
-                "downloaded_size":0,
-                "progress":0,
-                "speed":0,
-                "cancel":False
-            }
-            
-            if installation_path.exists():
-                print("Error: Model already exists. please remove it first")
-   
-                self.lollmsCom.notify_model_install(
-                            installation_path,
-                            model_name,
-                            binding_folder,
-                            model_url,
-                            self.download_infos[signature]['start_time'].strftime("%Y-%m-%d %H:%M:%S"),
-                            self.download_infos[signature]['total_size'],
-                            self.download_infos[signature]['downloaded_size'],
-                            self.download_infos[signature]['progress'],
-                            self.download_infos[signature]['speed'],
-                            client_id,
-                            status=True,
-                            error="",
-                             )
-
-                return
-
-            
-            def callback(downloaded_size, total_size):
-                progress = (downloaded_size / total_size) * 100
-                now = datetime.now()
-                dt = (now - self.download_infos[signature]['start_time']).total_seconds()
-                speed = downloaded_size/dt
-                self.download_infos[signature]['downloaded_size'] = downloaded_size
-                self.download_infos[signature]['speed'] = speed
-
-                if progress - self.download_infos[signature]['progress']>2:
-                    self.download_infos[signature]['progress'] = progress
-                    self.lollmsCom.notify_model_install(
-                                installation_path,
-                                model_name,
-                                binding_folder,
-                                model_url,
-                                self.download_infos[signature]['start_time'].strftime("%Y-%m-%d %H:%M:%S"),
-                                self.download_infos[signature]['total_size'],
-                                self.download_infos[signature]['downloaded_size'],
-                                self.download_infos[signature]['progress'],
-                                self.download_infos[signature]['speed'],
-                                client_id,
-                                status=True,
-                                error="",
-                                )                    
-                
-                if self.download_infos[signature]["cancel"]:
-                    raise Exception("canceled")
-                    
-                
-            try:
-                self.download_model(model_path, model_name, callback)
-            except Exception as ex:
-                ASCIIColors.warning(str(ex))
-                trace_exception(ex)
-                self.lollmsCom.notify_model_install(
-                            installation_path,
-                            model_name,
-                            binding_folder,
-                            model_url,
-                            self.download_infos[signature]['start_time'].strftime("%Y-%m-%d %H:%M:%S"),
-                            self.download_infos[signature]['total_size'],
-                            self.download_infos[signature]['downloaded_size'],
-                            self.download_infos[signature]['progress'],
-                            self.download_infos[signature]['speed'],
-                            client_id,
-                            status=False,
-                            error="Canceled",
-                            )
-
-                del self.download_infos[signature]
+    def _get_folder_size(self, folder_path: Path) -> int:
+        """Calculates the total size of all files in a directory."""
+        total_size = 0
+        for item in folder_path.rglob('*'):
+            if item.is_file():
                 try:
-                    if installation_path.is_dir():
-                        shutil.rmtree(installation_path)
-                    else:
-                        installation_path.unlink()
-                except Exception as ex:
-                    trace_exception(ex)
-                    ASCIIColors.error(f"Couldn't delete file. Please try to remove it manually.\n{installation_path}")
-                return
-   
-            self.lollmsCom.notify_model_install(
-                        installation_path,
-                        model_name,
-                        binding_folder,
-                        model_url,
-                        self.download_infos[signature]['start_time'].strftime("%Y-%m-%d %H:%M:%S"),
-                        self.download_infos[signature]['total_size'],
-                        self.download_infos[signature]['total_size'],
-                        100,
-                        self.download_infos[signature]['speed'],
-                        client_id,
-                        status=True,
-                        error="",
-                        )
-            del self.download_infos[signature]
-        except Exception as ex:
-            trace_exception(ex)
-            self.lollmsCom.notify_model_install(
-                        installation_path,
-                        model_name,
-                        binding_folder,
-                        model_url,
-                        '',
-                        0,
-                        0,
-                        0,
-                        0,
-                        client_id,
-                        status=False,
-                        error=str(ex),
-                        )
+                    total_size += item.stat().st_size
+                except OSError:
+                    # Ignore files that might be removed during calculation
+                    pass
+        return total_size
+
+    def _get_folder_size(self, folder_path: Path) -> int:
+        """Calculates the total size of all files in a directory."""
+        total_size = 0
+        if not folder_path.is_dir():
+            return 0
+        for item in folder_path.rglob('*'):
+            if item.is_file():
+                try:
+                    # Check if the file still exists before getting its size
+                    if item.exists():
+                        total_size += item.stat().st_size
+                except FileNotFoundError:
+                     ASCIIColors.warning(f"File not found during size calculation: {item}. Skipping.")
+                except OSError as e:
+                    ASCIIColors.warning(f"OS error calculating size for {item}: {e}. Skipping.")
+        return total_size
+
+    # ----- ASYNC CORE LOGIC -----
+    async def install_model_async(self, variant_id: str, client_id: int = None):
+        """
+        The core asynchronous logic for downloading and installing a model
+        directly into the lollms personal models path.
+        """
+        ASCIIColors.info(f"Async install task started for: {variant_id} by client: {client_id}")
+        start_time = time.time()
+        repo_id = ""
+        filename = None # Use None to distinguish between single/multi file cases
+        model_url = ""
+        target_path = None # Path object for the final file or folder
+        binding_folder = "" # e.g., gguf, transformers
+        model_name = "" # e.g., the GGUF filename or the repo name
+        installation_path_str = "" # String version for notification
+
+        try:
+            # --- Determine Type and Paths ---
+            if "::" in variant_id:
+                # SINGLE FILE (e.g., GGUF, GGML)
+                parts = variant_id.split("::")
+                if len(parts) != 2 or not parts[0] or not parts[1]:
+                    raise ValueError("Invalid variant_id format for single file. Expected 'repo_id::filename'.")
+                repo_id = parts[0]
+                filename = parts[1] # Store filename explicitly
+                model_name = filename
+                model_url = f"https://huggingface.co/{repo_id}/resolve/main/{filename}" # Direct file URL
+
+                file_extension = Path(filename).suffix.lower().strip('.')
+                binding_folder = file_extension if file_extension in ["gguf", "ggml"] else (file_extension or "misc")
+
+                # Folder name is the repo name part (e.g., "Qwen2.5.1-Coder-7B-Instruct-GGUF")
+                model_repo_name_folder = repo_id.split('/')[-1]
+                # Target folder structure: personal_models / <type> / <repo_name> /
+                target_folder = self.lollms_paths.personal_models_path / binding_folder / model_repo_name_folder
+                # Final target path for the file
+                target_path = target_folder / filename
+                installation_path_str = str(target_path)
+                ASCIIColors.info(f"Single file install: Type='{binding_folder}', Target='{target_path}'")
+
+            else:
+                # MULTI-FILE REPOSITORY (e.g., Transformers)
+                repo_id = variant_id
+                binding_folder = "transformers" # Fixed type for multi-file repos
+                # Model name and folder name are the repo name part
+                model_name = repo_id.split('/')[-1]
+                model_repo_name_folder = model_name
+                model_url = f"https://huggingface.co/{repo_id}" # Repo URL
+
+                # Target folder structure: personal_models / transformers / <repo_name> /
+                target_folder = self.lollms_paths.personal_models_path / binding_folder / model_repo_name_folder
+                target_path = target_folder # For repos, the target *is* the folder
+                installation_path_str = str(target_path)
+                ASCIIColors.info(f"Multi-file repo install: Type='{binding_folder}', Target='{target_path}'")
+
+
+            # --- Send "Started" notification ---
+            # Ensure the specific base binding folder exists (e.g., .../gguf/ or .../transformers/)
+            target_path.parent.mkdir(parents=True, exist_ok=True)
+
+            await self.lollmsCom.notify_model_install(
+                installation_path=installation_path_str, model_name=model_name, binding_folder=binding_folder,
+                model_url=model_url, start_time=start_time, total_size=0, downloaded_size=0, progress=0.0,
+                speed=0.0, client_id=client_id, status=True, error="Starting download..."
+            )
+
+            # --- Perform Download (using asyncio.to_thread for blocking calls) ---
+            actual_size = 0
+            if filename:
+                # SINGLE FILE DOWNLOAD using hf_hub_download
+                ASCIIColors.info(f"Downloading single file: {filename} from {repo_id} to {target_path.parent}")
+
+                # Define the blocking download function
+                def _download_file():
+                    # Download directly into the target PARENT folder
+                    downloaded_path_str = hf_hub_download(
+                        repo_id=repo_id,
+                        filename=filename,
+                        local_dir=str(target_path.parent), # Specify the final directory
+                        local_dir_use_symlinks=False, # IMPORTANT: Copy file instead of symlinking from cache
+                        resume_download=True,
+                        # cache_dir=self.lollms_paths.hf_cache_path # Optional: Still use cache for partial downloads
+                        # etag_timeout=10 # Optional: Adjust timeout
+                    )
+                    return downloaded_path_str
+
+                # Run the download in a thread
+                downloaded_path_str = await asyncio.to_thread(_download_file)
+                downloaded_path = Path(downloaded_path_str)
+
+                # Ensure the downloaded file is exactly where we want it with the correct name
+                # hf_hub_download with local_dir should place it correctly, but sometimes adds hashes if cache involved.
+                if downloaded_path.name != target_path.name :
+                     ASCIIColors.warning(f"Downloaded file name mismatch: {downloaded_path.name} vs {target_path.name}. Renaming.")
+                     # Ensure the final target doesn't exist before renaming
+                     if target_path.exists() and target_path.is_file():
+                         target_path.unlink()
+                     downloaded_path.rename(target_path)
+                elif downloaded_path.parent != target_path.parent:
+                     ASCIIColors.warning(f"Downloaded file in unexpected parent: {downloaded_path.parent} vs {target_path.parent}. Moving.")
+                     if target_path.exists() and target_path.is_file():
+                         target_path.unlink()
+                     import shutil
+                     shutil.move(str(downloaded_path), str(target_path))
+
+
+                # Verify final path exists before getting size
+                if target_path.exists():
+                    actual_size = target_path.stat().st_size
+                else:
+                    raise FileNotFoundError(f"Downloaded file could not be found at expected location: {target_path}")
+
+            else:
+                # MULTI-FILE REPOSITORY DOWNLOAD using snapshot_download
+                ASCIIColors.info(f"Downloading repository: {repo_id} to {target_path}")
+
+                # Define patterns for essential files (customize as needed)
+                allow_patterns = [
+                    "*.json",             # Config, tokenizer, generation configs
+                    "*.safetensors",      # Weights (preferred)
+                    "*.bin",              # Weights (alternative/older pytorch)
+                    "*.py",               # Model code, processing code
+                    "tokenizer.model",    # SentencePiece/BPE model files
+                    "*.tiktoken",         # Tiktoken files
+                    "*.md",               # Readme, etc (often useful)
+                    # Add other patterns if models you use require specific file types
+                    # "*.txt", ?
+                    # "*.vocab"?
+                ]
+                # Optionally ignore specific large or less common files if allow_patterns is too broad
+                # ignore_patterns = ["*.gguf", "*.ggml", "*.onnx", "*.onnx_data", "*.tflite", "pytorch_model*.bin"]
+
+                # Define the blocking snapshot download function
+                def _download_repo():
+                    # Download directly into the target folder
+                    snapshot_download(
+                        repo_id=repo_id,
+                        local_dir=str(target_path), # Specify the final directory
+                        local_dir_use_symlinks=False, # IMPORTANT: Copy files instead of symlinking
+                        resume_download=True,
+                        allow_patterns=allow_patterns,
+                        # ignore_patterns=ignore_patterns, # Uncomment if using ignore patterns
+                        # cache_dir=self.lollms_paths.hf_cache_path # Optional: Still use cache
+                        # etag_timeout=10 # Optional: Adjust timeout
+                    )
+
+                # Run the download in a thread
+                await asyncio.to_thread(_download_repo)
+
+                # Calculate total size of downloaded files in the target directory
+                actual_size = self._get_folder_size(target_path)
+                if actual_size == 0 and not list(target_path.iterdir()):
+                     # Check if the folder is truly empty - maybe allow_patterns excluded everything?
+                     ASCIIColors.warning(f"Repository download resulted in an empty folder: {target_path}. Check allow_patterns or repo contents.")
+                     # Optionally, try again without allow_patterns? Or raise an error?
+                     # For now, we'll proceed but ASCIIColors the warning.
+
+
+            # --- Final Notification (Success) ---
+            end_time = time.time()
+            duration = end_time - start_time
+            average_speed = actual_size / duration if duration > 0 else 0
+            ASCIIColors.info(f"Download successful for {variant_id}. Target: {target_path}. Size: {actual_size} bytes. Duration: {duration:.2f}s.")
+            await self.lollmsCom.notify_model_install(
+                installation_path=installation_path_str, model_name=model_name, binding_folder=binding_folder,
+                model_url=model_url, start_time=start_time, total_size=actual_size, downloaded_size=actual_size,
+                progress=100.0, speed=average_speed, client_id=client_id, status=True, error=""
+            )
+
+        except (HfHubHTTPError, RepositoryNotFoundError, RevisionNotFoundError, EntryNotFoundError, ValueError, OSError, FileNotFoundError) as e:
+            error_message = f"Installation failed: {type(e).__name__}: {e}"
+            ASCIIColors.error(f"Error installing model {variant_id}: {error_message}\n{traceback.format_exc()}")
+            installation_path_str = installation_path_str or variant_id
+            model_name = model_name or variant_id.split('/')[-1]
+            binding_folder = binding_folder or "unknown"
+            await self.lollmsCom.notify_model_install(
+                installation_path=installation_path_str, model_name=model_name, binding_folder=binding_folder,
+                model_url=model_url or f"https://huggingface.co/{repo_id}", start_time=start_time, total_size=0, downloaded_size=0, progress=0.0,
+                speed=0.0, client_id=client_id, status=False, error=error_message
+            )
+        except Exception as e:
+            error_message = f"An unexpected error occurred: {e}"
+            ASCIIColors.error(f"Unexpected error during install of {variant_id}: {error_message}\n{traceback.format_exc()}")
+            installation_path_str = installation_path_str or variant_id
+            model_name = model_name or variant_id.split('/')[-1]
+            binding_folder = binding_folder or "unknown"
+            await self.lollmsCom.notify_model_install(
+                installation_path=installation_path_str, model_name=model_name, binding_folder=binding_folder,
+                model_url=model_url or f"https://huggingface.co/{repo_id}", start_time=start_time, total_size=0, downloaded_size=0, progress=0.0,
+                speed=0.0, client_id=client_id, status=False, error=error_message
+            )
+
+
+    # ----- SYNCHRONOUS WRAPPER for threading -----
+    def install_model_sync_wrapper(self, variant_id: str, client_id: int = None):
+        """
+        Synchronous wrapper to run the async install logic in a new event loop.
+        Target for threading.Thread.
+        """
+        try:
+            ASCIIColors.info(f"Thread {threading.current_thread().name}: Starting asyncio.run for install_model_async({variant_id})")
+            asyncio.run(self.install_model_async(variant_id, client_id))
+            ASCIIColors.info(f"Thread {threading.current_thread().name}: asyncio.run finished successfully for {variant_id}")
+        except Exception as e:
+            # This primarily catches errors *during* asyncio.run setup or teardown
+            # Most operational errors are caught inside install_model_async and notified from there
+            ASCIIColors.error(f"Critical error in sync wrapper task for {variant_id}: {e}\n{traceback.format_exc()}")
+            # We might not be able to reliably send an async notification here if the loop failed.
+
 
     def add_default_configurations(self, binding_config:TypedConfig):
         binding_config.addConfigs([

@@ -35,19 +35,23 @@ def add_events(sio:socketio):
     @sio.on('install_model')
     def install_model(sid, data):
         client_id = sid
-        sanitize_path(data["type"])
-        sanitize_path(data["variant_name"])
-        tpe = threading.Thread(target=lollmsElfServer.binding.install_model, args=(data["type"], data["path"], data["variant_name"], client_id))
+        variant_id = data["variant_id"]
+        sanitize_path(variant_id)
+        ASCIIColors.info(f"Received install request for {variant_id} from {client_id}. Starting background thread.")
+        # Target the NEW synchronous wrapper method
+        tpe = threading.Thread(
+            target=lollmsElfServer.binding.install_model_sync_wrapper, # <-- Important change
+            args=(variant_id, client_id),
+            name=f"InstallThread-{client_id}-{variant_id[:20]}" # Optional: Give thread a useful name
+        )
+        tpe.daemon = True # Optional: Make thread daemon so it doesn't block exit
         tpe.start()
+        ASCIIColors.info(f"Thread {tpe.name} started.")
 
     @sio.on('uninstall_model')
     def uninstall_model(sid, data):
-        path:str = data['path']
-        if path.startswith("http://"):
-            path = path[7:]
-        if path.startswith("https://"):
-            path = path[8:]
-        sanitize_path(path)
+        variant_id:str = data['variant_id']
+        sanitize_path(variant_id)
 
         model_path = os.path.realpath(data['path'])
         model_type:str=data.get("type","gguf")

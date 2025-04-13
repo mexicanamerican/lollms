@@ -51,7 +51,7 @@ class LollmsTTI(LollmsSERVICE):
                 steps=None,
                 width=None,
                 height=None,
-                output_dir=None,
+                output_folder=None,
                 output_file_name=None) -> List[Dict[str, str]]:
         """
         Generates images based on the given positive and negative prompts.
