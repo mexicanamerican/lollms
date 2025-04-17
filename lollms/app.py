@@ -561,27 +561,30 @@ class LollmsApplication(LoLLMsCom):
         # Check if the target_name matches any folder name
         target_folder = folder_path / target_name
         if target_folder in folders:
-            # Load the config.yaml file
-            config_path = target_folder / "config.yaml"
-            with open(config_path, 'r') as file:
-                config = yaml.safe_load(file)
+            try:
+                # Load the config.yaml file
+                config_path = target_folder / "config.yaml"
+                with open(config_path, 'r') as file:
+                    config = yaml.safe_load(file)
 
-            # Extract the class_name from the config
-            class_name = config.get('class_name')
-            if not class_name:
-                raise ValueError(f"class_name not found in {config_path}")
+                # Extract the class_name from the config
+                class_name = config.get('class_name')
+                if not class_name:
+                    raise ValueError(f"class_name not found in {config_path}")
 
-            # Load the Python file
-            python_file_path = target_folder / f"service.py"
-            spec = importlib.util.spec_from_file_location(target_name, python_file_path)
-            module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
+                # Load the Python file
+                python_file_path = target_folder / f"service.py"
+                spec = importlib.util.spec_from_file_location(target_name, python_file_path)
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
 
-            # Import the class and instantiate it
-            class_ = getattr(module, class_name)
-            instance = class_(self)  # Pass the config as a parameter to the constructor
+                # Import the class and instantiate it
+                class_ = getattr(module, class_name)
+                instance = class_(self)  # Pass the config as a parameter to the constructor
 
-            return instance
+                return instance
+            except Exception as ex:
+                trace_exception(ex)
         else:
             ASCIIColors.error(f"No folder named {target_name} found in {folder_path}")
 
