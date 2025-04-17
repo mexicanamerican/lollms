@@ -747,7 +747,7 @@ class LollmsApplication(LoLLMsCom):
             ],
             created_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             nb_tokens = nb_tokens
-        )  # first the content is empty, but we'll fill it at the end
+        )
         await self.sio.emit(
                 "new_message",
                 {
@@ -1551,6 +1551,7 @@ Don't forget encapsulate the code inside a markdown code tag. This is mandatory.
                                             final_text_update+=output+"\n"
             if final_ui_update or final_text_update:
                 self.personality.new_message(final_text_update)
+                self.personality.set_message_content(final_text_update)
             if final_ui_update:
                 self.personality.set_message_html(final_ui_update)
                                     
@@ -1781,8 +1782,8 @@ Don't forget encapsulate the code inside a markdown code tag. This is mandatory.
                         ),
                     )
                     await client.generation_routine
-                    
-
+                    ASCIIColors.yellow("Closing message")
+                    await self.close_message(client_id, True)
                 except Exception as ex:
                     trace_exception(ex)
                     print()
@@ -1812,8 +1813,6 @@ Don't forget encapsulate the code inside a markdown code tag. This is mandatory.
                 self.busy = False
                 self.cancel_gen = False
 
-            ASCIIColors.yellow("Closing message")
-            await self.close_message(client_id, True)
             client.processing = False
 
 

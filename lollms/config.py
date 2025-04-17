@@ -1,7 +1,7 @@
 from pathlib import Path
 from ascii_colors import ASCIIColors
 
-
+from typing import Any
 import yaml
 from enum import Enum
 
@@ -278,6 +278,28 @@ class BaseConfig:
         
         return BaseConfig(self.exceptional_keys, self.config.copy(), self.file_path)
 
+    def get(self, key: str, default: Any = None) -> Any:
+        """
+        Retrieves the configuration value associated with the specified key.
+
+        If the key is found, its value is returned. If the key is not found,
+        the specified default value is returned.
+
+        Args:
+            key (Any): The key to retrieve the configuration value.
+            default (Any, optional): The value to return if the key is not found.
+                                    Defaults to None.
+
+        Returns:
+            Any: The configuration value associated with the key, or the default value.
+
+        Raises:
+            ValueError: If no configuration is loaded (`self.config` is None).
+        """
+        if self.config is None:
+            raise ValueError("No configuration loaded.")
+        return self.config.get(key, default)
+    
     def __getattr__(self, key):
         """
         Retrieves the configuration value associated with the specified key as an attribute.

@@ -25,7 +25,7 @@ class FunctionCall:
             self.sync_configuration()
     
     def sync_configuration(self):
-        self.configuration_file_path = self.app.lollms_paths.personal_configuration_path/"services"/self.name/f"config.yaml"
+        self.configuration_file_path = self.app.lollms_paths.personal_configuration_path/"services"/self.function_name/f"config.yaml"
         self.configuration_file_path.parent.mkdir(parents=True, exist_ok=True)
         self.static_parameters.config.file_path = self.configuration_file_path
         try:
