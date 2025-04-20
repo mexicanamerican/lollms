@@ -178,7 +178,7 @@ class LollmsContextDetails:
         
         append_context("extra")
 
-        discussion = extract_context_entry("discussion_messages", "# discussion:\n")
+        discussion = extract_context_entry("discussion_messages", template.system_custom_header("discussion")+"\n")
        
         found_classic_function = False
         if not ignore_function_calls:

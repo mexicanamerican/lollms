@@ -10,7 +10,7 @@ import traceback
 import os
 import time
 import asyncio
-from typing import Dict, Any
+from typing import Dict, Any, List
 from pathlib import Path
 from typing import Callable, Any
 from lollms.paths import LollmsPaths
@@ -42,7 +42,7 @@ from huggingface_hub.utils import HfHubHTTPError, RepositoryNotFoundError, Revis
 from tqdm import tqdm
 from lollms.databases.models_database import ModelsDB
 import sys
-
+import re
 __author__ = "parisneo"
 __github__ = "https://github.com/ParisNeo/lollms_bindings_zoo"
 __copyright__ = "Copyright 2023, "
@@ -104,6 +104,105 @@ class LLMBinding:
             models_folder.mkdir(parents=True, exist_ok=True)
 
 
+    def parse_lollms_discussion(self, full_prompt: str) -> List[Dict[str, str]]:
+        """
+        Parses the custom LoLLMs discussion format (!@>system:, !@>discussion:, !@>user_name:, !@>personality_name:)
+        into a list of dictionaries compatible with tokenizer.apply_chat_template, preserving
+        the actual role names used in the prompt and correctly associating content.
+
+        Args:
+            full_prompt: The prompt string containing the custom format.
+
+        Returns:
+            A list of message dictionaries, e.g., [{"role": "ParisNeo", "content": "..."}, ...].
+            Returns an empty list if parsing fails or format is not detected.
+        """
+        messages = []
+        # Define start/end patterns using config, ensuring they are regex-safe
+        start_pattern = re.escape(self.config.start_header_id_template)
+        end_pattern = re.escape(self.config.end_header_id_template.strip()) # Strip trailing space if any
+
+        # Regex to find system message and discussion block robustly
+        # Look for system block ending either at discussion block or end of string
+        system_search_pattern = rf"{start_pattern}system{end_pattern}(.*?)(?={start_pattern}discussion{end_pattern}|$)"
+        # Look for discussion block and capture everything after it
+        discussion_search_pattern = rf"{start_pattern}discussion{end_pattern}(.*)"
+
+        system_match = re.search(system_search_pattern, full_prompt, re.IGNORECASE | re.DOTALL)
+        discussion_match = re.search(discussion_search_pattern, full_prompt, re.IGNORECASE | re.DOTALL)
+
+        # 1. Extract System Prompt
+        if system_match:
+            system_content = system_match.group(1).strip()
+            if system_content:
+                # Standardize 'system' role as it's usually special in templates
+                messages.append({"role": "system", "content": system_content})
+
+        # 2. Parse Discussion Block if it exists
+        if discussion_match:
+            discussion_text = discussion_match.group(1) # Don't strip yet, preserve leading/trailing whitespace between turns
+            # Pattern to find role markers: captures the role name (e.g., 'lollms', 'ParisNeo')
+            role_marker_pattern = re.compile(rf'{start_pattern}(\w+){end_pattern}')
+
+            last_marker_end = 0
+            current_role = None # The role governing the content *before* the current marker
+
+            # Iterate through all markers found in the discussion text
+            for match in role_marker_pattern.finditer(discussion_text):
+                # Content for the *previous* role lies between the end of the previous marker
+                # and the start of the current marker.
+                content_start = last_marker_end
+                content_end = match.start()
+                content = discussion_text[content_start:content_end].strip()
+
+                # If we had a role defined from the previous iteration, and there's content, add the message
+                if current_role is not None and content:
+                    messages.append({"role": current_role, "content": content})
+                elif current_role is not None and not content:
+                    # Handle case where a marker is immediately followed by another (e.g., !@>user:\n!@>assistant:)
+                    # Usually, we want to skip empty messages, but maybe log a warning.
+                    # self.warning(f"Empty content found for role: {current_role}")
+                    pass
+
+
+                # The role defined by the *current* marker will govern the *next* segment of content
+                current_role = match.group(1) # e.g., 'lollms' or 'ParisNeo'
+                last_marker_end = match.end() # Update the end position for the next iteration
+
+            # After the loop, capture the final piece of content following the last marker
+            if current_role is not None:
+                final_content = discussion_text[last_marker_end:].strip()
+                if final_content:
+                    messages.append({"role": current_role, "content": final_content})
+                # Note: If the discussion ends with just a marker like "!@>lollms:",
+                # final_content will be empty. We *do not* add this empty message.
+                # The `add_generation_prompt=True` flag in `apply_chat_template` is responsible
+                # for adding the necessary tokens to start the assistant's turn based on the
+                # *last actual message* in the list (which should be the user's).
+
+        # 3. Handle Fallbacks and Edge Cases (If no valid discussion was parsed)
+
+        # If NO messages were parsed at all (not even system), treat whole prompt as user input
+        if not messages and full_prompt:
+            user_role_name = self.config.user_name or "user" # Fallback to "user"
+            messages.append({"role": user_role_name, "content": full_prompt.strip()})
+
+        # If only a system message was parsed, check if there was content *after* the system block
+        # but *before* any potential (malformed or missing) discussion block. Treat that as user input.
+        elif len(messages) == 1 and messages[0]["role"] == "system" and system_match:
+            # Find where the system message content actually ended in the original prompt
+            # system_match.group(1) is the content, system_match.start(1) and end(1) give its span
+            end_of_system_message_content = system_match.end(1)
+            remaining_prompt_after_system = full_prompt[end_of_system_message_content:].strip()
+
+            # Add remaining content as user input ONLY if no discussion block was detected AT ALL
+            if remaining_prompt_after_system and not discussion_match:
+                user_role_name = self.config.user_name or "user"
+                messages.append({"role": user_role_name, "content": remaining_prompt_after_system})
+
+
+        return messages
+    
     def count_tokens(self, prompt):
         """
         Counts the number of tokens in a prtompt
@@ -285,16 +384,16 @@ class LLMBinding:
 
         try:
             # --- Determine Type and Paths ---
-            if "::" in variant_id:
+            parts = variant_id.split("::")
+            if len(parts)==2 and not (parts[0] in parts[1]):
                 # SINGLE FILE (e.g., GGUF, GGML)
-                parts = variant_id.split("::")
+                
                 if len(parts) != 2 or not parts[0] or not parts[1]:
                     raise ValueError("Invalid variant_id format for single file. Expected 'repo_id::filename'.")
                 repo_id = parts[0]
                 filename = parts[1] # Store filename explicitly
                 model_name = filename
                 model_url = f"https://huggingface.co/{repo_id}/resolve/main/{filename}" # Direct file URL
-
                 file_extension = Path(filename).suffix.lower().strip('.')
                 binding_folder = file_extension if file_extension in ["gguf", "ggml"] else (file_extension or "misc")
 
@@ -308,6 +407,8 @@ class LLMBinding:
                 ASCIIColors.info(f"Single file install: Type='{binding_folder}', Target='{target_path}'")
 
             else:
+                if len(parts)==2:
+                    variant_id=parts[0]
                 # MULTI-FILE REPOSITORY (e.g., Transformers)
                 repo_id = variant_id
                 binding_folder = "transformers" # Fixed type for multi-file repos

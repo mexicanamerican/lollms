@@ -19,7 +19,7 @@ class ModelsDB:
                                 model_creator TEXT,
                                 model_creator_link TEXT,
                                 name TEXT UNIQUE,
-                                quantizer TEXT,
+                                provider TEXT,
                                 ctx_size INTEGER,
                                 rank REAL,
                                 type TEXT
@@ -46,7 +46,7 @@ class ModelsDB:
             data = (entry.get('category'), entry.get('icon'), ','.join(datasets) if type(datasets)==list else datasets, entry.get('last_commit_time'),
                     ','.join(license) if type(license)==list else license,                     
                     entry.get('model_creator'), entry.get('model_creator_link'), entry.get('name'),
-                    entry.get('quantizer'), entry.get('ctx_size', 4096), entry.get('rank'), entry.get('type'))
+                    entry.get('provider'), entry.get('ctx_size', 4096), entry.get('rank'), entry.get('type'))
             self.cursor.execute('''INSERT INTO models VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', data)
             model_id = self.cursor.lastrowid
             # Insert the variants
@@ -103,7 +103,7 @@ class ModelsDB:
                     "model_creator": row[6],
                     "model_creator_link": row[7],
                     "name": row[8],
-                    "quantizer": row[9],
+                    "provider": row[9],
                     "ctx_size": row[10],
                     "rank": row[11],
                     "type": row[12],

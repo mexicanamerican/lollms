@@ -1588,7 +1588,7 @@ Don't forget encapsulate the code inside a markdown code tag. This is mandatory.
                 else:
                     prompt = "\n".join(
                         [
-                            f"{self.start_header_id_template}{self.system_message_template}{self.end_header_id_template}I am an AI assistant that can converse and analyze images. When asked to locate something in an image you send, I will reply with:",
+                            f"{self.system_full_header}I am an AI assistant that can converse and analyze images. When asked to locate something in an image you send, I will reply with:",
                             "boundingbox(image_index, label, left, top, width, height)",
                             "Where:",
                             "image_index: 0-based index of the image",

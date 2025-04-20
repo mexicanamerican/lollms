@@ -137,6 +137,125 @@ def safe_filename(
 
     return sanitized
 
+
+import requests
+from pathlib import Path
+from typing import Union, Optional, Callable
+import tqdm # Use tqdm for progress bar if available
+
+# ... (other utility functions like get_torch_device, etc.)
+
+def download_file(url: str, destination_path: Union[str, Path], progress_callback: Optional[Callable[[str], None]] = None, chunk_size=8192) -> bool:
+    """
+    Downloads a file from a URL to a destination path with progress reporting.
+
+    Args:
+        url: The URL of the file to download.
+        destination_path: The local path (string or Path object) where the file should be saved.
+        progress_callback: An optional function to call with progress messages (e.g., percentage).
+                           Takes a single string argument.
+        chunk_size: The chunk size for downloading data.
+
+    Returns:
+        True if the download was successful, False otherwise.
+    """
+    dest_path = Path(destination_path)
+    # Ensure the destination directory exists
+    try:
+        dest_path.parent.mkdir(parents=True, exist_ok=True)
+    except Exception as e:
+        if progress_callback:
+            progress_callback(f"Error creating directory {dest_path.parent}: {e}")
+        print(f"Error creating directory {dest_path.parent}: {e}") # Also print to console
+        return False
+
+    try:
+        # Use a session for potential connection pooling benefits
+        with requests.Session() as session:
+            response = session.get(url, stream=True, timeout=30) # Add timeout
+            response.raise_for_status()  # Raise an exception for bad status codes (4xx or 5xx)
+
+            total_size_in_bytes = int(response.headers.get('content-length', 0))
+            downloaded_size = 0
+
+            if progress_callback:
+                progress_callback(f"Starting download of {dest_path.name} from {url}")
+
+            # Use tqdm for a visual progress bar if available and no callback is provided
+            progress_bar = None
+            if not progress_callback and PackageManager.check_package_installed("tqdm"):
+                 try:
+                     progress_bar = tqdm.tqdm(total=total_size_in_bytes, unit='iB', unit_scale=True, desc=f"Downloading {dest_path.name}")
+                 except Exception:
+                     progress_bar = None # Fallback if tqdm fails
+
+
+            with open(dest_path, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=chunk_size):
+                    if chunk:  # filter out keep-alive new chunks
+                        chunk_len = len(chunk)
+                        f.write(chunk)
+                        downloaded_size += chunk_len
+
+                        if progress_bar:
+                             progress_bar.update(chunk_len)
+                        elif progress_callback:
+                            if total_size_in_bytes > 0:
+                                progress = (downloaded_size / total_size_in_bytes) * 100
+                                # Report progress less frequently to avoid flooding logs/UI
+                                if downloaded_size % (chunk_size * 10) == 0 or downloaded_size == total_size_in_bytes:
+                                    progress_callback(f"Downloading {dest_path.name}: {progress:.1f}% ({downloaded_size/1024/1024:.2f}MB / {total_size_in_bytes/1024/1024:.2f}MB)")
+                            else:
+                                # Report progress based on downloaded size if total unknown
+                                if downloaded_size % (chunk_size * 50) == 0: # Report every ~400KB
+                                     progress_callback(f"Downloading {dest_path.name}: {downloaded_size/1024/1024:.2f}MB downloaded (total size unknown)")
+
+            if progress_bar:
+                 progress_bar.close()
+
+            if total_size_in_bytes != 0 and downloaded_size != total_size_in_bytes:
+                if progress_callback:
+                    progress_callback(f"Error: Download finished, but size mismatch! Expected {total_size_in_bytes}, got {downloaded_size}")
+                print(f"Error: Download size mismatch for {dest_path.name}")
+                # Optional: Delete incomplete file?
+                # dest_path.unlink(missing_ok=True)
+                # return False # Consider this a failure
+                return True # Or consider it success but log warning
+
+            if progress_callback:
+                progress_callback(f"Successfully downloaded {dest_path.name}")
+            return True
+
+    except requests.exceptions.HTTPError as http_err:
+        error_msg = f"HTTP Error during download: {http_err}"
+        if progress_callback: progress_callback(error_msg)
+        print(error_msg) # Also print
+        return False
+    except requests.exceptions.ConnectionError as conn_err:
+        error_msg = f"Connection Error during download: {conn_err}"
+        if progress_callback: progress_callback(error_msg)
+        print(error_msg)
+        return False
+    except requests.exceptions.Timeout as timeout_err:
+        error_msg = f"Timeout Error during download: {timeout_err}"
+        if progress_callback: progress_callback(error_msg)
+        print(error_msg)
+        return False
+    except requests.exceptions.RequestException as req_err:
+        error_msg = f"Error during download request: {req_err}"
+        if progress_callback: progress_callback(error_msg)
+        print(error_msg)
+        return False
+    except Exception as e:
+        error_msg = f"An unexpected error occurred during download: {e}"
+        if progress_callback: progress_callback(error_msg)
+        print(error_msg)
+        # You might want to re-import trace_exception here if needed
+        # from lollms.helpers import trace_exception
+        # trace_exception(e)
+        return False
+
+
 def run_with_current_interpreter(
     script_path: Union[str, Path], 
     args: List[str] = None
