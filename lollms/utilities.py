@@ -1805,3 +1805,29 @@ def short_desc(text: str, max_length: int = 80) -> str:
     else:
         # No space found in the initial part, hard truncate
         return text[:trunc_point] + "..."
+
+def get_torch_device():
+    """
+    Detects and returns the best available PyTorch device.
+    Prioritizes CUDA, then MPS (Apple Silicon), then CPU.
+
+    Returns:
+        str: The selected device ("cuda", "mps", or "cpu").
+    """
+    import torch
+    if torch.cuda.is_available():
+        device = "cuda"
+        try:
+            # Optional: Log GPU details if needed
+            gpu_name = torch.cuda.get_device_name(0)
+            ASCIIColors.info(f"CUDA device detected: {gpu_name}")
+        except Exception as e:
+            ASCIIColors.warning(f"Could not get CUDA device name: {e}")
+    elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available() and torch.backends.mps.is_built():
+        # Check if MPS is available and built
+        device = "mps"
+        ASCIIColors.info("MPS device detected (Apple Silicon).")
+    else:
+        device = "cpu"
+        ASCIIColors.info("No CUDA or MPS detected. Using CPU.")
+    return device

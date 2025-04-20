@@ -36,7 +36,7 @@ def add_events(sio:socketio):
     def install_model(sid, data):
         client_id = sid
         variant_id = data["variant_id"]
-        sanitize_path(variant_id)
+        #sanitize_path(variant_id)
         ASCIIColors.info(f"Received install request for {variant_id} from {client_id}. Starting background thread.")
         # Target the NEW synchronous wrapper method
         tpe = threading.Thread(
