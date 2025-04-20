@@ -254,6 +254,7 @@ class LoLLMsCom:
             else:
                 ASCIIColors.red(content)
         
+
     async def notify_model_install(self, 
                             installation_path,
                             model_name,
@@ -268,4 +269,16 @@ class LoLLMsCom:
                             status=True,
                             error="",
                              ):
-        pass
+        await self.sio.emit('install_progress',{
+                                            'status': status,
+                                            'error': error,
+                                            'model_name' : model_name,
+                                            'binding_folder' : binding_folder,
+                                            'model_url' : model_url,
+                                            'start_time': start_time,
+                                            'total_size': total_size,
+                                            'downloaded_size': downloaded_size,
+                                            'progress': progress,
+                                            'speed': speed,
+                                        }, room=client_id
+        )

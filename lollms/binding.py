@@ -413,12 +413,13 @@ class LLMBinding:
                 repo_id = variant_id
                 binding_folder = "transformers" # Fixed type for multi-file repos
                 # Model name and folder name are the repo name part
+                provider_name = repo_id.split('/')[0]
                 model_name = repo_id.split('/')[-1]
                 model_repo_name_folder = model_name
                 model_url = f"https://huggingface.co/{repo_id}" # Repo URL
 
                 # Target folder structure: personal_models / transformers / <repo_name> /
-                target_folder = self.lollms_paths.personal_models_path / binding_folder / model_repo_name_folder
+                target_folder = self.lollms_paths.personal_models_path / binding_folder / provider_name / model_repo_name_folder
                 target_path = target_folder # For repos, the target *is* the folder
                 installation_path_str = str(target_path)
                 ASCIIColors.info(f"Multi-file repo install: Type='{binding_folder}', Target='{target_path}'")
@@ -559,7 +560,6 @@ class LLMBinding:
                 model_url=model_url or f"https://huggingface.co/{repo_id}", start_time=start_time, total_size=0, downloaded_size=0, progress=0.0,
                 speed=0.0, client_id=client_id, status=False, error=error_message
             )
-
 
     # ----- SYNCHRONOUS WRAPPER for threading -----
     def install_model_sync_wrapper(self, variant_id: str, client_id: int = None):
