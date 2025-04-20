@@ -488,7 +488,7 @@ class LLMBinding:
                 allow_patterns = [
                     "*.json",             # Config, tokenizer, generation configs
                     "*.safetensors",      # Weights (preferred)
-                    "*.bin",              # Weights (alternative/older pytorch)
+                    #"*.bin",              # Weights (alternative/older pytorch)
                     "*.py",               # Model code, processing code
                     "tokenizer.model",    # SentencePiece/BPE model files
                     "*.tiktoken",         # Tiktoken files
