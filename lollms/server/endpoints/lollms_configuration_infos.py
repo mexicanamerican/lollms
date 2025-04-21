@@ -190,8 +190,9 @@ async def apply_settings(request: Request):
 
                 lollmsElfServer.config.config[key] = config.get(key, lollmsElfServer.config.config[key])
             ASCIIColors.success("OK")
-            if lollmsElfServer.config.binding_name != lollmsElfServer.binding.binding_folder_name:
-                lollmsElfServer.binding = BindingBuilder().build_binding(lollmsElfServer.config, lollmsElfServer.lollms_paths, InstallOption.INSTALL_IF_NECESSARY, lollmsCom=lollmsElfServer)
+            if lollmsElfServer.binding:
+                if lollmsElfServer.config.binding_name != lollmsElfServer.binding.binding_folder_name:
+                    lollmsElfServer.binding = BindingBuilder().build_binding(lollmsElfServer.config, lollmsElfServer.lollms_paths, InstallOption.INSTALL_IF_NECESSARY, lollmsCom=lollmsElfServer)
             lollmsElfServer.rebuild_personalities()
             lollmsElfServer.verify_servers()
             if lollmsElfServer.config.auto_save:

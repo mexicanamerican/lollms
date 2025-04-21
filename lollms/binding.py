@@ -103,6 +103,10 @@ class LLMBinding:
         for models_folder in self.models_folders:
             models_folder.mkdir(parents=True, exist_ok=True)
 
+    def stop_generation(self):
+        """Requests the generation thread to stop (the model must implement this)."""
+        pass
+
 
     def parse_lollms_discussion(self, full_prompt: str) -> List[Dict[str, str]]:
         """
