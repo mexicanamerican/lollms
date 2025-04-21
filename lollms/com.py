@@ -64,8 +64,13 @@ class LoLLMsCom:
             # Create task schedules it, doesn't wait
             self.loop.create_task(coro)
         else:
+            try:
+                self.loop = asyncio.get_running_loop()
+                self.loop.create_task(coro)
+            except Exception as ex:
+                self.loop = None
                 # This ideally shouldn't happen if setup is correct
-                print(f"ERROR: Loop not available when trying to schedule {coro}")
+                ASCIIColors.error(f"ERROR: Loop not available when trying to schedule {coro}")
 
     def InfoMessage(self, content, client_id=None, verbose:bool=None):
         try:
