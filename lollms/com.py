@@ -134,46 +134,57 @@ class LoLLMsCom:
         pass
     
     def info(self, content, duration:int=4, client_id=None, verbose:bool=None):
-        self.schedule_task( self.notify(
-                content, 
-                notification_type=NotificationType.NOTIF_SUCCESS, 
-                duration=duration, 
-                client_id=client_id, 
-                display_type=NotificationDisplayType.TOAST,
-                verbose=verbose
+        try:
+            self.schedule_task( self.notify(
+                    content, 
+                    notification_type=NotificationType.NOTIF_SUCCESS, 
+                    duration=duration, 
+                    client_id=client_id, 
+                    display_type=NotificationDisplayType.TOAST,
+                    verbose=verbose
+                )
             )
-        )
+        except:
+            ASCIIColors.info(content)
     def warning(self, content, duration:int=4, client_id=None, verbose:bool=None):
-        self.schedule_task(self.notify(
-                content, 
-                notification_type=NotificationType.NOTIF_WARNING, 
-                duration=duration, 
-                client_id=client_id, 
-                display_type=NotificationDisplayType.TOAST,
-                verbose=verbose
+        try:
+            self.schedule_task(self.notify(
+                    content, 
+                    notification_type=NotificationType.NOTIF_WARNING, 
+                    duration=duration, 
+                    client_id=client_id, 
+                    display_type=NotificationDisplayType.TOAST,
+                    verbose=verbose
+                )
             )
-        )
-
+        except:
+            ASCIIColors.warning(content)
     def success(self, content, duration:int=4, client_id=None, verbose:bool=None):
-        self.schedule_task(self.notify(
-                content, 
-                notification_type=NotificationType.NOTIF_SUCCESS, 
-                duration=duration, 
-                client_id=client_id, 
-                display_type=NotificationDisplayType.TOAST,
-                verbose=verbose
+        try:
+            self.schedule_task(self.notify(
+                    content, 
+                    notification_type=NotificationType.NOTIF_SUCCESS, 
+                    duration=duration, 
+                    client_id=client_id, 
+                    display_type=NotificationDisplayType.TOAST,
+                    verbose=verbose
+                )
             )
-        )
+        except:
+            ASCIIColors.warning(content)
     def error(self, content, duration:int=4, client_id=None, verbose:bool=None):
-        self.schedule_task(self.notify(
-                content, 
-                notification_type=NotificationType.NOTIF_ERROR, 
-                duration=duration, 
-                client_id=client_id, 
-                display_type=NotificationDisplayType.TOAST,
-                verbose = verbose
+        try:
+            self.schedule_task(self.notify(
+                    content, 
+                    notification_type=NotificationType.NOTIF_ERROR, 
+                    duration=duration, 
+                    client_id=client_id, 
+                    display_type=NotificationDisplayType.TOAST,
+                    verbose = verbose
+                )
             )
-        )
+        except:
+            ASCIIColors.warning(content)
     async def new_message(self, 
                             client_id, 
                             sender=None, 
