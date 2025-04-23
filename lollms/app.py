@@ -760,7 +760,7 @@ class LollmsApplication(LoLLMsCom):
                     "discussion_id":client.discussion.discussion_id,
                     "id": msg.id,
                     "parent_message_id": msg.parent_message_id,
-                    "binding": self.binding.binding_folder_name,
+                    "binding": self.binding.binding_folder_name if self.binding else None,
                     "model": self.model.model_name  if self.model else "undefined",
                     "personality": self.personality.name,
                     "created_at": client.discussion.current_message.created_at,
