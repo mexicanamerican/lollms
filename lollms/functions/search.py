@@ -1,16 +1,11 @@
 # Lollms function call definition file
 # Import necessary libraries
 import requests
-from functools import partial
 from typing import List
-from lollms.utilities import PackageManager
-from ascii_colors import trace_exception
 
-# Ensure necessary packages are installed
-if not PackageManager.check_package_installed("bs4"):
-    PackageManager.install_package("beautifulsoup4")
-if not PackageManager.check_package_installed("html2text"):
-    PackageManager.install_package("html2text")
+from ascii_colors import trace_exception
+import pipmaster as pm
+pm.ensure_packages({"beautifulsoup4":"", "html2text":""})
 
 # Import the libraries
 from bs4 import BeautifulSoup

@@ -5,7 +5,7 @@ from datetime import datetime
 from ascii_colors import ASCIIColors, trace_exception
 from lollms.types import MSG_OPERATION_TYPE
 from lollms.types import BindingType
-from lollms.utilities import PackageManager, discussion_path_to_url
+from lollms.utilities import discussion_path_to_url
 from lollms.paths import LollmsPaths
 from lollms.com import LoLLMsCom
 

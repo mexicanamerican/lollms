@@ -7,7 +7,6 @@ This module is part of the Lollms library, designed to provide Text-to-Speech (T
 Author: ParisNeo, a computer geek passionate about AI
 """
 from lollms.app import LollmsApplication
-from lollms.utilities import PackageManager
 from pathlib import Path
 from ascii_colors import ASCIIColors
 from lollms.main_config import LOLLMSConfig

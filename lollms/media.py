@@ -6,7 +6,7 @@ Description: Media classes:
     - MusicPlayer: is a MusicPlayer class that allows you to play music using pygame library.
 License: Apache 2.0
 """
-from lollms.utilities import PackageManager
+import pipmaster as pm
 from lollms.com import LoLLMsCom
 from lollms.utilities import trace_exception, run_async
 from lollms.types import MSG_OPERATION_TYPE, SENDER_TYPES
@@ -23,29 +23,14 @@ import os
 import threading
 import re
 
-if not PackageManager.check_package_installed("cv2"):
-    if platform.system() == "Darwin":
-        os.system('brew install opencv')
-    elif platform.system() == "Windows":
-        os.system('pip install opencv-python')
-    else:
-        os.system('pip install opencv-python')
-        # os.system('sudo apt-get update')
-        # os.system('sudo apt-get install libgl1-mesa-glx python3-opencv -y')
-        # os.system('pip install opencv-python')
-try:
-    import cv2
-except:
-    ASCIIColors.error("Couldn't install opencv!")
+pm.ensure_packages({
+    "opencv-python":"",
+    "scipy":"",
+    "matplotlib":"",
+    "sounddevice":"",
+    "wave":""
+    })
 
-
-if not PackageManager.check_package_installed("scipy"):
-    PackageManager.install_package("scipy")
-    from scipy import signal
-from scipy import signal
-
-if not PackageManager.check_package_installed("matplotlib"):
-    PackageManager.install_package("matplotlib")
 import matplotlib.pyplot as plt
 import matplotlib
 matplotlib.use('Agg')
@@ -55,15 +40,6 @@ matplotlib.use('Agg')
 import socketio
 from lollms.com import LoLLMsCom
 try:
-    if not PackageManager.check_package_installed("sounddevice"):
-        # os.system("sudo apt-get install portaudio19-dev")
-        PackageManager.install_package("sounddevice")
-        PackageManager.install_package("wave")
-except:
-    # os.system("sudo apt-get install portaudio19-dev -y")
-    PackageManager.install_package("sounddevice")
-    PackageManager.install_package("wave")
-try:
     import sounddevice as sd
     import wave
 except:
@@ -71,9 +47,7 @@ except:
 
 import time
 import base64
-import io
 import socketio
-from scipy.io.wavfile import write
 from matplotlib import pyplot as plt
 import numpy as np
 from scipy.signal import spectrogram
@@ -207,8 +181,7 @@ class RTCom:
         return np.mean(mfccs.T, axis=0)
 
     def extract_features(self, frames):
-        if not PackageManager.check_package_installed("librosa"):
-            PackageManager.install_package("librosa")
+        pm.ensure_packages({"librosa":""})
         
         filename = f"recording_{self.file_index}.wav"
         self.file_index += 1
@@ -232,8 +205,7 @@ class RTCom:
         return np.mean(mfccs.T, axis=0)
     
     def compare_voices(self, sample_features, realtime_features, th = 20):
-        if not PackageManager.check_package_installed("scipy"):
-            PackageManager.install_package("scipy")
+        pm.ensure_packages({"scipy":""})
         from scipy.spatial.distance import euclidean
         # Calculate the Euclidean distance between the features
         distance = euclidean(sample_features, realtime_features)
@@ -663,8 +635,7 @@ class MusicPlayer(threading.Thread):
         """
         The main function that runs in a separate thread to play the music.
         """
-        if not PackageManager.check_package_installed("pygame"):
-            PackageManager.install_package("pygame")
+        pm.ensure_packages({"pygame":""})
         import pygame
 
         pygame.mixer.init()

@@ -2,21 +2,10 @@
 # Here you need to import any necessary imports depending on the function requested by the user
 # exemple import math
 
-# Partial is useful if we need to preset some parameters
-from functools import partial
-
-# It is advised to import typing elements
-# from typing import List
-
-# Import PackageManager if there are potential libraries that need to be installed 
-from lollms.utilities import PackageManager
-
 # ascii_colors offers advanced console coloring and bug tracing
 from ascii_colors import trace_exception
-
-# Here is an example of how we install a non installed library using PackageManager
-if not PackageManager.check_package_installed("pyautogui"):
-    PackageManager.install_package("pyautogui")
+import pipmaster as pm
+pm.ensure_packages({"pyautogui":""})
 
 # now we can import the library
 import pyautogui

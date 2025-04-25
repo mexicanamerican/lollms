@@ -16,13 +16,13 @@ class FunctionCall:
     def __init__(self, function_name:str, app:LoLLMsCom, function_type: FunctionType, client: Client, static_parameters:TypedConfig=None, description=""):
         self.function_name = function_name
         self.app = app
-        self.personality = app.personality
         self.function_type = function_type
         self.client = client
         self.description = description
         if static_parameters is not None:
             self.static_parameters = static_parameters
             self.sync_configuration()
+        self.personality = app.personality
     
     def sync_configuration(self):
         self.configuration_file_path = self.app.lollms_paths.personal_configuration_path/"services"/self.function_name/f"config.yaml"

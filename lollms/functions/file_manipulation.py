@@ -2,12 +2,7 @@
 # Here you need to import any necessary imports depending on the function requested by the user
 from functools import partial
 from typing import List
-from lollms.utilities import PackageManager
 from ascii_colors import trace_exception
-
-# Ensure the required package is installed
-if not PackageManager.check_package_installed("pathlib"):
-    PackageManager.install_package("pathlib")
 
 # Importing pathlib
 from pathlib import Path

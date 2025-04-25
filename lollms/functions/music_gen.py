@@ -1,14 +1,11 @@
 # Lollms function call definition file
 
 # Required imports
-from functools import partial
-from lollms.utilities import PackageManager
 from ascii_colors import trace_exception
+import pipmaster as pm
 
 # Ensure pyautogui is installed
-if not PackageManager.check_package_installed("pyautogui"):
-    PackageManager.install_package("pyautogui")
-
+pm.ensure_packages({"pyautogui":""})
 import pyautogui
 import webbrowser
 import time

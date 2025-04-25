@@ -40,14 +40,6 @@ import platform
 import subprocess
 import pkg_resources
 from functools import partial
-
-import pipmaster as pm
-if not pm.is_installed("Pillow"):
-    pm.install("Pillow")
-from PIL import Image
-
-if not pm.is_installed("PyQt5"):
-    pm.install("PyQt5")
 import sys
 from PyQt5.QtWidgets import QApplication, QButtonGroup, QRadioButton, QVBoxLayout, QWidget, QPushButton, QMessageBox
 from PyQt5.QtCore import Qt

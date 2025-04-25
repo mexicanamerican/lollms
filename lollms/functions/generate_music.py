@@ -5,17 +5,13 @@
 
 # Import necessary libraries
 try:
+    import pipmaster as pm
+    pm.ensure_packages({"torch":"","torchaudio":"","audiocraft":""})
+
     import torchaudio
     from audiocraft.models import musicgen
-    import torch
-    from pathlib import Path
-    from lollms.utilities import PackageManager
     from ascii_colors import trace_exception
     from functools import partial
-
-    # Check for required packages and install if necessary
-    if not PackageManager.check_package_installed("audiocraft"):
-        PackageManager.install_package("audiocraft")
 
     # Function to generate music
     def generate_music(processor, client, generation_prompt: str, duration: int, model_name: str = "facebook/musicgen-melody", device: str="cuda:0") -> str:

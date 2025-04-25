@@ -8,22 +8,15 @@ Author: ParisNeo, a computer geek passionate about AI
 """
 
 from lollms.app import LollmsApplication
-from lollms.utilities import PackageManager
 from pathlib import Path
 from ascii_colors import ASCIIColors
 from lollms.main_config import LOLLMSConfig
 from lollms.config import TypedConfig
 from lollms.service import LollmsSERVICE
 
-try:
-    if not PackageManager.check_package_installed("sounddevice"):
-        # os.system("sudo apt-get install portaudio19-dev")
-        PackageManager.install_package("sounddevice")
-        PackageManager.install_package("wave")
-except:
-    # os.system("sudo apt-get install portaudio19-dev -y")
-    PackageManager.install_package("sounddevice")
-    PackageManager.install_package("wave")
+import pipmaster as pm
+
+pm.ensure_packages({"sounddevice":"","wave":""})
 try:
     import sounddevice as sd
     import wave

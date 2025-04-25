@@ -5,7 +5,6 @@
 
 # Import necessary modules
 from functools import partial
-from lollms.utilities import PackageManager
 from ascii_colors import trace_exception
 from typing import Union
 from pathlib import Path

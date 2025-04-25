@@ -12,7 +12,7 @@ from lollms.config import InstallOption, TypedConfig, BaseConfig
 from lollms.main_config import LOLLMSConfig
 from lollms.paths import LollmsPaths
 from lollms.binding import LLMBinding, BindingType
-from lollms.utilities import PromptReshaper, PackageManager, discussion_path_to_url, process_ai_output, remove_text_from_string
+from lollms.utilities import PromptReshaper, discussion_path_to_url, process_ai_output, remove_text_from_string
 from lollms.com import NotificationType, NotificationDisplayType
 from lollms.client_session import Session, Client
 from lollmsvectordb.vector_database import VectorDatabase
@@ -28,7 +28,7 @@ from datetime import datetime
 import importlib
 import subprocess
 import yaml
-from ascii_colors import ASCIIColors
+from ascii_colors import ASCIIColors, trace_exception
 import time
 from lollms.types import MSG_OPERATION_TYPE, SUMMARY_MODE
 import json
@@ -40,8 +40,6 @@ from lollmsvectordb.text_chunker import TextChunker
 from functools import partial
 import sys
 from lollms.com import LoLLMsCom
-from lollms.helpers import trace_exception
-from lollms.utilities import PackageManager
 from lollms.prompting import LollmsContextDetails
 import inspect
 
@@ -50,8 +48,7 @@ from lollms.code_parser import compress_js, compress_python, compress_html
 import requests
 from bs4 import BeautifulSoup
 import pipmaster as pm
-if not pm.is_installed("PyQt5"):
-    pm.install("PyQt5")
+pm.ensure_packages({"PyQt5":""})
     
 import sys
 from PyQt5.QtWidgets import QApplication, QLineEdit, QButtonGroup, QRadioButton, QVBoxLayout, QWidget, QMessageBox
@@ -4540,9 +4537,6 @@ transition-all duration-300 ease-in-out">
         end_header_id_template      = self.config.end_header_id_template
         system_message_template     = self.config.system_message_template
 
-        if not PackageManager.check_package_installed("autopep8"):
-            PackageManager.install_package("autopep8")
-        import autopep8
         global_prompt = "\n".join([
             f"{prompt}",
             f"{start_header_id_template}Extra conditions{end_header_id_template}",

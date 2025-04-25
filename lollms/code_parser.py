@@ -1,5 +1,4 @@
 import re
-from lollms.utilities import PackageManager
 import pipmaster as pm
 
 from bs4 import BeautifulSoup

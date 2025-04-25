@@ -1,5 +1,4 @@
 from ascii_colors import ASCIIColors, trace_exception
-from lollms.utilities import PackageManager
 import time
 import re
 import pipmaster as pm
@@ -170,50 +169,6 @@ def scrape_and_save(url, file_path:str|Path=None, use_selenium=False, follow_lin
         'texts': results['texts'],
         'image_urls': results['image_urls']
     }
-
-
-# def scrape_and_save(url, file_path=None, lollms_com=None, chromedriver_path=None, wait_step_delay=1, buttons_to_press=['accept'], max_size=None):
-#     if not PackageManager.check_package_installed("selenium"):
-#         PackageManager.install_package("selenium")
-#     if not PackageManager.check_package_installed("bs4"):
-#         PackageManager.install_package("bs4")
-
-#     from bs4 import BeautifulSoup
-        
-#     from selenium import webdriver
-#     from selenium.common.exceptions import TimeoutException
-    
-#     from selenium.webdriver.support.ui import WebDriverWait
-#     from selenium.webdriver.support import expected_conditions as EC
-
-#     driver = prepare_chrome_driver(chromedriver_path)
-
-#     # Navigate to the URL
-#     driver.get(url)
-#     wait_for_page(driver, wait_step_delay)
-#     press_buttons(driver, buttons_to_press)
-
-#     # Parse the HTML content using BeautifulSoup
-#     soup = BeautifulSoup(driver.page_source, 'html.parser')
-    
-#     # Find all the text content in the webpage
-#     text_content = soup.get_text()
-#     text_content = re.sub(r'\n+', '\n', text_content)
-
-    
-#     if file_path:
-#         if max_size and len(text_content)< max_size:
-#             # Save the text content as a text file
-#             with open(file_path, 'w', encoding="utf-8") as file:
-#                 file.write(text_content)
-#             if lollms_com:
-#                 lollms_com.info(f"Webpage content saved to {file_path}")
-            
-#     # Close the driver
-#     driver.quit()
-
-
-#     return text_content
 
 
 def get_relevant_text_block(

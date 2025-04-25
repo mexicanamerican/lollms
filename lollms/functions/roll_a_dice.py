@@ -2,15 +2,6 @@
 # Here you need to import any necessary imports depending on the function requested by the user
 import random
 
-# Partial is useful if we need to preset some parameters
-from functools import partial
-
-# It is advised to import typing elements
-# from typing import List
-
-# Import PackageManager if there are potential libraries that need to be installed 
-from lollms.utilities import PackageManager
-
 # ascii_colors offers advanced console coloring and bug tracing
 from ascii_colors import trace_exception
 

@@ -47,6 +47,8 @@ class LoLLMsCom:
         self.verbose = verbose
         self.config = None 
         self.template:LollmsLLMTemplate = None
+        self.personality = None
+
         self.tti = None
         self.tts = None
         self.stt = None

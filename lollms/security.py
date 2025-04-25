@@ -8,14 +8,13 @@ import os
 import re
 import platform
 import string
-from lollms.utilities import PackageManager
 from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi.responses import JSONResponse
 from fastapi import Request
 import asyncio
+import pipmaster as pm
 
-if not PackageManager.check_package_installed("lxml"):
-    PackageManager.install_package("lxml")
+pm.ensure_packages({"lxml":""})
 
 import lxml.etree as ET
 
@@ -68,9 +67,7 @@ def sanitize_after_whitelisted_command(line, command):
         # If rest_of_line starts directly with separators followed by malicious commands, sanitized_rest will be empty
         # This means we should only return the part up to the whitelisted command
         return line[:command_end_index + len(sanitized_rest)].strip()
-
-if not(PackageManager.check_package_installed("defusedxml")):
-    PackageManager.install_or_update("defusedxml")
+pm.ensure_packages({"defusedxml":""})
 
 import defusedxml.ElementTree as ET
 

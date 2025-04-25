@@ -10,18 +10,16 @@ from functools import partial
 # It is advised to import typing elements
 from typing import List, Optional, Any, Tuple, Dict
 
-# Import PackageManager if there are potential libraries that need to be installed 
-from lollms.utilities import PackageManager, find_first_available_file_index, discussion_path_to_url
+from lollms.utilities import discussion_path_to_url
 
 # ascii_colors offers advanced console coloring and bug tracing
 from ascii_colors import trace_exception, ASCIIColors
 
 # Import Client from lollms.client_session
 from lollms.client_session import Client
+import pipmaster as pm
+pm.ensure_packages({"beautifulsoup4":""})
 
-# Here is an example of how we install a non-installed library using PackageManager
-if not PackageManager.check_package_installed("bs4"):
-    PackageManager.install_package("beautifulsoup4")
 
 # Now we can import the library
 from bs4 import BeautifulSoup

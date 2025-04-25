@@ -1,6 +1,4 @@
 # Lollms function call definition file
-from functools import partial
-from lollms.utilities import PackageManager
 from ascii_colors import trace_exception
 from typing import List, Union
 from pathlib import Path

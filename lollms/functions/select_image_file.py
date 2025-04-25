@@ -1,4 +1,4 @@
-from lollms.utilities import PackageManager, find_first_available_file_index, discussion_path_to_url
+from lollms.utilities import find_first_available_file_index, discussion_path_to_url
 from lollms.client_session import Client
 
 
@@ -9,10 +9,7 @@ from functools import partial
 import pipmaster as pm
 
 def select_image_file(processor, client):
-    if not pm.is_installed("PyQt5"):
-        pm.install("PyQt5")
-    if not pm.is_installed("cv2"):
-        pm.install("opencv-python")
+    pm.ensure_packages({"PyQt5":"", "opencv-python":""})
     import cv2    
     from PyQt5 import QtWidgets
     app = QtWidgets.QApplication(sys.argv)

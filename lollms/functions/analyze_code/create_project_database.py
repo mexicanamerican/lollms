@@ -7,10 +7,9 @@ from pathlib import Path
 import sqlite3
 import ast
 import json
+import pipmaster as pm
 
-# Ensure required packages are installed
-if not PackageManager.check_package_installed("sqlite3"):
-    PackageManager.install_package("sqlite3")
+pm.ensure_packages({"sqlite3":""})
 
 def create_project_database(project_path: Union[str, Path], max_summary_size: str = 512, llm: APScript = None) -> str:
     """
