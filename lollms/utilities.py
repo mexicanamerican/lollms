@@ -41,6 +41,10 @@ import subprocess
 import pkg_resources
 from functools import partial
 import sys
+import pipmaster as pm
+
+pm.install_if_missing("PyQt5")
+
 from PyQt5.QtWidgets import QApplication, QButtonGroup, QRadioButton, QVBoxLayout, QWidget, QPushButton, QMessageBox
 from PyQt5.QtCore import Qt
 
