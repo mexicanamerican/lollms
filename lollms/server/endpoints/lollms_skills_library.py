@@ -82,12 +82,12 @@ def delete_skill(delSkillInfos:DeleteSkillInfos):
     return {"status":True}
 
 @router.post("/edit_skill")
-def edit_skill(skillInfos:SkillUpdateInfos):
+async def edit_skill(skillInfos:SkillUpdateInfos):
     lollmsElfServer.skills_library.update_skill(skillInfos.skill_id, skillInfos.category, skillInfos.title, skillInfos.content)
     return {"status":True}
 
 @router.post("/add_discussion_to_skills_library")
-def add_discussion_to_skills_library(discussionInfos:ClientInfos):
+async def add_discussion_to_skills_library(discussionInfos:ClientInfos):
     lollmsElfServer.ShowBlockingMessage("Learning...")
     try:
         client = check_access(lollmsElfServer, discussionInfos.client_id)
