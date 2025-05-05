@@ -5022,6 +5022,13 @@ transition-all duration-300 ease-in-out">
         if callback:
             callback(info_text, MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_SET_CONTENT)
 
+
+    def error(self, content, duration:int=4, client_id=None, verbose:bool=True):
+        self.personality.error(content=content, duration=duration, client_id=client_id, verbose=verbose)
+    def success(self, content, duration:int=4, client_id=None, verbose:bool=True):
+        self.personality.success(content=content, duration=duration, client_id=client_id, verbose=verbose)
+
+
     def step_progress(self, step_text:str, progress:float, callback: Callable[[str | list | None, MSG_OPERATION_TYPE, str, Any | None], bool]=None):
         """This sends step rogress to front end
 
@@ -5126,7 +5133,7 @@ transition-all duration-300 ease-in-out">
             callback = self.callback
 
         if callback:
-            callback(message_text, MSG_OPERATION_TYPE.MSG_TYPE_FINISHED_MESSAGE)
+            callback(message_text, MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_FINISHED_MESSAGE)
 
     def print_prompt(self, title, prompt):
         ASCIIColors.red("*-*-*-*-*-*-*-* ", end="")

@@ -9,7 +9,7 @@ Author: ParisNeo, a computer geek passionate about AI
 
 from lollms.app import LollmsApplication
 from pathlib import Path
-from typing import List, Dict
+from typing import List, Dict, Tuple
 from lollms.main_config import LOLLMSConfig
 from lollms.config import TypedConfig
 from lollms.service import LollmsSERVICE
@@ -52,7 +52,7 @@ class LollmsTTI(LollmsSERVICE):
                 width=None,
                 height=None,
                 output_folder=None,
-                output_file_name=None) -> List[Dict[str, str]]:
+                output_file_name=None) -> Tuple[Path | None, Dict | None]:
         """
         Generates images based on the given positive and negative prompts.
 
@@ -65,7 +65,7 @@ class LollmsTTI(LollmsSERVICE):
         """
         pass
 
-    def paint_from_images(self, positive_prompt: str, images: List[str], negative_prompt: str = "") -> List[Dict[str, str]]:
+    def paint_from_images(self, positive_prompt: str, images: List[str], negative_prompt: str = "") -> Tuple[Path | None, Dict | None]:
         """
         Generates images based on the given positive prompt and reference images.
 
