@@ -84,7 +84,7 @@ async def list_function_calls():
                             except:
                                 pass
                             function_info = {
-                                "name": config.get("name", fn_dir.name),
+                                "name": config.get("function_name", fn_dir.name),
                                 "category":  config.get("name", fn_dir.parent.name),
                                 "description": config.get("description", ""),
                                 "parameters": config.get("parameters", {}),
