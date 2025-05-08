@@ -90,6 +90,10 @@ def require_localhost(sio_instance: socketio.AsyncServer | socketio.Server):
             
             allowed_ips = ['127.0.0.1', '::1']
             env_allowed_ip = os.environ.get("ALLOWED_CLIENT_IP")
+            # Check for wildcard first
+            if env_allowed_ip == "*":
+                print(f"ALLOWED_CLIENT_IP is '*', allowing request from {client_ip} without further IP checks.")
+                return await event_handler_func(sid, *args, **kwargs)
             if env_allowed_ip:
                 allowed_ips.append(env_allowed_ip)
                 print(f"Dynamically added {env_allowed_ip} to allowed hosts from environment variable.")

@@ -34,6 +34,10 @@ async def verify_localhost_only(request: Request):
     client_host = request.client.host
     allowed_hosts = ["127.0.0.1", "::1"]
     env_allowed_ip = os.environ.get("ALLOWED_CLIENT_IP")
+    # Check for wildcard first
+    if env_allowed_ip == "*":
+        print(f"ALLOWED_CLIENT_IP is '*', allowing request from {client_host} without further IP checks.")
+        return # Effectively allows all IPs by exiting the check early    
     if env_allowed_ip:
         allowed_hosts.append(env_allowed_ip)
         print(f"Dynamically added {env_allowed_ip} to allowed hosts from environment variable.")
