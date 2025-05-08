@@ -89,6 +89,10 @@ def require_localhost(sio_instance: socketio.AsyncServer | socketio.Server):
             client_ip = _get_client_ip_from_environ(environ)
             
             allowed_ips = ['127.0.0.1', '::1']
+            env_allowed_ip = os.environ.get("ALLOWED_CLIENT_IP")
+            if env_allowed_ip:
+                allowed_ips.append(env_allowed_ip)
+                print(f"Dynamically added {env_allowed_ip} to allowed hosts from environment variable.")
 
             event_name = event_handler_func.__name__ # Or could try to get from sio.handlers
 

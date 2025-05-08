@@ -25,6 +25,7 @@ from typing import List
 import json
 from typing import List, Any
 from lollms.security import sanitize_path, forbid_remote_access
+import os
 class SettingsInfos(BaseModel):
     setting_name:str
     setting_value:str
@@ -32,6 +33,10 @@ class SettingsInfos(BaseModel):
 async def verify_localhost_only(request: Request):
     client_host = request.client.host
     allowed_hosts = ["127.0.0.1", "::1"]
+    env_allowed_ip = os.environ.get("ALLOWED_CLIENT_IP")
+    if env_allowed_ip:
+        allowed_hosts.append(env_allowed_ip)
+        print(f"Dynamically added {env_allowed_ip} to allowed hosts from environment variable.")
 
     if client_host not in allowed_hosts:
         # print(f"Access denied for {client_host} to localhost-only endpoint.") # Optional: for server-side logging
