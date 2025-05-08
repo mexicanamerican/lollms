@@ -18,6 +18,128 @@ pm.ensure_packages({"lxml":""})
 
 import lxml.etree as ET
 
+
+class NotLocalhostError(Exception):
+    """Custom exception raised when an event is triggered from a non-localhost IP."""
+    def __init__(self, message="This event can only be triggered from localhost.", sid=None, ip_address=None):
+        super().__init__(message)
+        self.sid = sid
+        self.ip_address = ip_address
+
+    def __str__(self):
+        base_message = super().__str__()
+        details = []
+        if self.sid:
+            details.append(f"SID: {self.sid}")
+        if self.ip_address:
+            details.append(f"IP: {self.ip_address}")
+        if details:
+            return f"{base_message} ({', '.join(details)})"
+        return base_message
+import socketio # For type hinting, actual sio instance passed in
+import functools
+import inspect
+
+def _get_client_ip_from_environ(environ: dict) -> str | None:
+    """
+    Extracts the client IP address from the Socket.IO environment.
+    Returns the IP string or None if not found.
+    """
+    if not environ:
+        return None
+
+    remote_ip = None
+    # 1. aiohttp
+    if 'aiohttp.request' in environ:
+        aio_request = environ['aiohttp.request']
+        if aio_request.transport:
+            peername = aio_request.transport.get_extra_info('peername')
+            if peername:
+                remote_ip = peername[0]
+        if not remote_ip:
+            remote_ip = aio_request.remote
+    # 2. WSGI (Flask, etc.)
+    elif 'REMOTE_ADDR' in environ:
+        remote_ip = environ['REMOTE_ADDR']
+    # 3. ASGI (FastAPI/Uvicorn)
+    elif 'asgi.scope' in environ:
+        scope = environ['asgi.scope']
+        if 'client' in scope and scope['client']:
+            remote_ip = scope['client'][0]
+    
+    return remote_ip
+
+def require_localhost(sio_instance: socketio.AsyncServer | socketio.Server):
+    """
+    Decorator for Socket.IO event handlers to restrict access to localhost.
+
+    Args:
+        sio_instance: The Socket.IO server instance (AsyncServer or Server).
+
+    Raises:
+        NotLocalhostError: If the event is triggered from a non-localhost IP,
+                           or if the IP cannot be determined.
+    """
+    def decorator(event_handler_func):
+        is_async_handler = inspect.iscoroutinefunction(event_handler_func)
+
+        @functools.wraps(event_handler_func)
+        async def async_wrapper(sid, *args, **kwargs):
+            environ = sio_instance.get_environ(sid)
+            client_ip = _get_client_ip_from_environ(environ)
+            
+            allowed_ips = ['127.0.0.1', '::1']
+
+            event_name = event_handler_func.__name__ # Or could try to get from sio.handlers
+
+            if client_ip is None:
+                print(f"DENIED (IP Undetermined): Event '{event_name}' from SID {sid}.")
+                raise NotLocalhostError(
+                    f"Access to '{event_name}' denied: Could not determine client IP.",
+                    sid=sid
+                )
+
+            if client_ip not in allowed_ips:
+                print(f"DENIED (Not Localhost): Event '{event_name}' from SID {sid}, IP: {client_ip}.")
+                raise NotLocalhostError(
+                    f"Access to '{event_name}' denied: Event restricted to localhost.",
+                    sid=sid,
+                    ip_address=client_ip
+                )
+            
+            # If IP is allowed, proceed with the original handler
+            # print(f"ALLOWED (Localhost): Event '{event_name}' for SID {sid}, IP: {client_ip}.")
+            return await event_handler_func(sid, *args, **kwargs)
+
+        @functools.wraps(event_handler_func)
+        def sync_wrapper(sid, *args, **kwargs):
+            environ = sio_instance.get_environ(sid)
+            client_ip = _get_client_ip_from_environ(environ)
+
+            allowed_ips = ['127.0.0.1', '::1']
+            event_name = event_handler_func.__name__
+
+            if client_ip is None:
+                print(f"DENIED (IP Undetermined): Event '{event_name}' from SID {sid}.")
+                raise NotLocalhostError(
+                    f"Access to '{event_name}' denied: Could not determine client IP.",
+                    sid=sid
+                )
+
+            if client_ip not in allowed_ips:
+                print(f"DENIED (Not Localhost): Event '{event_name}' from SID {sid}, IP: {client_ip}.")
+                raise NotLocalhostError(
+                    f"Access to '{event_name}' denied: Event restricted to localhost.",
+                    sid=sid,
+                    ip_address=client_ip
+                )
+            
+            # print(f"ALLOWED (Localhost): Event '{event_name}' for SID {sid}, IP: {client_ip}.")
+            return event_handler_func(sid, *args, **kwargs)
+
+        return async_wrapper if is_async_handler else sync_wrapper
+    return decorator
+
 def check_access(lollmsElfServer, client_id):
     client = lollmsElfServer.session.get_client(client_id)
     if not client:

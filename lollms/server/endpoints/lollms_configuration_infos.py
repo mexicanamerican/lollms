@@ -8,6 +8,8 @@ description:
 
 """
 from fastapi import APIRouter, Request, HTTPException
+from fastapi import Depends, FastAPI, APIRouter, Request, HTTPException
+from starlette.status import HTTP_403_FORBIDDEN
 from pydantic import BaseModel, Field
 from pydantic import BaseModel
 from json import JSONDecodeError
@@ -27,6 +29,19 @@ class SettingsInfos(BaseModel):
     setting_name:str
     setting_value:str
 
+async def verify_localhost_only(request: Request):
+    client_host = request.client.host
+    allowed_hosts = ["127.0.0.1", "::1"]
+
+    if client_host not in allowed_hosts:
+        # print(f"Access denied for {client_host} to localhost-only endpoint.") # Optional: for server-side logging
+        raise HTTPException(
+            status_code=HTTP_403_FORBIDDEN,
+            detail="Access denied: This endpoint only accepts localhost calls."
+        )
+    # You can optionally return something if needed by the path operation function
+    # For example: return client_host
+    # Or just let it pass (return None implicitly)
 # ----------------------- Defining router and main class ------------------------------
 
 router = APIRouter()
@@ -143,7 +158,7 @@ async def update_setting(request: Request):
         return {"status":False,"error":str(ex)}
 
 
-@router.post("/apply_settings")
+@router.post("/apply_settings", dependencies=[Depends(verify_localhost_only)])
 async def apply_settings(request: Request):
     """
     Endpoint to apply configuration settings.
@@ -165,7 +180,7 @@ async def apply_settings(request: Request):
                                     
                                     ]
     # Prevent all outsiders from sending something to this endpoint
-    forbid_remote_access(lollmsElfServer)
+    #forbid_remote_access(lollmsElfServer)
     if lollmsElfServer.config.turn_on_setting_update_validation:
         if not show_yes_no_dialog("WARNING!!!","I received a settings modification request.\nIf this was not initiated by you, please select No. Are you the one who requested these settings changes?"):
             return {"status":False,"error": "A settings modification attempt not validated by user"}
