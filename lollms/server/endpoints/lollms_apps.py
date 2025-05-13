@@ -129,6 +129,8 @@ async def list_apps():
                         )
                         installed = True
                 else:
+                    application_name = app_name.name # Fallback name
+                    category = "unknown"
                     installed = False
 
                 if is_public:
@@ -373,7 +375,7 @@ import shutil
 from pathlib import Path
 
 
-@router.post("/install/{app_name}")
+@router.post("/install_app/{app_name}")
 async def install_app(app_name: str, auth: AuthRequest):
     check_access(lollmsElfServer, auth.client_id)
     app_name = sanitize_path(app_name)
@@ -419,7 +421,7 @@ async def install_app(app_name: str, auth: AuthRequest):
     return {"message": f"App {app_name} installed successfully."}
 
 
-@router.post("/uninstall/{app_name}")
+@router.post("/uninstall_app/{app_name}")
 async def uninstall_app(app_name: str, auth: AuthRequest):
     check_access(lollmsElfServer, auth.client_id)
     app_name = sanitize_path(app_name)
@@ -470,6 +472,28 @@ def pull_repo():
     REPO_DIR = lollmsElfServer.lollms_paths.personal_path / "apps_zoo_repo"
     subprocess.run(["git", "-C", str(REPO_DIR), "pull"], check=True)
 
+@router.get("/apps_zoo_repo/{app_name}/{file_name}")
+async def apps_zoorepo(app_name: str, file_name: str):
+    app_name = sanitize_path(app_name)
+    file_name = sanitize_path(file_name)
+    # Define the base path
+    base_path = lollmsElfServer.lollms_paths.personal_path / "apps_zoo_repo" 
+
+    # Construct the full file path
+    file_path = base_path  / app_name / file_name
+
+    # Check if the file exists and is within the allowed directory
+    if not file_path.is_file() :
+        raise HTTPException(status_code=404, detail="File not found")
+
+    # Read and return the file content with the appropriate content type
+    try:
+        with file_path.open("rb") as file:
+            content = file.read()
+        return Response(content=content)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error reading file: {str(e)}")
+
 
 def load_apps_data():
     apps = []
@@ -478,45 +502,48 @@ def load_apps_data():
         item_path = os.path.join(REPO_DIR, item)
         if os.path.isdir(item_path):
             description_path = os.path.join(item_path, "description.yaml")
-            icon_url = f"https://github.com/ParisNeo/lollms_apps_zoo/blob/main/{item}/icon.png?raw=true"
+            icon_url = f"/apps_zoo_repo/{item}/icon.png"
 
             if os.path.exists(description_path):
-                with open(description_path, "r") as file:
-                    description_data = yaml.safe_load(file)
-                    apps.append(
-                        AppInfo(
-                            uid=str(uuid.uuid4()),
-                            name=description_data.get("name", item),
-                            folder_name=item,
-                            icon=icon_url,
-                            category=description_data.get("category", "generic"),
-                            description=description_data.get("description", ""),
-                            author=description_data.get("author", ""),
-                            version=description_data.get("version", ""),
-                            creation_date=description_data.get(
-                                "creation_date", "unknown"
-                            ),
-                            last_update_date=description_data.get(
-                                "last_update_date", "unknown"
-                            ),
-                            model_name=description_data.get("model_name", ""),
-                            disclaimer=description_data.get(
-                                "disclaimer", "No disclaimer provided."
-                            ),
-                            app_type=description_data.get(
-                                "app_type", "html"
-                            ),
-                            has_server=description_data.get(
-                                "has_server", (Path(item_path) / "server.py").exists()
-                            ),
-                            has_readme=description_data.get(
-                                "has_readme", (Path(item_path) / "README.md").exists()
-                            ),
-                            is_public=True,
-                            has_update=False,
-                            installed=True,
+                try:
+                    with open(description_path, "r") as file:
+                        description_data = yaml.safe_load(file)
+                        apps.append(
+                            AppInfo(
+                                uid=str(uuid.uuid4()),
+                                name=description_data.get("name", item),
+                                folder_name=item,
+                                icon=icon_url,
+                                category=description_data.get("category", "generic"),
+                                description=description_data.get("description", ""),
+                                author=description_data.get("author", ""),
+                                version=description_data.get("version", ""),
+                                creation_date=description_data.get(
+                                    "creation_date", "unknown"
+                                ),
+                                last_update_date=description_data.get(
+                                    "last_update_date", "unknown"
+                                ),
+                                model_name=description_data.get("model_name", ""),
+                                disclaimer=description_data.get(
+                                    "disclaimer", "No disclaimer provided."
+                                ),
+                                app_type=description_data.get(
+                                    "app_type", "html"
+                                ),
+                                has_server=description_data.get(
+                                    "has_server", (Path(item_path) / "server.py").exists()
+                                ),
+                                has_readme=description_data.get(
+                                    "has_readme", (Path(item_path) / "README.md").exists()
+                                ),
+                                is_public=True,
+                                has_update=False,
+                                installed=True,
+                            )
                         )
-                    )
+                except Exception as ex:
+                    trace_exception(ex)
     return apps
 
 

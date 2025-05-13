@@ -11,6 +11,7 @@ from typing import List, Dict
 from ascii_colors import trace_exception
 from lollms.security import check_access
 from ascii_colors import ASCIIColors
+from pathlib import Path
 import yaml
 
 router = APIRouter()
@@ -122,7 +123,11 @@ def build_image(prompt, negative_prompt, width, height, return_format="markdown"
         import uuid
         if output_path is None:
             filename = f"remote_gen_{uuid.uuid4().hex[:8]}.png"
-            output_path = lollmsElfServer.lollms_paths.personal_outputs_path/filename
+            output_path = lollmsElfServer.lollms_paths.personal_outputs_path
+        else:
+            output_path = Path(output_path)
+            filename = output_path.name
+            output_path = output_path.parent
 
         if lollmsElfServer.tti is not None:
             file, infos = lollmsElfServer.tti.paint(
@@ -130,7 +135,8 @@ def build_image(prompt, negative_prompt, width, height, return_format="markdown"
                 negative_prompt,
                 width=width,
                 height=height,
-                output_path=output_path
+                output_folder=output_path,
+                output_file_name=filename
             )
 
         file = str(file)

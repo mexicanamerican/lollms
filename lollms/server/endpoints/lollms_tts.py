@@ -27,12 +27,6 @@ import yaml
 
 router = APIRouter()
 lollmsElfServer:LOLLMSWebUI = LOLLMSWebUI.get_instance()
-
-class Identification(BaseModel):
-    client_id: str
-
-class ServiceListingRequest(BaseModel):
-    client_id: str
 # ----------------------- voice ------------------------------
 
 @router.get("/list_voices")
@@ -88,7 +82,6 @@ async def set_voice(request: Request):
 
 
 class LollmsText2AudioRequest(BaseModel):
-    client_id: str
     text: str
     voice: str = None
     fn:str = None
@@ -101,7 +94,6 @@ async def text2Audio(request: LollmsText2AudioRequest):
     :param request: The HTTP request object.
     :return: A JSON response with the status of the operation.
     """
-    check_access(lollmsElfServer, request.client_id)
     if lollmsElfServer.config.headless_server_mode:
         return {"status":False,"error":"Code execution is blocked when in headless mode for obvious security reasons!"}
 
@@ -136,14 +128,13 @@ async def text2Audio(request: LollmsText2AudioRequest):
         return {"status":False,"error":str(ex)}
 
 @router.post("/stopAudio")
-async def stopAudio(request: Identification):
+async def stopAudio():
     """
     Stops playing audio
 
     :param request: The HTTP request object.
     :return: A JSON response with the status of the operation.
     """
-    check_access(lollmsElfServer, request.client_id)
     if lollmsElfServer.config.headless_server_mode:
         return {"status":False,"error":"Code execution is blocked when in headless mode for obvious security reasons!"}
 
@@ -254,7 +245,7 @@ def get_snd_output_devices():
 
 
 @router.post("/list_tts_services")
-async def list_tts_services(request: ServiceListingRequest):
+async def list_tts_services():
     """
     Dumb endpoint that returns a static list of TTS services.
     
@@ -265,7 +256,6 @@ async def list_tts_services(request: ServiceListingRequest):
         List[str]: A list of TTS service names.
     """
     # Validate the client_id (dumb validation for demonstration)
-    check_access(lollmsElfServer, request.client_id)
     
     
     # Static list of TTS services
