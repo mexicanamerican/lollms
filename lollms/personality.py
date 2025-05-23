@@ -15,9 +15,7 @@ from lollms.binding import LLMBinding, BindingType
 from lollms.utilities import PromptReshaper, discussion_path_to_url, process_ai_output, remove_text_from_string
 from lollms.com import NotificationType, NotificationDisplayType
 from lollms.client_session import Session, Client
-from lollmsvectordb.vector_database import VectorDatabase
-from lollmsvectordb.text_document_loader import TextDocumentsLoader
-from lollmsvectordb.database_elements.document import Document
+from safe_store import SafeStore, SAFE_STORE_SUPPORTED_FILE_EXTENSIONS
 import pkg_resources
 from pathlib import Path
 from PIL import Image
@@ -33,9 +31,6 @@ import time
 from lollms.types import MSG_OPERATION_TYPE, SUMMARY_MODE
 import json
 from typing import Any, List, Optional, Type, Callable, Dict, Any, Union, Tuple
-from lollmsvectordb.vector_database import VectorDatabase
-from lollmsvectordb.text_document_loader import TextDocumentsLoader
-from lollmsvectordb.text_chunker import TextChunker
 
 from functools import partial
 import sys
@@ -1780,34 +1775,16 @@ Don't forget encapsulate the code inside a html code tag. This is mandatory.
 
         # Verify if the persona has a data folder
         if self.data_path.exists():
-            self.database_path = self.data_path / "db.sqlite"
-            from lollmsvectordb.lollms_tokenizers.tiktoken_tokenizer import TikTokenTokenizer
-
-            if self.config.rag_vectorizer == "semantic":
-                from lollmsvectordb.lollms_vectorizers.semantic_vectorizer import SemanticVectorizer
-                v = SemanticVectorizer()
-            elif self.config.rag_vectorizer == "tfidf":
-                from lollmsvectordb.lollms_vectorizers.tfidf_vectorizer import TFIDFVectorizer
-                v = TFIDFVectorizer()
-            elif self.config.rag_vectorizer == "openai":
-                from lollmsvectordb.lollms_vectorizers.openai_vectorizer import OpenAIVectorizer
-                v = OpenAIVectorizer(api_key=self.config.rag_vectorizer_openai_key)
-            elif self.config.rag_vectorizer == "ollama":
-                from lollmsvectordb.lollms_vectorizers.ollama_vectorizer import OllamaVectorizer
-                v = OllamaVectorizer(self.config.rag_vectorizer_model, self.config.rag_service_url)
-
-            self.persona_data_vectorizer = VectorDatabase(self.database_path, v, TikTokenTokenizer(), self.config.rag_chunk_size, self.config.rag_overlap)
+            self.database_path = self.data_path / "db.db"
+            self.persona_data_vectorizer = SafeStore(self.database_path)
 
             files = [f for f in self.data_path.iterdir() if f.suffix.lower() in ['.asm', '.bat', '.c', '.cpp', '.cs', '.csproj', '.css',
                 '.csv', '.docx', '.h', '.hh', '.hpp', '.html', '.inc', '.ini', '.java', '.js', '.json', '.log',
                 '.lua', '.map', '.md', '.pas', '.pdf', '.php', '.pptx', '.ps1', '.py', '.rb', '.rtf', '.s', '.se', '.sh', '.sln',
                 '.snippet', '.snippets', '.sql', '.sym', '.ts', '.txt', '.xlsx', '.xml', '.yaml', '.yml', '.msg'] ]
-            dl = TextDocumentsLoader()
 
             for f in files:
-                text = dl.read_file(f)
-                self.persona_data_vectorizer.add_document(f.name, text, f)
-            self.persona_data_vectorizer.build_index()
+                self.persona_data_vectorizer.add_document(f, self.config.rag_vectorizer)
 
         else:
             self.persona_data_vectorizer = None
@@ -1947,41 +1924,16 @@ Don't forget encapsulate the code inside a html code tag. This is mandatory.
                 self.ShowBlockingMessage("Processing file\nPlease wait ...")
                 if process:
                     if self.vectorizer is None:
-                        if self.config.rag_vectorizer == "semantic":
-                            self.ShowBlockingMessage("Processing file\nPlease wait ...\nUsing semantic vectorizer")
-                            from lollmsvectordb.lollms_vectorizers.semantic_vectorizer import SemanticVectorizer
-                            v = SemanticVectorizer(self.config.rag_vectorizer_model, self.config.rag_vectorizer_execute_remote_code)
-                        elif self.config.rag_vectorizer == "tfidf":
-                            self.ShowBlockingMessage("Processing file\nPlease wait ...\nUsing tfidf vectorizer")
-                            from lollmsvectordb.lollms_vectorizers.tfidf_vectorizer import TFIDFVectorizer
-                            v = TFIDFVectorizer()
-                        elif self.config.rag_vectorizer == "openai":
-                            self.ShowBlockingMessage("Processing file\nPlease wait ...\nUsing open ai vectorizer")
-                            from lollmsvectordb.lollms_vectorizers.openai_vectorizer import OpenAIVectorizer
-                            v = OpenAIVectorizer()
-                        elif self.config.rag_vectorizer == "ollama":
-                            self.ShowBlockingMessage("Processing file\nPlease wait ...\nUsing ollama vectorizer")
-                            from lollmsvectordb.lollms_vectorizers.ollama_vectorizer import OllamaVectorizer
-                            v = OllamaVectorizer(self.config.rag_vectorizer_model, self.config.rag_service_url)
-                        self.vectorizer = VectorDatabase(
-                                    client.discussion.discussion_rag_folder/"db.sqli",
-                                    v,
-                                    self.model,
-                                    chunk_size=self.config.rag_chunk_size,
-                                    overlap=self.config.rag_overlap
-                                    )
-                    data = TextDocumentsLoader.read_file(path)
-                    if self.config.debug:
-                        self.print_prompt(data)
-                    self.vectorizer.add_document(path.stem, data, path, True)
-                    self.vectorizer.build_index()
+                        self.vectorizer = SafeStore(
+                                    client.discussion.discussion_rag_folder/"db.sqli")
+                    self.vectorizer.add_document(path, self.config.rag_vectorizer, chunk_size=self.config.rag_chunk_size, chunk_overlap=self.config.rag_overlap,metadata={"title":path.stem})
                     if callback is not None:
                         callback("File added successfully",MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_INFO)
                     self.HideBlockingMessage(client.client_id)
                     return True
             except Exception as e:
                 trace_exception(e)
-                self.InfoMessage(f"Unsupported file format or empty file.\nSupported formats are {TextDocumentsLoader.get_supported_file_types()}",client_id=client.client_id)
+                self.InfoMessage(f"Unsupported file format or empty file.\nSupported formats are {SAFE_STORE_SUPPORTED_FILE_EXTENSIONS}",client_id=client.client_id)
                 return False
             
 
@@ -4262,23 +4214,7 @@ transition-all duration-300 ease-in-out">
 
 
     def vectorize_and_query(self, title, url, text, query, max_chunk_size=512, overlap_size=20, internet_vectorization_nb_chunks=3):
-        
-        from lollmsvectordb.lollms_tokenizers.tiktoken_tokenizer import TikTokenTokenizer
-        vectorizer = self.config.rag_vectorizer
-        if vectorizer == "semantic":
-            from lollmsvectordb.lollms_vectorizers.semantic_vectorizer import SemanticVectorizer
-            v = SemanticVectorizer(self.config.rag_vectorizer_model, self.config.rag_vectorizer_execute_remote_code)
-        elif vectorizer == "tfidf":
-            from lollmsvectordb.lollms_vectorizers.tfidf_vectorizer import TFIDFVectorizer
-            v = TFIDFVectorizer()
-        elif vectorizer == "openai":
-            from lollmsvectordb.lollms_vectorizers.openai_vectorizer import OpenAIVectorizer
-            v = OpenAIVectorizer()
-        elif self.config.rag_vectorizer == "ollama":
-            from lollmsvectordb.lollms_vectorizers.ollama_vectorizer import OllamaVectorizer
-            v = OllamaVectorizer(self.config.rag_vectorizer_model, self.config.rag_service_url)
-
-        vectorizer = VectorDatabase("", v, TikTokenTokenizer(), self.config.rag_chunk_size, self.config.rag_overlap)
+        vectorizer = SafeStore("")
         vectorizer.add_document(title, text, url)
         vectorizer.build_index()
         chunks = vectorizer.search(query, internet_vectorization_nb_chunks)

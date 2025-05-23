@@ -7,9 +7,7 @@ from ascii_colors import ASCIIColors
 from lollms.types import MSG_OPERATION_TYPE, SUMMARY_MODE
 from lollms.com import LoLLMsCom
 from lollms.utilities import PromptReshaper, remove_text_from_string, process_ai_output
-from lollmsvectordb.text_chunker import TextChunker
-from lollmsvectordb.database_elements.document import Document
-from lollmsvectordb.directory_binding import DirectoryBinding
+
 import hashlib
 import json
 class TasksLibrary:

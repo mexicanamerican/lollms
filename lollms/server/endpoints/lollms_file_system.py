@@ -17,6 +17,7 @@ from lollms.binding import BindingBuilder, InstallOption
 from lollms.security import sanitize_path
 from ascii_colors import ASCIIColors
 from lollms.utilities import load_config, trace_exception, gc, PackageManager, run_async
+from safe_store import SafeStore, SAFE_STORE_SUPPORTED_FILE_EXTENSIONS, GraphStore
 from pathlib import Path
 from typing import List, Optional, Dict
 from lollms.security import check_access
@@ -171,7 +172,7 @@ def select_lightrag_output_folder_(client) -> Optional[Dict[str, Path]]:
         return None
 
 
-def select_lollmsvectordb_input_folder_(client) -> Optional[Dict[str, Path]]:
+def select_safe_store_input_folder_(client) -> Optional[Dict[str, Path]]:
     """
     Opens a folder selection dialog and then a string input dialog to get the database name using PyQt5.
     
@@ -213,27 +214,10 @@ def select_lollmsvectordb_input_folder_(client) -> Optional[Dict[str, Path]]:
                     try:
                         lollmsElfServer.ShowBlockingMessage("Adding a new database.")
                         
-                        from lollmsvectordb import VectorDatabase
-                        from lollmsvectordb.text_document_loader import TextDocumentsLoader
-                        from lollmsvectordb.lollms_tokenizers.tiktoken_tokenizer import TikTokenTokenizer
-
-                        if lollmsElfServer.config.rag_vectorizer == "semantic":
-                            from lollmsvectordb.lollms_vectorizers.semantic_vectorizer import SemanticVectorizer
-                            v = SemanticVectorizer(lollmsElfServer.config.rag_vectorizer_model, lollmsElfServer.config.rag_vectorizer_execute_remote_code)
-                        elif lollmsElfServer.config.rag_vectorizer == "tfidf":
-                            from lollmsvectordb.lollms_vectorizers.tfidf_vectorizer import TFIDFVectorizer
-                            v = TFIDFVectorizer()
-                        elif lollmsElfServer.config.rag_vectorizer == "openai":
-                            from lollmsvectordb.lollms_vectorizers.openai_vectorizer import OpenAIVectorizer
-                            v = OpenAIVectorizer(lollmsElfServer.config.rag_vectorizer_openai_key)
-                        elif lollmsElfServer.config.rag_vectorizer == "ollama":
-                            from lollmsvectordb.lollms_vectorizers.ollama_vectorizer import OllamaVectorizer
-                            v = OllamaVectorizer(lollmsElfServer.config.rag_vectorizer_model, lollmsElfServer.config.rag_service_url)
-
-                        vdb = VectorDatabase(Path(folder_path)/f"{db_name}.sqlite", v, lollmsElfServer.model if lollmsElfServer.model else TikTokenTokenizer())
+                        vdb = SafeStore(Path(folder_path)/f"{db_name}.sqlite")
                         # Get all files in the folder
                         folder = Path(folder_path)
-                        file_types = [f"**/*{f}" if lollmsElfServer.config.rag_follow_subfolders else f"*{f}" for f in TextDocumentsLoader.get_supported_file_types()]
+                        file_types = [f"**/*{f}" if lollmsElfServer.config.rag_follow_subfolders else f"*{f}" for f in SAFE_STORE_SUPPORTED_FILE_EXTENSIONS]
                         files = []
                         for file_type in file_types:
                             files.extend(folder.glob(file_type))
@@ -241,11 +225,9 @@ def select_lollmsvectordb_input_folder_(client) -> Optional[Dict[str, Path]]:
                         # Load and add each document to the database
                         for fn in files:
                             try:
-                                text = TextDocumentsLoader.read_file(fn)
-                                title = fn.stem  # Use the file name without extension as the title
-                                lollmsElfServer.ShowBlockingMessage(f"Adding a new database.\nAdding {title}")
-                                vdb.add_document(title, text, fn)
-                                print(f"Added document: {title}")
+                                lollmsElfServer.ShowBlockingMessage(f"Adding a new database.\nAdding {fn.stem}")
+                                vdb.add_document(fn, lollmsElfServer.config.rag_vectorizer)
+                                print(f"Added document: {fn.stem}")
                             except Exception as e:
                                 lollmsElfServer.error(f"Failed to add document {fn}: {e}")
                                 print(f"Failed to add document {fn}: {e}")
@@ -254,7 +236,7 @@ def select_lollmsvectordb_input_folder_(client) -> Optional[Dict[str, Path]]:
                             vdb.build_index()
                             ASCIIColors.success("OK")
                         lollmsElfServer.HideBlockingMessage()
-                        run_async(partial(lollmsElfServer.sio.emit,'lollmsvectordb_datalake_added', {"datalake_name": db_name, "path": str(folder_path)}, to=client.client_id))
+                        run_async(partial(lollmsElfServer.sio.emit,'safe_store_datalake_added', {"datalake_name": db_name, "path": str(folder_path)}, to=client.client_id))
 
                     except Exception as ex:
                         trace_exception(ex)
@@ -344,13 +326,13 @@ def get_file(file_infos: FileOpenRequest):
     return open_file(file_infos.file_types)
 
 
-@router.post("/select_lollmsvectordb_input_folder")
-async def select_lollmsvectordb_input_folder(database_infos: SelectDatabase):
+@router.post("/select_safe_store_input_folder")
+async def select_safe_store_input_folder(database_infos: SelectDatabase):
     """
     Selects and names a database 
     """ 
     client = check_access(lollmsElfServer, database_infos.client_id)
-    lollmsElfServer.rag_thread = threading.Thread(target=select_lollmsvectordb_input_folder_, args=[client])
+    lollmsElfServer.rag_thread = threading.Thread(target=select_rag_store_input_folder_, args=[client])
     lollmsElfServer.rag_thread.start()
     return True
 
@@ -387,10 +369,9 @@ def toggle_mount_rag_database(database_infos: MountDatabase):
     if not db_entry['mounted']:
         def process():
             try:
-                if db_entry['type']=="lightrag":
+                if db_entry['type']=="graph":
                     lollmsElfServer.ShowBlockingMessage(f"Mounting database {db_entry['alias']}")
-                    from lollmsvectordb.database_clients.lightrag_client import LollmsLightRagConnector
-                    lr = LollmsLightRagConnector(db_entry['url'], db_entry['key'])
+                    lr = GraphStore(db_entry['url'])
                     lollmsElfServer.config.datalakes[index]['mounted'] = True
                     lollmsElfServer.active_datalakes.append(lollmsElfServer.config.datalakes[index] | {
                         "binding": lr
@@ -398,36 +379,11 @@ def toggle_mount_rag_database(database_infos: MountDatabase):
                     lollmsElfServer.config.save_config()
                     lollmsElfServer.info(f"Datalake {database_infos.datalake_name} mounted successfully")
                     lollmsElfServer.HideBlockingMessage()
-                if db_entry['type']=="lollmsvectordb":
+                else:
                     lollmsElfServer.ShowBlockingMessage(f"Mounting database {db_entry['alias']}")
                     try:
-                        from lollmsvectordb import VectorDatabase
-                        from lollmsvectordb.text_document_loader import TextDocumentsLoader
-                        from lollmsvectordb.lollms_tokenizers.tiktoken_tokenizer import TikTokenTokenizer
-
-                        # Vectorizer selection logic
-                        if lollmsElfServer.config.rag_vectorizer == "semantic":
-                            from lollmsvectordb.lollms_vectorizers.semantic_vectorizer import SemanticVectorizer
-                            v = SemanticVectorizer(lollmsElfServer.config.rag_vectorizer_model, 
-                                                lollmsElfServer.config.rag_vectorizer_execute_remote_code)
-                        elif lollmsElfServer.config.rag_vectorizer == "tfidf":
-                            from lollmsvectordb.lollms_vectorizers.tfidf_vectorizer import TFIDFVectorizer
-                            v = TFIDFVectorizer()
-                        elif lollmsElfServer.config.rag_vectorizer == "openai":
-                            from lollmsvectordb.lollms_vectorizers.openai_vectorizer import OpenAIVectorizer
-                            v = OpenAIVectorizer(lollmsElfServer.config.rag_vectorizer_openai_key)
-                        elif lollmsElfServer.config.rag_vectorizer == "ollama":
-                            from lollmsvectordb.lollms_vectorizers.ollama_vectorizer import OllamaVectorizer
-                            v = OllamaVectorizer(lollmsElfServer.config.rag_vectorizer_model, 
-                                            lollmsElfServer.config.rag_service_url)
-
-                        vdb = VectorDatabase(
-                            Path(db_entry['path'])/f"{database_infos.datalake_name}.sqlite",
-                            v,
-                            lollmsElfServer.model if lollmsElfServer.model else TikTokenTokenizer(),
-                            chunk_size=lollmsElfServer.config.rag_chunk_size,
-                            clean_chunks=lollmsElfServer.config.rag_clean_chunks,
-                            n_neighbors=lollmsElfServer.config.rag_n_chunks
+                        vdb = SafeStore(
+                            Path(db_entry['path'])/f"{database_infos.datalake_name}.sqlite"
                         )       
                         lollmsElfServer.config.datalakes[index]['mounted'] = True
                         lollmsElfServer.active_datalakes.append(lollmsElfServer.config.datalakes[index] | {
@@ -449,7 +405,7 @@ def toggle_mount_rag_database(database_infos: MountDatabase):
         lollmsElfServer.rag_thread.start()
     else:
         # Unmounting logic
-        if db_entry['type']=="lightrag":
+        if db_entry['type']=="graph":
             lollmsElfServer.config.datalakes[index]['mounted'] = False
             lollmsElfServer.active_datalakes = [
                 db for db in lollmsElfServer.active_datalakes 
@@ -457,7 +413,7 @@ def toggle_mount_rag_database(database_infos: MountDatabase):
             ]
             lollmsElfServer.config.save_config()
             lollmsElfServer.info(f"Datalake {database_infos.datalake_name} unmounted successfully")
-        elif db_entry['type']=="lollmsvectordb":
+        else:
             lollmsElfServer.config.datalakes[index]['mounted'] = False
             lollmsElfServer.active_datalakes = [
                 db for db in lollmsElfServer.active_datalakes 
@@ -505,32 +461,16 @@ async def vectorize_folder(database_infos: FolderInfos):
         
         try:
             lollmsElfServer.ShowBlockingMessage("Revectorizing the database.")
-            
-            from lollmsvectordb.lollms_vectorizers.semantic_vectorizer import SemanticVectorizer
-            from lollmsvectordb import VectorDatabase
-            from lollmsvectordb.text_document_loader import TextDocumentsLoader
-            from lollmsvectordb.lollms_tokenizers.tiktoken_tokenizer import TikTokenTokenizer
+        
 
-            if lollmsElfServer.config.rag_vectorizer == "semantic":
-                from lollmsvectordb.lollms_vectorizers.semantic_vectorizer import SemanticVectorizer
-                v = SemanticVectorizer(lollmsElfServer.config.rag_vectorizer_model, lollmsElfServer.config.rag_vectorizer_execute_remote_code)
-            elif lollmsElfServer.config.rag_vectorizer == "tfidf":
-                from lollmsvectordb.lollms_vectorizers.tfidf_vectorizer import TFIDFVectorizer
-                v = TFIDFVectorizer()
-            elif lollmsElfServer.config.rag_vectorizer == "openai":
-                from lollmsvectordb.lollms_vectorizers.openai_vectorizer import OpenAIVectorizer
-                v = OpenAIVectorizer(lollmsElfServer.config.rag_vectorizer_openai_key)
-            elif lollmsElfServer.config.rag_vectorizer == "ollama":
-                from lollmsvectordb.lollms_vectorizers.ollama_vectorizer import OllamaVectorizer
-                v = OllamaVectorizer(lollmsElfServer.config.rag_vectorizer_model, lollmsElfServer.config.rag_service_url)
+
 
             vector_db_path = Path(folder_path)/f"{db_name}.sqlite"
 
-            vdb = VectorDatabase(vector_db_path, v, lollmsElfServer.model if lollmsElfServer.model else TikTokenTokenizer(), reset=True)
-            vdb.new_data = True
+            vdb = SafeStore(vector_db_path)
             # Get all files in the folder
             folder = Path(folder_path)
-            file_types = [f"**/*{f}" if lollmsElfServer.config.rag_follow_subfolders else f"*{f}" for f in TextDocumentsLoader.get_supported_file_types()]
+            file_types = [f"**/*{f}" if lollmsElfServer.config.rag_follow_subfolders else f"*{f}" for f in SAFE_STORE_SUPPORTED_FILE_EXTENSIONS]
             files = []
             for file_type in file_types:
                 files.extend(folder.glob(file_type))
@@ -538,17 +478,12 @@ async def vectorize_folder(database_infos: FolderInfos):
             # Load and add each document to the database
             for fn in files:
                 try:
-                    text = TextDocumentsLoader.read_file(fn)
                     title = fn.stem  # Use the file name without extension as the title
                     lollmsElfServer.ShowBlockingMessage(f"Adding a new database.\nAdding {title}")
-                    vdb.add_document(title, text, fn)
+                    vdb.add_document(fn)
                     print(f"Added document: {title}")
                 except Exception as e:
                     lollmsElfServer.error(f"Failed to add document {fn}: {e}")
-            if vdb.new_data: #New files are added, need reindexing
-                lollmsElfServer.ShowBlockingMessage(f"Adding a new database.\nIndexing the database...")
-                vdb.build_index()
-                ASCIIColors.success("OK")
             lollmsElfServer.HideBlockingMessage()
             run_async(partial(lollmsElfServer.sio.emit,'lollmsvectordb_datalake_added', {"datalake_name": db_name, "path": str(folder_path)}, to=client.client_id))
 

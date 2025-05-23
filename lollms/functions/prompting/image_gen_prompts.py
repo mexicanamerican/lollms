@@ -6,7 +6,7 @@
 # Import necessary libraries
 import random
 from typing import Tuple, List, Dict, Any
-
+from safe_store import SafeStore
 # ascii_colors offers advanced console coloring and bug tracing
 from ascii_colors import trace_exception
 
@@ -337,18 +337,14 @@ def get_image_gen_prompt(agent_name, number_of_entries=5) -> Tuple[str, str]:
         Tuple[str, str]: A tuple containing the title and content of the image_gen prompt.
     """
     try:
-        from lollmsvectordb.vector_database import VectorDatabase
-        from lollmsvectordb.lollms_vectorizers.tfidf_vectorizer import TFIDFVectorizer
-        from lollmsvectordb.lollms_tokenizers.tiktoken_tokenizer import TikTokenTokenizer
-        db = VectorDatabase("", TFIDFVectorizer(), TikTokenTokenizer(), number_of_entries)
+        db = SafeStore("")
 
         image_gen_prompts = get_prompts_list()
         for entry in image_gen_prompts:
-            db.add_document(entry[0], entry[0])
-        db.build_index()
-        results = db.search(agent_name, number_of_entries)
+            db.add_text(entry[0], entry[0])
+        results = db.query(agent_name, number_of_entries)
 
-        return [(r[2],image_gen_prompts[image_gen_prompts.index(r[2])]) for r in results]
+        return [(r["content"],image_gen_prompts[image_gen_prompts.index(r["content"])]) for r in results]
     except Exception as e:
         return trace_exception(e)
 

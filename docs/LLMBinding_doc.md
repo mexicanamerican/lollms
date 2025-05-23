@@ -11,7 +11,7 @@ Here's a breakdown of the important components and methods in the LLMBinding cla
      - `config` (LOLLMSConfig): The global configuration object for LOLLMS.
      - `binding_config` (TypedConfig): The configuration object specific to the binding.
      - `installation_option` (InstallOption, optional): The installation option for the binding. Defaults to `InstallOption.INSTALL_IF_NECESSARY`.
-     - `supported_file_extensions` (str, optional): The file extension for models supported by the binding. Defaults to `"*.bin"`.
+     - `SAFE_STORE_SUPPORTED_FILE_EXTENSIONS` (str, optional): The file extension for models supported by the binding. Defaults to `"*.bin"`.
    - Description: The constructor initializes the LLMBinding object and sets up various properties based on the provided parameters. It also handles the installation of the binding if necessary.
 
 2. **Installation Methods:**

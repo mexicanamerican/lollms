@@ -7,7 +7,7 @@ if not pm.is_installed("freedom_search"):
 from freedom_search import InternetSearchEnhancer
 from scrapemaster import ScrapeMaster
 from pathlib import Path
-from lollmsvectordb import VectorDatabase
+from safe_store import SafeStore
 
 def get_favicon_url(url):
     import requests
@@ -173,14 +173,14 @@ def scrape_and_save(url, file_path:str|Path=None, use_selenium=False, follow_lin
 
 def get_relevant_text_block(
     url,
-    vectorizer:VectorDatabase,
+    vectorizer:SafeStore,
     title=None,
 ):
     try:
         sm = ScrapeMaster(url)
         result = sm.scrape_all()
         if len(result["texts"])>0:
-            vectorizer.add_document(title if title else url, "\n".join(result["texts"]), url)
+            vectorizer.add_text(title if title else url, "\n".join(result["texts"]), url)
     except Exception as ex:
         trace_exception(ex)        
 
@@ -288,26 +288,22 @@ def internet_search_with_vectorization(query, chromedriver_path=None, internet_n
 
     from selenium import webdriver
     from selenium.webdriver.chrome.options import Options
-    from lollmsvectordb import VectorDatabase
-    from lollmsvectordb import VectorDatabase
-    from lollmsvectordb.text_document_loader import TextDocumentsLoader
-    from lollmsvectordb.lollms_tokenizers.tiktoken_tokenizer import TikTokenTokenizer
+    from safe_store import SafeStore
 
-    if vectorizer == "semantic":
-        from lollmsvectordb.lollms_vectorizers.semantic_vectorizer import SemanticVectorizer
-        v = SemanticVectorizer()
+    from safe_store import SafeStore
+    # Vectorizer selection
+    if vectorizer == "st":
+        vectorizer_name = "st:all-MiniLM-L6-v2"
     elif vectorizer == "tfidf":
-        from lollmsvectordb.lollms_vectorizers.tfidf_vectorizer import TFIDFVectorizer
-        v = TFIDFVectorizer()
+        vectorizer_name = "tfidf:standard"
     elif vectorizer == "openai":
-        from lollmsvectordb.lollms_vectorizers.openai_vectorizer import OpenAIVectorizer
-        v = OpenAIVectorizer()
+        vectorizer_name = "openai:text-embedding-3-small"
     elif vectorizer == "ollama":
-        from lollmsvectordb.lollms_vectorizers.ollama_vectorizer import OllamaVectorizer
-        v = OllamaVectorizer()
-
-    vectorizer = VectorDatabase("", v, TikTokenTokenizer(), internet_vectorization_chunk_size, internet_vectorization_overlap_size)
-
+        vectorizer_name = "ollama:bge-3m"
+    tmp_path = Path.home()
+    # Create database path and initialize VectorDatabase
+    db_path = tmp_path / f"internet_ss.db"
+    vdb = SafeStore(db_path)   
     formatted_text = ""
     nb_non_empty = 0
     ise = InternetSearchEnhancer()
@@ -319,15 +315,18 @@ def internet_search_with_vectorization(query, chromedriver_path=None, internet_n
             title = result["title"]
             brief = result["snippet"]
             href = result["url"]
+            formatted_text = f"""title: {title}
+brenf: {brief}
+href: {href}
+"""
             if quick_search:
-                vectorizer.add_document(title, brief, href)
+                vdb.add_text(title, formatted_text,vectorizer_name, metadata={"title":title,"brenf":brief,"href":href})
             else:
                 get_relevant_text_block(href, vectorizer, title)
             nb_non_empty += 1
             if nb_non_empty>=internet_nb_search_pages:
                 break
-        vectorizer.build_index()
-        chunks = vectorizer.search(query, internet_vectorization_nb_chunks)
+        chunks = vdb.query(query,vectorizer_name, top_k= internet_vectorization_nb_chunks)
     else:
         chunks = []
 

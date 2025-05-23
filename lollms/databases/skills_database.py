@@ -1,6 +1,5 @@
 import sqlite3
-from lollmsvectordb import VectorDatabase, TFIDFVectorizer
-from lollmsvectordb.lollms_tokenizers.tiktoken_tokenizer import TikTokenTokenizer
+from safe_store import SafeStore
 import numpy as np
 from ascii_colors import ASCIIColors, trace_exception
 class SkillsLibrary:
@@ -9,27 +8,9 @@ class SkillsLibrary:
         self.db_path =db_path
         self.config = config
         self._initialize_db()
-        from lollmsvectordb.lollms_tokenizers.tiktoken_tokenizer import TikTokenTokenizer
-        if config is not None:
-            vectorizer = self.config.rag_vectorizer
-            if vectorizer == "semantic":
-                from lollmsvectordb.lollms_vectorizers.semantic_vectorizer import SemanticVectorizer
-                v = SemanticVectorizer(self.config.rag_vectorizer_model, self.config.rag_vectorizer_execute_remote_code)
-            elif vectorizer == "tfidf":
-                from lollmsvectordb.lollms_vectorizers.tfidf_vectorizer import TFIDFVectorizer
-                v = TFIDFVectorizer()
-            elif vectorizer == "openai":
-                from lollmsvectordb.lollms_vectorizers.openai_vectorizer import OpenAIVectorizer
-                v = OpenAIVectorizer()
-            elif self.config.rag_vectorizer == "ollama":
-                from lollmsvectordb.lollms_vectorizers.ollama_vectorizer import OllamaVectorizer
-                v = OllamaVectorizer(self.config.rag_vectorizer_model, self.config.rag_service_url)
-
-        else:
-            from lollmsvectordb.lollms_vectorizers.semantic_vectorizer import SemanticVectorizer
-            v = SemanticVectorizer(self.config.rag_vectorizer_model, self.config.rag_vectorizer_execute_remote_code)
-
-        self.vectorizer = VectorDatabase("", v, TikTokenTokenizer(),chunk_size, overlap, n_neighbors)
+        self.vectorizer = SafeStore(
+                                    db_path
+                                    )
         ASCIIColors.green("Vecorizer ready")
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()        
@@ -37,8 +18,9 @@ class SkillsLibrary:
         res = cursor.fetchall()
         try:
             for entry in res:
-                self.vectorizer.add_document(entry[3], entry[4], "",True, category_id=entry[2])
-            self.vectorizer.build_index()    
+                self.vectorizer.add_text(entry[3], entry[4], self.config.rag_vectorizer,
+                                chunk_size=self.config.rag_chunk_size,
+                                chunk_overlap=self.config.rag_overlap)                   
             cursor.close()
             conn.close()
         except Exception as ex:

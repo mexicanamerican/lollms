@@ -58,7 +58,7 @@ class LLMBinding:
                     config:LOLLMSConfig, 
                     binding_config:TypedConfig,
                     installation_option:InstallOption=InstallOption.INSTALL_IF_NECESSARY,
-                    supported_file_extensions='*.bin',
+                    SAFE_STORE_SUPPORTED_FILE_EXTENSIONS='*.bin',
                     binding_type:BindingType=BindingType.TEXT_ONLY,
                     models_dir_names:list=None,
                     lollmsCom:LoLLMsCom=None
@@ -79,7 +79,7 @@ class LLMBinding:
         self.add_default_configurations(binding_config)
 
         self.interrogatorStorer = None
-        self.supported_file_extensions          = supported_file_extensions
+        self.SAFE_STORE_SUPPORTED_FILE_EXTENSIONS          = SAFE_STORE_SUPPORTED_FILE_EXTENSIONS
         self.seed                               = config["seed"]
 
         self.sync_configuration(self.binding_config, lollms_paths)

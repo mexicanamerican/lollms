@@ -15,11 +15,10 @@ from lollms.tasks import TasksLibrary
 from lollms.prompting import LollmsLLMTemplate, LollmsContextDetails
 from lollms.types import MSG_OPERATION_TYPE, MSG_TYPE
 from lollms.function_call import FunctionType, FunctionCall
+from safe_store import SafeStore
 import importlib
 import asyncio
 
-from lollmsvectordb.database_elements.chunk import Chunk
-from lollmsvectordb.vector_database import VectorDatabase
 from typing import Callable, Any
 from pathlib import Path
 from datetime import datetime
@@ -198,9 +197,11 @@ class LollmsApplication(LoLLMsCom):
                 
                 
         self.session                    = Session(lollms_paths)
-        self.skills_library             = SkillsLibrary(self.lollms_paths.personal_skills_path/(self.config.skills_lib_database_name+".sqlite"), config = self.config)
         self.tasks_library              = TasksLibrary(self)
-
+        if self.config.activate_skills_lib:
+            self.skills_library             = SkillsLibrary(self.lollms_paths.personal_skills_path/(self.config.skills_lib_database_name+".db"), config = self.config)
+        else:
+            self.skills_library = None
 
     # properties
     @property
@@ -502,55 +503,23 @@ class LollmsApplication(LoLLMsCom):
         self.active_datalakes = []
         for rag_db in self.config.datalakes:
             if rag_db['mounted']:
-                if rag_db['type']=='lollmsvectordb':
+                if rag_db['type']=='safe_store':
                     try:                    
-                        from lollmsvectordb import VectorDatabase
-                        from lollmsvectordb.text_document_loader import TextDocumentsLoader
-                        from lollmsvectordb.lollms_tokenizers.tiktoken_tokenizer import TikTokenTokenizer
-
+                        from safe_store import SafeStore
                         # Vectorizer selection
-                        if self.config.rag_vectorizer == "semantic":
-                            from lollmsvectordb.lollms_vectorizers.semantic_vectorizer import SemanticVectorizer
-                            vectorizer = SemanticVectorizer(self.config.rag_vectorizer_model)
-                        elif self.config.rag_vectorizer == "tfidf":
-                            from lollmsvectordb.lollms_vectorizers.tfidf_vectorizer import TFIDFVectorizer
-                            vectorizer = TFIDFVectorizer()
-                        elif self.config.rag_vectorizer == "openai":
-                            from lollmsvectordb.lollms_vectorizers.openai_vectorizer import OpenAIVectorizer
-                            vectorizer = OpenAIVectorizer(
-                                self.config.rag_vectorizer_model,
-                                self.config.rag_vectorizer_openai_key
-                            )
-                        elif self.config.rag_vectorizer == "ollama":
-                            from lollmsvectordb.lollms_vectorizers.ollama_vectorizer import OllamaVectorizer
-                            vectorizer = OllamaVectorizer(
-                                self.config.rag_vectorizer_model,
-                                self.config.rag_service_url
-                            )
-
+                        vectorizer_name = self.config.rag_vectorizer_model or "st:all-MiniLM-L6-v2"
                         # Create database path and initialize VectorDatabase
                         db_path = Path(rag_db['path']) / f"{rag_db['alias']}.sqlite"
-                        vdb = VectorDatabase(
-                            db_path,
-                            vectorizer,
-                            None if self.config.rag_vectorizer == "semantic" else self.model if self.model else TikTokenTokenizer(),
-                            n_neighbors=self.config.rag_n_chunks
-                        )       
+                        vdb = SafeStore(db_path)   
 
                         # Add to active databases
                         self.active_datalakes.append(
-                            rag_db | {"binding": vdb}
+                            rag_db | {"binding": vdb, "vectorizer_name":vectorizer_name}
                         )
 
                     except Exception as ex:
                         trace_exception(ex)
                         ASCIIColors.error(f"Couldn't load {db_path} consider revectorizing it")
-                elif rag_db['type']=='lightrag':
-                    from lollmsvectordb.database_clients.lightrag_client import LollmsLightRagConnector
-                    lr = LollmsLightRagConnector(rag_db['url'], rag_db['key'])
-                    self.active_datalakes.append(
-                            rag_db | {"binding": lr}
-                    )
     def load_service_from_folder(self, folder_path, target_name):
         # Convert folder_path to a Path object
         folder_path = Path(folder_path)
@@ -2781,67 +2750,60 @@ Answer directly with the reformulation of the last prompt.
                     self.personality.step_start("Querying the RAG datalake")
 
                     # RAGs
-                    if len(self.active_datalakes) > 0:
-                        recovered_ids=[[] for _ in range(len(self.active_datalakes))]
-                        for i,db in enumerate(self.active_datalakes):
-                            if db['mounted']:
-                                try:
-                                    if db["type"]=="lollmsvectordb":
-                                        from lollmsvectordb.vector_database import VectorDatabase
-                                        binding:VectorDatabase = db["binding"]
+                    # if len(self.active_datalakes) > 0:
+                    #     recovered_ids=[[] for _ in range(len(self.active_datalakes))]
+                    #     for i,db in enumerate(self.active_datalakes):
+                    #         if db['mounted']:
+                    #             try:
+                    #                 if db["type"]=="safe_store":
+                                        
+                    #                     ss:SafeStore = db["binding"]
+                    #                     vectorizer_name:str = db["vectorizer_name"]
+                    #                     r=ss.query(query, vectorizer_name, top_k= self.config.rag_n_chunks)
+                    #                     recovered_ids[i]+=[rg.chunk_id for rg in r]
+                    #                     if self.config.rag_activate_multi_hops:
+                    #                         r = [rg for rg in r if self.personality.verify_rag_entry(query, rg.text)]
+                    #                     documentation += "\n".join(["## chunk" + research_result[]  for research_result in r])+"\n"
+                    #             except Exception as ex:
+                    #                 trace_exception(ex)
+                    #                 self.personality.error(f"Couldn't recover information from Datalake {db['alias']}")
 
-                                        r=binding.search(query, self.config.rag_n_chunks, recovered_ids[i])
-                                        recovered_ids[i]+=[rg.chunk_id for rg in r]
-                                        if self.config.rag_activate_multi_hops:
-                                            r = [rg for rg in r if self.personality.verify_rag_entry(query, rg.text)]
-                                        documentation += "\n".join(["## chunk" + research_result.text  for research_result in r])+"\n"
-                                    elif db["type"]=="lightrag":
-                                        try:
-                                            from lollmsvectordb.database_clients.lightrag_client import LollmsLightRagConnector
-                                            lc:LollmsLightRagConnector = db["binding"]
-                                            documentation += lc.query(query)
-                                                
-                                        except Exception as ex:
-                                            trace_exception(ex)
-                                except Exception as ex:
-                                    trace_exception(ex)
-                                    self.personality.error(f"Couldn't recover information from Datalake {db['alias']}")
-
-                    if self.personality.persona_data_vectorizer:
-                        chunks:List[Chunk] = self.personality.persona_data_vectorizer.search(query, int(self.config.rag_n_chunks))
-                        for chunk in chunks:
-                            if self.config.rag_put_chunk_informations_into_context:
-                                documentation += f"{self.system_custom_header('document chunk')}\n## document title: {chunk.doc.title}\n## chunk content:\n{chunk.text}\n"
-                            else:
-                                documentation += f"{self.system_custom_header('chunk')}\n{chunk.text}\n"
+                    # TODO : upgrade to safe_store
+                    # if self.personality.persona_data_vectorizer:
+                    #     chunks:List[Chunk] = self.personality.persona_data_vectorizer.search(query, int(self.config.rag_n_chunks))
+                    #     for chunk in chunks:
+                    #         if self.config.rag_put_chunk_informations_into_context:
+                    #             documentation += f"{self.system_custom_header('document chunk')}\n## document title: {chunk.doc.title}\n## chunk content:\n{chunk.text}\n"
+                    #         else:
+                    #             documentation += f"{self.system_custom_header('chunk')}\n{chunk.text}\n"
 
                     if (len(client.discussion.text_files) > 0) and client.discussion.vectorizer is not None:
-                        chunks:List[Chunk] = client.discussion.vectorizer.search(query, int(self.config.rag_n_chunks))
+                        chunks = client.discussion.vectorizer.query(query, self.config.rag_vectorizer)
                         for chunk in chunks:
                             if self.config.rag_put_chunk_informations_into_context:
-                                documentation += f"{self.system_custom_header('document chunk')}\n## document title: {chunk.doc.title}\n## chunk content:\n{chunk.text}\n"
+                                documentation += f"{self.system_custom_header('document chunk')}\n## document title: {chunk.doc['metadata']}\n## chunk content:\n{chunk['chunk_text']}\n"
                             else:
-                                documentation += f"{self.start_header_id_template}chunk{self.end_header_id_template}\n{chunk.text}\n"                    
+                                documentation += f"{self.start_header_id_template}chunk{self.end_header_id_template}\n{chunk['chunk_text']}\n"                    
                     # Check if there is discussion knowledge to add to the prompt
-                    if self.config.activate_skills_lib:
-                        try:
-                            # skills = self.skills_library.query_entry(query)
-                            self.personality.step_start("Adding skills")
-                            if self.config.debug:
-                                ASCIIColors.info(f"Query : {query}")
-                            skill_titles, skills, similarities = self.skills_library.query_vector_db(query, top_k=3, min_similarity=self.config.rag_min_correspondance)#query_entry_fts(query)
-                            skills_detials=[{"title": title, "content":content, "similarity":similarity} for title, content, similarity in zip(skill_titles, skills, similarities)]
+                    # if self.config.activate_skills_lib:
+                    #     try:
+                    #         # skills = self.skills_library.query_entry(query)
+                    #         self.personality.step_start("Adding skills")
+                    #         if self.config.debug:
+                    #             ASCIIColors.info(f"Query : {query}")
+                    #         skill_titles, skills, similarities = self.skills_library.query_vector_db(query, top_k=3, min_similarity=self.config.rag_min_correspondance)#query_entry_fts(query)
+                    #         skills_detials=[{"title": title, "content":content, "similarity":similarity} for title, content, similarity in zip(skill_titles, skills, similarities)]
 
-                            if len(skills)>0:
-                                if documentation=="":
-                                    documentation=f"{self.system_custom_header('skills library knowledges')}\n"
-                                for i,skill in enumerate(skills_detials):
-                                    documentation += "---\n"+ self.system_custom_header(f"knowledge {i}") +f"\ntitle:\n{skill['title']}\ncontent:\n{skill['content']}\n---\n"
-                            self.personality.step_end("Adding skills")
-                        except Exception as ex:
-                            trace_exception(ex)
-                            self.warning("Couldn't add long term memory information to the context. Please verify the vector database")        # Add information about the user
-                            self.personality.step_end("Adding skills")
+                    #         if len(skills)>0:
+                    #             if documentation=="":
+                    #                 documentation=f"{self.system_custom_header('skills library knowledges')}\n"
+                    #             for i,skill in enumerate(skills_detials):
+                    #                 documentation += "---\n"+ self.system_custom_header(f"knowledge {i}") +f"\ntitle:\n{skill['title']}\ncontent:\n{skill['content']}\n---\n"
+                    #         self.personality.step_end("Adding skills")
+                    #     except Exception as ex:
+                    #         trace_exception(ex)
+                    #         self.warning("Couldn't add long term memory information to the context. Please verify the vector database")        # Add information about the user
+                    #         self.personality.step_end("Adding skills")
 
                     # Inform the user    
                     self.personality.step_end("Querying the RAG datalake")
@@ -2888,6 +2850,7 @@ Answer directly with the reformulation of the last prompt.
                         self.personality.step_start("Performing Internet search (advanced mode: slower but more accurate)")
 
                     internet_search_results=f"{self.system_full_header}Use the web search results data to answer {self.config.user_name}. Try to extract information from the web search and use it to perform the requested task or answer the question. Do not come up with information that is not in the websearch results. Try to stick to the websearch results and clarify if your answer was based on the resuts or on your own culture. If you don't know how to perform the task, then tell the user politely that you need more data inputs.{self.separator_template}{self.start_header_id_template}Web search results{self.end_header_id_template}\n"
+
 
                     chunks:List[Chunk] = self.personality.internet_search_with_vectorization(query, self.config.internet_quick_search, asses_using_llm=self.config.activate_internet_pages_judgement)
                     

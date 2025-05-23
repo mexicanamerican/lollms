@@ -325,7 +325,7 @@ skills_lib_database_name: "default" # Default skills database
 
 max_summary_size: 512 # in tokens
 
-rag_put_chunk_informations_into_context: false # if true then each chunk will be preceded by its information which may waste some context space but allow the ai to point where it found th einformation
+rag_put_chunk_informations_into_context: true # if true then each chunk will be preceded by its information which may waste some context space but allow the ai to point where it found th einformation
 rag_build_keys_words: true # If true, when querrying the database, we use keywords generated from the user prompt instead of the prompt itself.
 
 # Activate internet search

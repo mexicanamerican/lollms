@@ -6,7 +6,7 @@
 # Import necessary libraries
 import random
 from typing import Tuple, List, Dict, Any, Optional
-
+from safe_store import SafeStore
 # ascii_colors offers advanced console coloring and bug tracing
 from ascii_colors import trace_exception
 
@@ -133,17 +133,13 @@ def get_system_prompt(agent_name, number_of_entries=5) -> Tuple[str, str]:
         Tuple[str, str]: A tuple containing the title and content of the system prompt.
     """
     try:
-        from lollmsvectordb.vector_database import VectorDatabase
-        from lollmsvectordb.lollms_vectorizers.tfidf_vectorizer import TFIDFVectorizer
-        from lollmsvectordb.lollms_tokenizers.tiktoken_tokenizer import TikTokenTokenizer
-        db = VectorDatabase("", TFIDFVectorizer(), TikTokenTokenizer(), number_of_entries)
+        db = SafeStore("")
 
         system_prompts = get_prompts()
         
         for entry in system_prompts:
-            db.add_document(entry[0], entry[0])
-        db.build_index()
-        results = db.search(agent_name, number_of_entries)
+            db.add_text(entry[0], entry[0])
+        results = db.query(agent_name, top_k=number_of_entries)
         
         return [find_entry(system_prompts, r[2]) for r in results]
     except Exception as e:

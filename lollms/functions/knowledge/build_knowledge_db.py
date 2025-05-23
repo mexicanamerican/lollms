@@ -1,7 +1,6 @@
 from pathlib import Path
 from lollms.personality import APScript
-from lollmsvectordb.text_document_loader import TextDocumentsLoader
-from lollmsvectordb import VectorDatabase
+from safe_store import SafeStore
 import json
 import re
 def remove_indexing_from_markdown(markdown_text):
@@ -34,7 +33,7 @@ def find_available_file(folder_path):
         i += 1
 
 
-def buildKnowledgeDB(llm:APScript, data_store:VectorDatabase, data_folder_path:str, output_folder:str, questions_gen_size:int, answer_gen_size:int):
+def buildKnowledgeDB(llm:APScript, data_store:SafeStore, data_folder_path:str, output_folder:str, questions_gen_size:int, answer_gen_size:int):
     output_folder = Path(output_folder)
     output_folder.mkdir(parents=True, exist_ok=True)
     # Verify if the data_folder_path exists
@@ -46,8 +45,7 @@ def buildKnowledgeDB(llm:APScript, data_store:VectorDatabase, data_folder_path:s
     for file_path in document_files:
         if file_path.suffix in ['.pdf',".txt",".c",".cpp",".h",".py",".msg",".docx",".pptx",".md"]:
             print(file_path)
-            document_text = TextDocumentsLoader.read_file(file_path)
-            data_store.add_document(file_path, document_text, chunk_size=512, overlap_size=128)
+            data_store.add_document(file_path)
     llm.step_end(f"Loading files")
     # Index the vector store
     llm.step_start(f"Indexing files")

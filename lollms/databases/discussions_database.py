@@ -9,8 +9,7 @@ from lollms.utilities import discussion_path_to_url
 from lollms.paths import LollmsPaths
 from lollms.com import LoLLMsCom
 
-from lollmsvectordb.vector_database import VectorDatabase
-from lollmsvectordb.text_document_loader import TextDocumentsLoader
+from safe_store import SafeStore
 import gc
 import json
 import shutil
@@ -774,41 +773,19 @@ class Discussion:
         self.update_file_lists()
 
         if len(self.text_files)>0:
-            if self.lollms.config.rag_vectorizer=="semantic":
-                from lollmsvectordb.lollms_vectorizers.semantic_vectorizer import SemanticVectorizer
-                vectorizer = SemanticVectorizer(self.lollms.config.rag_vectorizer_model, self.lollms.config.rag_vectorizer_execute_remote_code)
-            elif self.lollms.config.rag_vectorizer=="tfidf":
-                from lollmsvectordb.lollms_vectorizers.tfidf_vectorizer import TFIDFVectorizer
-                vectorizer = TFIDFVectorizer()
-            elif self.lollms.config.rag_vectorizer=="openai":
-                from lollmsvectordb.lollms_vectorizers.openai_vectorizer import OpenAIVectorizer
-                vectorizer = OpenAIVectorizer(self.lollms.config.rag_vectorizer_model, self.lollms.config.rag_vectorizer_openai_key)
-            elif self.lollms.config.rag_vectorizer == "ollama":
-                from lollmsvectordb.lollms_vectorizers.ollama_vectorizer import OllamaVectorizer
-                vectorizer = OllamaVectorizer(self.lollms.config.rag_vectorizer_model, self.lollms.config.rag_service_url)
 
-            self.vectorizer = VectorDatabase(
-                                        self.discussion_rag_folder/"db.sqli",
-                                        vectorizer,
-                                        self.lollms.model,
-                                        chunk_size=self.lollms.config.rag_chunk_size,
-                                        overlap=self.lollms.config.rag_overlap
+            self.vectorizer = SafeStore(
+                                        self.discussion_rag_folder/"db.sqli"
                                         )
             
             if len(self.vectorizer.list_documents())==0 and len(self.text_files)>0:
                 for path in self.text_files:
                     try:
-                        data = TextDocumentsLoader.read_file(path)
-                        try:
-                            self.vectorizer.add_document(path.stem, data, path, True)
-                        except Exception as ex:
-                            trace_exception(ex)            
+                        self.vectorizer.add_document(path, self.lollms.config.rag_vectorizer,
+                                        chunk_size=self.lollms.config.rag_chunk_size,
+                                        chunk_overlap=self.lollms.config.rag_overlap)      
                     except Exception as ex:
                         trace_exception(ex)
-                try:
-                    self.vectorizer.build_index()
-                except Exception as ex:
-                    trace_exception(ex)
         else:
             self.vectorizer = None
 
@@ -824,25 +801,15 @@ class Discussion:
             all_files = self.text_files+self.image_files+self.audio_files
             if any(file_name == entry.name for entry in self.text_files):
                 fn = [entry for entry in self.text_files if entry.name == file_name][0]
-                self.text_files = [entry for entry in self.text_files if entry.name != file_name]
                 try:
-                    text = TextDocumentsLoader.read_file(fn)
-                    hash = self.vectorizer._hash_document(text)
-                    self.vectorizer.remove_document(hash)
+                    self.vectorizer.delete_document_by_path(fn)
+                    if callback is not None:
+                        callback("File removed successfully",MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_INFO)
                 except Exception as ex:
                     trace_exception(ex)
 
                 Path(fn).unlink()
-                if len(self.text_files)>0:
-                    try:
-                        self.vectorizer.remove_document(fn)
-                        if callback is not None:
-                            callback("File removed successfully",MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_INFO)
-                        return True
-                    except ValueError as ve:
-                        ASCIIColors.error(f"Couldn't remove the file")
-                        return False
-                else:
+                if len(self.text_files)==0:
                     self.vectorizer = None
             elif any(file_name == entry.name for entry in self.image_files):
                 fn = [entry for entry in self.image_files if entry.name == file_name][0]
@@ -948,27 +915,10 @@ class Discussion:
                 self.lollms.ShowBlockingMessage("Processing file\nPlease wait ...")
                 if process:
                     if self.vectorizer is None:
-                        if self.lollms.config.rag_vectorizer == "semantic":
-                            from lollmsvectordb.lollms_vectorizers.semantic_vectorizer import SemanticVectorizer
-                            v = SemanticVectorizer(self.lollms.config.rag_vectorizer_model, self.lollms.config.rag_vectorizer_execute_remote_code)
-                        elif self.lollms.config.rag_vectorizer == "tfidf":
-                            from lollmsvectordb.lollms_vectorizers.tfidf_vectorizer import TFIDFVectorizer
-                            v = TFIDFVectorizer()
-                        elif self.lollms.config.rag_vectorizer == "openai":
-                            from lollmsvectordb.lollms_vectorizers.openai_vectorizer import OpenAIVectorizer
-                            v = OpenAIVectorizer(self.lollms.config.rag_vectorizer_openai_key)
-                        elif self.lollms.config.rag_vectorizer == "ollama":
-                            from lollmsvectordb.lollms_vectorizers.ollama_vectorizer import OllamaVectorizer
-                            v = OllamaVectorizer(self.lollms.config.rag_vectorizer_model, self.lollms.config.rag_service_url)
-
-                        self.vectorizer = VectorDatabase(
-                                    self.discussion_rag_folder/"db.sqli",
-                                    v,
-                                    self.lollms.model,
+                        self.vectorizer = SafeStore(
+                                    self.discussion_rag_folder/"db.sqli"
                                     )
-                    data = TextDocumentsLoader.read_file(path)
-                    self.vectorizer.add_document(path.stem, data, path, True)
-                    self.vectorizer.build_index()
+                    self.vectorizer.add_document(path, chunk_size=self.lollms.config.rag_chunk_size, chunk_overlap=self.lollms.config.rag_overlap)
                     if callback is not None:
                         callback("File added successfully",MSG_OPERATION_TYPE.MSG_OPERATION_TYPE_INFO)
                     self.lollms.HideBlockingMessage(client.client_id)

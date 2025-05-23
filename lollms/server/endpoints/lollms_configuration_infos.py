@@ -18,6 +18,7 @@ from lollms.server.elf_server import LOLLMSElfServer
 from lollms.binding import BindingBuilder, InstallOption
 from ascii_colors import ASCIIColors
 from lollms.utilities import load_config, trace_exception, gc, show_yes_no_dialog
+from lollms.databases.skills_database import SkillsLibrary
 from lollms.security import check_access
 from lollms.templating import LollmsLLMTemplate
 from pathlib import Path
@@ -219,6 +220,11 @@ async def apply_settings(request: Request):
                     lollmsElfServer.binding = BindingBuilder().build_binding(lollmsElfServer.config, lollmsElfServer.lollms_paths, InstallOption.INSTALL_IF_NECESSARY, lollmsCom=lollmsElfServer)
             lollmsElfServer.rebuild_personalities()
             lollmsElfServer.verify_servers()
+            if lollmsElfServer.config.activate_skills_lib:
+                lollmsElfServer.skills_library             = SkillsLibrary(lollmsElfServer.lollms_paths.personal_skills_path/(lollmsElfServer.config.skills_lib_database_name+".db"), config = lollmsElfServer.config)
+            else:
+                lollmsElfServer.skills_library = None
+
             if lollmsElfServer.config.auto_save:
                 lollmsElfServer.config.save_config()
 
