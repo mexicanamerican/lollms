@@ -5493,7 +5493,7 @@ transition-all duration-300 ease-in-out">
         return final_output
 
     #Helper method to convert outputs path to url
-    def path2url(file):
+    def path2url(self,file):
         file = str(file).replace("\\","/")
         pth = file.split('/')
         idx = pth.index("outputs")
