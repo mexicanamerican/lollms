@@ -18,6 +18,7 @@ from lollms.function_call import FunctionType, FunctionCall
 from safe_store import SafeStore
 import importlib
 import asyncio
+import re
 
 from typing import Callable, Any
 from pathlib import Path
@@ -107,6 +108,9 @@ class LollmsApplication(LoLLMsCom):
         self._message_id = 0
 
         self.current_generation_task = None
+
+
+
 
         if not free_mode:
             try:
@@ -3209,3 +3213,138 @@ Answer directly with the reformulation of the last prompt.
         """Get the start_header_id_template."""
         return f"{self.start_ai_header_id_template}{ai_name}{self.end_ai_header_id_template}"
 
+    def parse_to_openai(self, lollms_prompt_string: str) -> list:
+        """
+        Parses a LoLLMs-formatted prompt string into an OpenAI-compatible messages list.
+        """
+        # --- Start of Delimiter and Regex Setup (as in your provided code) ---
+        # This part is kept inside the method, assuming self.config or self.personality
+        # might change between calls. If they are stable for the parser instance,
+        # move this setup to __init__ for efficiency.
+
+        self.full_delimiter_to_internal_role = {}
+        escaped_delimiter_patterns = []
+
+        # CRITICAL CHECK POINT FOR "INCORRECT EXTRACTION":
+        # Ensure the tags derived here (e.g., self.config.user_name) MATCH the
+        # actual tags used in `lollms_prompt_string`.
+        # For `full_prompt_example` to work, self.config.user_name needs to be "user"
+        # and the assistant tag logic needs to result in "assistant".
+        user_actual_tag = self.config.user_name if self.config.use_user_name_in_discussions else "user"
+        assistant_actual_tag = self.personality.name if self.config.use_assistant_name_in_discussion else "assistant"
+
+        self.role_definitions = {
+            "system": ("system", self.start_header_id_template, self.end_user_header_id_template),
+            "user": (user_actual_tag, self.start_user_header_id_template, self.end_user_header_id_template),
+            "assistant": (assistant_actual_tag, self.start_ai_header_id_template, self.end_ai_header_id_template),
+            "discussion": ("discussion", self.start_header_id_template, self.end_user_header_id_template)
+        }
+
+        for internal_role, definition in self.role_definitions.items():
+            tag, prefix, suffix = definition
+            if not tag:
+                print(f"Warning: No tag configured for internal role '{internal_role}'. It won't be parsed.")
+                continue
+            full_delimiter = f"{prefix}{tag}{suffix}"
+            self.full_delimiter_to_internal_role[full_delimiter] = internal_role
+            escaped_delimiter_patterns.append(re.escape(full_delimiter))
+        
+        escaped_delimiter_patterns.sort(key=len, reverse=True)
+        self.delimiter_choices_pattern = "|".join(escaped_delimiter_patterns)
+        
+        if not self.delimiter_choices_pattern:
+            # This can happen if all tags are None or empty.
+            # Consider if an empty prompt string should return [] or raise error earlier.
+            if not lollms_prompt_string.strip(): return [] # Handle empty prompt gracefully
+            raise ValueError("No valid delimiters could be constructed. "
+                             "Please ensure role tags (user_name, assistant_name etc.) and templates are configured.")
+
+        self.parsing_regex = re.compile(
+            f"({self.delimiter_choices_pattern})"
+            r"([\s\S]*?)"
+            f"(?=\\n(?:{self.delimiter_choices_pattern})|$)"
+        )        
+        # --- End of Delimiter and Regex Setup ---
+
+        matches = self.parsing_regex.finditer(lollms_prompt_string)
+        all_segments = []
+        for match in matches:
+            full_delimiter_string = match.group(1)
+            content = match.group(2).strip()
+            internal_role = self.full_delimiter_to_internal_role.get(full_delimiter_string)
+            
+            if internal_role:
+                all_segments.append({"role_key": internal_role, "content": content})
+            else:
+                # This should ideally not be hit if regex and config are correct.
+                # It might indicate a new, unconfigured delimiter in the prompt.
+                print(f"Warning: Unrecognized delimiter segment encountered: {full_delimiter_string[:50]}...")
+
+        # If all_segments is empty, it means no delimiters were found.
+        # This could be an empty prompt, a prompt with no known delimiters,
+        # or an issue with delimiter_choices_pattern becoming empty.
+        if not all_segments and lollms_prompt_string.strip():
+            # If the prompt is not empty but no segments were found, it's likely a pure user message.
+            # However, the current logic relies on delimiters. If this scenario is possible,
+            # it needs specific handling (e.g., treat as a single user message).
+            # For now, this will result in an empty openai_messages list.
+            pass
+
+
+        openai_messages = []
+        system_parts = []
+        first_assistant_content = None
+        processed_first_assistant = False
+        chat_start_index = 0 
+
+        for i, segment in enumerate(all_segments):
+            chat_start_index = i 
+            role = segment["role_key"]
+            content = segment["content"]
+
+            if not processed_first_assistant:
+                if role == "system":
+                    if content: system_parts.append(content)
+                elif role == "discussion": 
+                    if content: system_parts.append(content)
+                elif role == "assistant": 
+                    first_assistant_content = content 
+                    processed_first_assistant = True
+                    chat_start_index = i + 1 
+                    break 
+                elif role == "user": 
+                    break 
+            else: # processed_first_assistant is True
+                  # This means the loop should have broken when the first assistant msg was processed.
+                  # If it reaches here, it means the first segment AFTER the first assistant
+                  # is at index `i`.
+                break 
+        
+        remaining_segments_for_chat = all_segments[chat_start_index:]
+            
+        initial_system_message_content = "\n".join(system_parts).strip()
+        if first_assistant_content is not None: 
+            if initial_system_message_content and first_assistant_content:
+                initial_system_message_content += "\n" + first_assistant_content
+            elif first_assistant_content: 
+                initial_system_message_content = first_assistant_content
+            
+        if initial_system_message_content: 
+            openai_messages.append({"role": "system", "content": initial_system_message_content})
+
+        for segment in remaining_segments_for_chat:
+            role = segment["role_key"]
+            content = segment["content"]
+            if role == "user":
+                openai_messages.append({"role": "user", "content": content})
+            elif role == "assistant":
+                openai_messages.append({"role": "assistant", "content": content})
+            elif role == "discussion":
+                # Policy: Mid-chat discussion segments are currently ignored.
+                pass 
+
+        # MODIFICATION: Remove the last message if it's from the assistant
+        if openai_messages and openai_messages[-1]["role"] == "assistant":
+            openai_messages.pop()
+
+        return openai_messages

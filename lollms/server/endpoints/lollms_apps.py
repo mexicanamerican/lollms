@@ -483,6 +483,7 @@ async def apps_zoorepo(app_name: str, file_name: str):
     file_path = base_path  / app_name / file_name
 
     # Check if the file exists and is within the allowed directory
+    ASCIIColors.info(f"searching file : {file_path}")
     if not file_path.is_file() :
         raise HTTPException(status_code=404, detail="File not found")
 

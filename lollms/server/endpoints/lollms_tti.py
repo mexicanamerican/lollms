@@ -74,7 +74,7 @@ async def list_tti_services(request: ServiceListingRequest) -> List[Dict[str, st
                     tti_services.append(service_info)
                 except Exception as e:
                     # Log error if needed, skip invalid config files
-                    continue
+                    trace_exception(e)
     
     return tti_services
 
