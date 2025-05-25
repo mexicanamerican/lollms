@@ -118,35 +118,41 @@ class LollmsApplication(LoLLMsCom):
                     # Clone the repository to the target path
                     if self.lollms_paths.lollms_core_path.exists():
                         def check_lollms_core():
+                            subprocess.run(["git", "-C", self.lollms_paths.lollms_core_path, "checkout", "main"])            
                             subprocess.run(["git", "-C", self.lollms_paths.lollms_core_path, "pull"]) 
                         ASCIIColors.blue("Lollms_core found in the app space.")           
                         ASCIIColors.execute_with_animation("Pulling last lollms_core", check_lollms_core)
 
                     def check_lollms_bindings_zoo():
+                        subprocess.run(["git", "-C", self.lollms_paths.bindings_zoo_path, "checkout", "main"])            
                         subprocess.run(["git", "-C", self.lollms_paths.bindings_zoo_path, "pull"])
                     ASCIIColors.blue("Bindings zoo found in your personal space.")
                     ASCIIColors.execute_with_animation("Pulling last bindings zoo", check_lollms_bindings_zoo)
 
                     # Pull the repository if it already exists
                     def check_lollms_personalities_zoo():
+                        subprocess.run(["git", "-C", self.lollms_paths.personalities_zoo_path, "checkout", "main"])            
                         subprocess.run(["git", "-C", self.lollms_paths.personalities_zoo_path, "pull"])            
                     ASCIIColors.blue("Personalities zoo found in your personal space.")
                     ASCIIColors.execute_with_animation("Pulling last personalities zoo", check_lollms_personalities_zoo)
 
                     # Pull the repository if it already exists
                     def check_lollms_models_zoo():
+                        subprocess.run(["git", "-C", self.lollms_paths.models_zoo_path, "checkout", "main"])            
                         subprocess.run(["git", "-C", self.lollms_paths.models_zoo_path, "pull"])            
                     ASCIIColors.blue("Models zoo found in your personal space.")
                     ASCIIColors.execute_with_animation("Pulling last Models zoo", check_lollms_models_zoo)
 
                     # Pull the repository if it already exists
                     def check_lollms_function_calling_zoo():
+                        subprocess.run(["git", "-C", self.lollms_paths.functions_zoo_path, "checkout", "main"])            
                         subprocess.run(["git", "-C", self.lollms_paths.functions_zoo_path, "pull"])            
                     ASCIIColors.blue("Function calling zoo found in your personal space.")
                     ASCIIColors.execute_with_animation("Pulling last Function calling zoo", check_lollms_function_calling_zoo)
 
                     # Pull the repository if it already exists
                     def check_lollms_services_zoo():
+                        subprocess.run(["git", "-C", self.lollms_paths.services_zoo_path, "checkout", "main"])            
                         subprocess.run(["git", "-C", self.lollms_paths.services_zoo_path, "pull"])            
                     ASCIIColors.blue("Services zoo found in your personal space.")
                     ASCIIColors.execute_with_animation("Pulling last services zoo", check_lollms_services_zoo)
