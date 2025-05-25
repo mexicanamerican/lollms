@@ -44,6 +44,7 @@ setuptools.setup(
     extras_require={"dev": requirements_dev},
     classifiers=[
         "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.10",
         "License :: OSI Approved :: Apache Software License",
         "Operating System :: OS Independent",
     ],
