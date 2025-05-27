@@ -3353,4 +3353,10 @@ Answer directly with the reformulation of the last prompt.
         if openai_messages and openai_messages[-1]["role"] == "assistant":
             openai_messages.pop()
 
+        if len(openai_messages)==1:
+            openai_messages[0]["role"]="user"
+        elif len(openai_messages)==0:
+            openai_messages=[
+                {"role":"user","content":lollms_prompt_string}
+            ]
         return openai_messages
