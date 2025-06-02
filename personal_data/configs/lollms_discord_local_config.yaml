@@ -50,9 +50,9 @@ ctx_size: 4084
 max_n_predict: 4096
 min_n_predict: 1024
 temperature: 0.9
-top_k: 50
+top_k: 40
 top_p: 0.95
-repeat_last_n: 40
+repeat_last_n: 64
 repeat_penalty: 1.2
 num_experts_per_token: 2
 
@@ -150,7 +150,7 @@ xtts_stream_chunk_size: 100
 xtts_temperature: 0.75
 xtts_length_penalty: 1.0
 xtts_repetition_penalty: 5.0
-xtts_top_k: 50
+xtts_top_k: 40
 xtts_top_p: 0.85
 xtts_speed: 1
 xtts_enable_text_splitting: true

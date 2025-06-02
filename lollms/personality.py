@@ -199,7 +199,7 @@ class AIPersonality:
         self._commands: list = []
 
         # Default model parameters
-        self._model_temperature: float = 0.1 # higher: more creative, lower more deterministic
+        self._model_temperature: float = 0.7 # higher: more creative, lower more deterministic
         self._model_top_k: int = 50
         self._model_top_p: float = 0.95
         self._model_repeat_penalty: float = 1.3
