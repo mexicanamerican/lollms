@@ -45,6 +45,7 @@ class LoLLMsCom:
     def __init__(self, sio:socketio.AsyncServer=None, verbose:bool=False) -> None:
         self.sio= sio
         self.verbose = verbose
+        self.loop: asyncio.AbstractEventLoop | None = None  # Initialize loop as None
         self.config = None 
         self.template:LollmsLLMTemplate = None
         self.personality = None
@@ -60,19 +61,29 @@ class LoLLMsCom:
             self.loop = asyncio.get_running_loop()
         except Exception as ex:
             self.loop = None
-    # Helper to schedule tasks - ensures self.loop is checked
+            
+    def set_loop(self, loop: asyncio.AbstractEventLoop):
+        """
+        Sets the asyncio event loop for the communication channel.
+        This should be called once the application's event loop is running.
+        """
+        self.loop = loop
+        ASCIIColors.info("LollmsCom: Event loop has been set.")
+
     def schedule_task(self, coro):
-        if self.loop:
-            # Create task schedules it, doesn't wait
-            self.loop.create_task(coro)
-        else:
-            try:
-                self.loop = asyncio.get_running_loop()
-                self.loop.create_task(coro)
-            except Exception as ex:
-                self.loop = None
-                # This ideally shouldn't happen if setup is correct
-                ASCIIColors.error(f"ERROR: Loop not available when trying to schedule {coro}")
+        """
+        Schedules a coroutine to be executed on the main event loop in a thread-safe manner.
+        """
+        if not self.loop:
+            # This is a critical error. The loop should have been set at startup.
+            # We log the error and might have to drop the task.
+            ASCIIColors.red(f"ERROR: Event loop not available. Cannot schedule {coro}")
+            # As a fallback, you could print the info to the console instead of doing nothing.
+            # For example, calling a synchronous print/log function here.
+            return
+
+        # This is the correct, thread-safe way to schedule a coroutine from another thread
+        asyncio.run_coroutine_threadsafe(coro, self.loop)
 
     def InfoMessage(self, content, client_id=None, verbose:bool=None):
         try:
