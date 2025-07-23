@@ -39,7 +39,7 @@ pip install --upgrade lollms
 Or if you want to get the latest version from the git:
 
 ```bash
-pip install --upgrade git+https://github.com/ParisNeo/lollms.git
+pip install --upgrade git+https://github.com/ParisNeo/lollms_legacy.git
 ```
 
 ## GPU support
