@@ -57,7 +57,7 @@ SET "TMP=%cd%\installer_files\temp"
 set MINICONDA_DIR=%cd%\installer_files\miniconda3
 set INSTALL_ENV_DIR=%cd%\installer_files\lollms_env
 set MINICONDA_DOWNLOAD_URL=https://repo.anaconda.com/miniconda/Miniconda3-latest-Windows-x86_64.exe
-set REPO_URL=https://github.com/ParisNeo/lollms.git
+set REPO_URL=https://github.com/ParisNeo/lollms_legacy.git
 
 if not exist "%MINICONDA_DIR%\Scripts\conda.exe" (
   @rem download miniconda
@@ -115,7 +115,7 @@ if exist lollms\ (
   cd lollms
   git pull
 ) else (
-  git clone https://github.com/ParisNeo/lollms.git
+  git clone https://github.com/ParisNeo/lollms_legacy.git
   cd lollms 
 )
 git submodule update --init

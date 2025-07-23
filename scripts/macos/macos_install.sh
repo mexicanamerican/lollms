@@ -68,7 +68,7 @@ MINICONDA_DIR="$PWD/installer_files/miniconda3"
 INSTALL_ENV_DIR="$PWD/installer_files/lollms_env"
 ENV_NAME="lollms"
 MINICONDA_DOWNLOAD_URL="https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-x86_64.sh"
-REPO_URL="https://github.com/ParisNeo/lollms.git"
+REPO_URL="https://github.com/ParisNeo/lollms_legacy.git"
 
 if [ ! -f "$MINICONDA_DIR/Scripts/conda" ]; then
   # Download Miniconda

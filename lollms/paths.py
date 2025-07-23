@@ -12,7 +12,7 @@ lollms_default_cfg_path = lollms_path / "configs/config.yaml"
 lollms_bindings_zoo_path = lollms_path / "zoos/bindings_zoo"
 lollms_personalities_zoo_path = lollms_path / "zoos/personalities_zoo"
 
-lollms_core_repo = "https://github.com/ParisNeo/lollms.git"
+lollms_core_repo = "https://github.com/ParisNeo/lollms_legacy.git"
 safe_store_repo = "https://github.com/ParisNeo/safe_store.git"
 
 personalities_zoo_repo = "https://github.com/ParisNeo/lollms_personalities_zoo.git"
