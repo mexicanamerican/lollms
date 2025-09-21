@@ -206,9 +206,8 @@ from io import StringIO
 
 def sanitize_svg(svg_content):
     try:
-        # Use defusedxml's parse function with a StringIO object
-        tree = ET.parse(StringIO(svg_content))
-        root = tree.getroot()
+        # Use defusedxml's fromstring function 
+        root = ET.fromstring(svg_content)
 
         # Define a list of allowed elements
         allowed_elements = {
